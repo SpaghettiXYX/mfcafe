@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>School Cafe E-System</title>
+  <title>BLMCSS Cafe E-System</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -23,8 +24,9 @@
   <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
-        <div class="bg-amber-600 text-white p-2 rounded-xl font-black text-lg">
-          <i class="fa-solid font-bold fa-mug-hot"></i> CAFE
+        <div class="bg-amber-600 text-white px-3 py-2 rounded-xl font-black text-sm tracking-wider flex items-center space-x-1.5 shadow-sm">
+          <i class="fa-solid fa-school text-xs"></i>
+          <span>BLMCSS CAFE</span>
         </div>
         <div>
           <h1 class="text-lg font-bold text-slate-800 leading-tight">School Cafe E-System</h1>
@@ -138,7 +140,7 @@
       <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
         <div class="flex justify-between items-center border-b border-slate-800 pb-6">
           <div>
-            <h1 class="text-4xl font-black tracking-tight text-amber-400">SCHOOL CAFE</h1>
+            <h1 class="text-4xl font-black tracking-tight text-amber-400">BLMCSS CAFE</h1>
             <p class="text-slate-400 text-lg">Beverage Pickup Screen</p>
           </div>
           <button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700">
@@ -181,7 +183,7 @@
       </div>
     </section>
 
-    <!-- 5. ADMIN VIEW -->
+    <!-- 5. ADMIN & ORDERS VIEW -->
     <section id="view-admin" class="view-panel hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -198,9 +200,30 @@
         </div>
       </div>
 
+      <!-- Orders Records Management Table -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-list-check text-amber-600 mr-2"></i>Orders Records Management</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
+                <th class="py-3 px-2">Order #</th>
+                <th class="py-3 px-2">Guest</th>
+                <th class="py-3 px-2">Drink</th>
+                <th class="py-3 px-2">Price</th>
+                <th class="py-3 px-2">Status</th>
+                <th class="py-3 px-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminOrdersTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Menu Management Table -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-slate-800">Menu Editor & Availability</h2>
+          <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-mug-saucer text-amber-600 mr-2"></i>Menu Editor & Availability</h2>
           <button onclick="openMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700">
             + Add New Drink
           </button>
@@ -210,7 +233,7 @@
             <thead>
               <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
                 <th class="py-3 px-2">Drink Name</th>
-                <th class="py-3 px-2">Temperature Options</th>
+                <th class="py-3 px-2">Temperature</th>
                 <th class="py-3 px-2">Price ($)</th>
                 <th class="py-3 px-2">Status</th>
                 <th class="py-3 px-2 text-right">Actions</th>
@@ -310,7 +333,7 @@
       fetchFromSheet();
       renderAll();
       setInterval(updateTimers, 1000);
-      setInterval(fetchFromSheet, 10000); // Auto sync every 10s
+      setInterval(fetchFromSheet, 10000);
     }
 
     function renderAll() {
@@ -536,6 +559,37 @@
       document.getElementById('adminOrderCount').innerText = state.orders.length;
       document.getElementById('adminItemCount').innerText = state.menu.length;
 
+      // Render Orders Table
+      const ordersTbody = document.getElementById('adminOrdersTable');
+      ordersTbody.innerHTML = "";
+
+      if (state.orders.length === 0) {
+        ordersTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">No orders recorded yet.</td></tr>`;
+      } else {
+        state.orders.forEach(order => {
+          const tr = document.createElement('tr');
+          tr.className = "border-b border-slate-100 hover:bg-slate-50";
+          tr.innerHTML = `
+            <td class="py-3 px-2 font-black text-slate-800">#${order.orderNum}</td>
+            <td class="py-3 px-2 text-slate-600">${order.guestName}</td>
+            <td class="py-3 px-2 font-semibold text-slate-800">${order.productName} (${order.temp})</td>
+            <td class="py-3 px-2 font-semibold text-amber-700">$${order.price.toFixed(2)}</td>
+            <td class="py-3 px-2">
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full ${order.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : order.status === 'READY' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+                ${order.status}
+              </span>
+            </td>
+            <td class="py-3 px-2 text-right">
+              <button onclick="deleteOrderRecord('${order.orderNum}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition">
+                <i class="fa-solid fa-trash mr-1"></i> Delete Order
+              </button>
+            </td>
+          `;
+          ordersTbody.appendChild(tr);
+        });
+      }
+
+      // Render Menu Table
       const tbody = document.getElementById('adminMenuTable');
       tbody.innerHTML = "";
 
@@ -565,6 +619,21 @@
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    function deleteOrderRecord(orderNum) {
+      if (!confirm(`Are you sure you want to delete Order #${orderNum} and clear it from Google Sheets?`)) return;
+      state.orders = state.orders.filter(o => o.orderNum !== String(orderNum));
+
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
+        });
+      }
+      renderAll();
     }
 
     function openMenuModal(itemName = null) {
