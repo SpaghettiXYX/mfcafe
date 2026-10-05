@@ -19,7 +19,7 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- Top Navigation Bar -->
+  <!-- Navigation Bar -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
@@ -32,7 +32,6 @@
         </div>
       </div>
 
-      <!-- View Switcher Tabs -->
       <nav class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-sm font-semibold">
         <button onclick="switchView('cashier')" id="tab-cashier" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition active">
           <i class="fa-solid fa-cash-register mr-1"></i> Cashier
@@ -56,7 +55,7 @@
   <!-- MAIN CONTAINER -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
 
-    <!-- 1. CASHIER POS VIEW -->
+    <!-- 1. CASHIER VIEW -->
     <section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
@@ -122,7 +121,7 @@
       </div>
     </section>
 
-    <!-- 2. BARISTA KITCHEN DISPLAY (KDS) VIEW -->
+    <!-- 2. BARISTA KDS VIEW -->
     <section id="view-kds" class="view-panel hidden">
       <div class="flex justify-between items-center mb-6">
         <div>
@@ -134,7 +133,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid"></div>
     </section>
 
-    <!-- 3. CUSTOMER PICKUP SCREEN VIEW -->
+    <!-- 3. PICKUP SCREEN VIEW -->
     <section id="view-pickup" class="view-panel hidden">
       <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
         <div class="flex justify-between items-center border-b border-slate-800 pb-6">
@@ -182,7 +181,7 @@
       </div>
     </section>
 
-    <!-- 5. ADMIN & MENU MANAGEMENT VIEW -->
+    <!-- 5. ADMIN VIEW -->
     <section id="view-admin" class="view-panel hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -225,7 +224,7 @@
 
   </main>
 
-  <!-- EDIT / ADD MENU ITEM MODAL -->
+  <!-- MENU MODAL -->
   <div id="menuModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
       <div class="flex justify-between items-center mb-4">
@@ -262,13 +261,7 @@
     const APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"; 
 
     let state = {
-      menu: [
-        { id: 1, name: "Iced Milk Tea", tempOptions: "Cold", price: 20, available: true },
-        { id: 2, name: "Espresso Coffee", tempOptions: "Hot & Cold", price: 25, available: true },
-        { id: 3, name: "Matcha Latte", tempOptions: "Hot & Cold", price: 28, available: true },
-        { id: 4, name: "Lemon Lemonade", tempOptions: "Cold", price: 18, available: true },
-        { id: 5, name: "Hot Chocolate", tempOptions: "Hot", price: 22, available: false }
-      ],
+      menu: [],
       orders: [],
       nextOrderNum: 101,
       selectedItem: null,
@@ -300,9 +293,24 @@
       renderAll();
     }
 
+    function fetchFromSheet() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      fetch(`${APPS_SCRIPT_URL}?action=getInitialData`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.menu) state.menu = data.menu;
+          if (data.orders) state.orders = data.orders;
+          if (data.nextOrderNum) state.nextOrderNum = data.nextOrderNum;
+          renderAll();
+        })
+        .catch(err => console.log("Sheet fetch error:", err));
+    }
+
     function init() {
+      fetchFromSheet();
       renderAll();
       setInterval(updateTimers, 1000);
+      setInterval(fetchFromSheet, 10000); // Auto sync every 10s
     }
 
     function renderAll() {
@@ -444,6 +452,15 @@
       if (order) {
         order.status = "READY";
         triggerChime();
+
+        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+          fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "markReady", orderNum: orderNum })
+          });
+        }
         renderAll();
       }
     }
@@ -492,6 +509,15 @@
       const order = state.orders.find(o => o.orderNum === String(orderNum));
       if (order) {
         order.status = "CLEARED";
+
+        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+          fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
+          });
+        }
         renderAll();
       }
     }
@@ -541,7 +567,6 @@
       });
     }
 
-    // MENU EDIT & MODAL FUNCTIONS
     function openMenuModal(itemName = null) {
       const modal = document.getElementById('menuModal');
       modal.classList.remove('hidden');
@@ -574,7 +599,6 @@
       const price = parseFloat(document.getElementById('modalPrice').value) || 0;
 
       if (oldName) {
-        // Edit existing item
         const item = state.menu.find(m => m.name === oldName);
         if (item) {
           item.name = name;
@@ -582,7 +606,6 @@
           item.price = price;
         }
       } else {
-        // Add new item
         const newItem = {
           id: Date.now(),
           name: name,
@@ -593,7 +616,6 @@
         state.menu.push(newItem);
       }
 
-      // Sync with Google Apps Script
       if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
@@ -630,6 +652,18 @@
       const item = state.menu.find(m => m.id === id);
       if (item) {
         item.available = !item.available;
+
+        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+          fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "updateMenu",
+              item: { oldName: item.name, name: item.name, tempOptions: item.tempOptions, price: item.price, available: item.available }
+            })
+          });
+        }
         renderAll();
       }
     }
