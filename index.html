@@ -1,599 +1,583 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title></title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2775.1">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>School Cafe E-System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+    .nav-btn.active { background-color: #1e293b; color: #ffffff; }
+    .pulse-glow { animation: pulseGlow 1.5s infinite alternate; }
+    @keyframes pulseGlow {
+      from { box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
+      to { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); }
+    }
   </style>
 </head>
-<body>
-<p class="p1">&lt;!DOCTYPE html&gt;</p>
-<p class="p1">&lt;html lang="en"&gt;</p>
-<p class="p1">&lt;head&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;School Cafe E-System&lt;/title&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap');</p>
-<p class="p1"><span class="Apple-converted-space">    </span>body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.nav-btn.active { background-color: #1e293b; color: #ffffff; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>.pulse-glow { animation: pulseGlow 1.5s infinite alternate; }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>@keyframes pulseGlow {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>from { box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }</p>
-<p class="p1"><span class="Apple-converted-space">      </span>to { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); }</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
-<p class="p1">&lt;/head&gt;</p>
-<p class="p1">&lt;body class="min-h-screen flex flex-col"&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- Top Navigation Bar --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;div class="max-w-7xl mx-mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="flex items-center space-x-3"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="bg-amber-600 text-white p-2 rounded-xl font-black text-lg"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid font-bold fa-mug-hot"&gt;&lt;/i&gt; CAFE</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;h1 class="text-lg font-bold text-slate-800 leading-tight"&gt;School Cafe E-System&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-xs text-slate-500" id="syncStatus"&gt;&lt;span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"&gt;&lt;/span&gt;Connected to Google Sheets&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;!-- View Switcher Tabs --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;nav class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-sm font-semibold"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="switchView('cashier')" id="tab-cashier" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition active"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-cash-register mr-1"&gt;&lt;/i&gt; Cashier</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="switchView('kds')" id="tab-kds" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-fire-burner mr-1"&gt;&lt;/i&gt; Bar KDS</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="switchView('pickup')" id="tab-pickup" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-tv mr-1"&gt;&lt;/i&gt; Pickup Screen</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="switchView('clear')" id="tab-clear" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-mobile-screen-button mr-1"&gt;&lt;/i&gt; Helper Clear</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="switchView('admin')" id="tab-admin" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-chart-line mr-1"&gt;&lt;/i&gt; Admin &amp; Menu</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/nav&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/header&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;!-- MAIN CONTAINER --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6"&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- 1. CASHIER POS VIEW --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;!-- Menu Selection (8 cols) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="flex justify-between items-center mb-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;h2 class="text-xl font-bold text-slate-800"&gt;&lt;i class="fa-solid fa-utensils text-amber-600 mr-2"&gt;&lt;/i&gt;Select Drink&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium" id="cashierItemCount"&gt;0 items available&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="cashierMenuList"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;!-- Dynamic Menu Cards --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;!-- Order Ticket Builder (5 cols) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div class="flex justify-between items-center border-b pb-3 mb-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;h2 class="text-xl font-bold text-slate-800"&gt;Current Order&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum"&gt;#101&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;!-- Cashier &amp; Guest Inputs --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div class="grid grid-cols-2 gap-3 mb-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;label class="block text-xs font-semibold text-slate-500 mb-1"&gt;Cashier Name&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;input type="text" id="inputCashier" value="Alex" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;label class="block text-xs font-semibold text-slate-500 mb-1"&gt;Guest Name&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;input type="text" id="inputGuest" placeholder="e.g. Mr. Smith" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;!-- Selected Item Details --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div id="selectedItemDetails" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="flex justify-between items-center mb-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;h3 class="font-bold text-slate-800 text-lg" id="detailName"&gt;Iced Latte&lt;/h3&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;span class="font-bold text-amber-700 text-lg" id="detailPrice"&gt;$25&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><span class="Apple-converted-space">            </span></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- Temperature Selection --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="mb-3"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;label class="block text-xs font-semibold text-slate-500 mb-1"&gt;Temperature Option&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;div class="grid grid-cols-2 gap-2" id="tempOptionGroup"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;button type="button" onclick="selectTemp('Cold')" id="btnTempCold" class="py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800"&gt;Cold 🧊&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;button type="button" onclick="selectTemp('Hot')" id="btnTempHot" class="py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600"&gt;Hot ☕&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- Customizations --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;label class="block text-xs font-semibold text-slate-500 mb-1"&gt;Customization / Notes&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;div class="flex flex-wrap gap-1.5 mb-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;button onclick="addCustom('Less Ice')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100"&gt;+ Less Ice&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;button onclick="addCustom('No Sugar')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100"&gt;+ No Sugar&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;button onclick="addCustom('Extra Oat Milk')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100"&gt;+ Oat Milk&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;input type="text" id="inputCustom" placeholder="Custom note..." class="w-full px-3 py-1.5 border rounded-lg text-sm bg-white"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div id="emptyOrderNotice" class="text-center py-8 text-slate-400"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;i class="fa-solid fa-hand-pointer text-3xl mb-2"&gt;&lt;/i&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-sm"&gt;Tap a drink from the menu to start&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Submit Button --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-lg shadow-lg shadow-emerald-200 transition flex items-center justify-center space-x-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-circle-check"&gt;&lt;/i&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;span&gt;Confirm &amp; Submit ($&lt;span id="cashierTotal"&gt;0&lt;/span&gt;)&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- 2. BARISTA KITCHEN DISPLAY (KDS) VIEW --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="view-kds" class="view-panel hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="flex justify-between items-center mb-6"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;h2 class="text-2xl font-black text-slate-800"&gt;Barista Kitchen Display&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-sm text-slate-500"&gt;Live incoming beverage orders&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="flex items-center space-x-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount"&gt;0 Active Orders&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Dynamic KDS Order Cards --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- 3. CUSTOMER PICKUP SCREEN VIEW (Raspberry Pi 5 Display) --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="view-pickup" class="view-panel hidden"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden"&gt;</p>
-<p class="p2"><span class="Apple-converted-space">        </span></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Header --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="flex justify-between items-center border-b border-slate-800 pb-6"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;h1 class="text-4xl font-black tracking-tight text-amber-400"&gt;SCHOOL CAFE&lt;/h1&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-slate-400 text-lg"&gt;Beverage Pickup Screen&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;i class="fa-solid fa-volume-high mr-1"&gt;&lt;/i&gt; Test Speaker</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Ready Cards Container --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="my-auto py-8"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-slate-400 font-semibold mb-4 text-center uppercase tracking-widest text-sm"&gt;Now Ready For Pickup&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- Dynamic Pickup Cards --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div id="noReadyNotice" class="text-center text-slate-600 py-12"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"&gt;&lt;/i&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-xl font-medium"&gt;Preparing delicious drinks...&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Footer Banner --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="bg-amber-500 text-slate-950 p-4 rounded-2xl text-center font-extrabold text-xl shadow-lg"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;i class="fa-solid fa-bell mr-2"&gt;&lt;/i&gt; Please have your cash receipt/order number ready!</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- 4. PORTABLE CLEARING DEVICE VIEW --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="view-clear" class="view-panel hidden max-w-md mx-auto"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;h2 class="text-xl font-bold text-slate-800 mb-1 text-center"&gt;&lt;i class="fa-solid fa-hand-holding-hand text-amber-600 mr-2"&gt;&lt;/i&gt;Guest Order Pickup&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;p class="text-xs text-slate-500 text-center mb-6"&gt;Enter or tap order number to clear from display screen&lt;/p&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Quick Ready Orders List --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="mb-6"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"&gt;Orders Ready Outside&lt;/label&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div class="flex flex-wrap gap-2" id="clearQuickButtons"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;!-- Quick Tap Order Badges --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;!-- Keypad Input Form --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="space-y-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;input type="number" id="clearInputNum" placeholder="Enter Order #" class="w-full text-center text-3xl font-black p-3 border-2 border-slate-300 rounded-xl focus:border-amber-500 outline-none"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button onclick="submitManualClear()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-lg shadow-md"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Clear Order From Screen</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- 5. ADMIN &amp; MENU MANAGEMENT VIEW --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;section id="view-admin" class="view-panel hidden space-y-6"&gt;</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;!-- Metrics Dashboard --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="grid grid-cols-1 md:grid-cols-3 gap-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-xs text-slate-500 font-bold uppercase"&gt;Total Revenue (Today)&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-3xl font-black text-emerald-600 mt-1" id="adminRevenue"&gt;$0.00&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-xs text-slate-500 font-bold uppercase"&gt;Total Orders Served&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-3xl font-black text-slate-800 mt-1" id="adminOrderCount"&gt;0&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-xs text-slate-500 font-bold uppercase"&gt;Avg. Prep Time&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="text-3xl font-black text-amber-600 mt-1" id="adminAvgTime"&gt;-- min&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;!-- Menu Management Table --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="flex justify-between items-center mb-4"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;h2 class="text-xl font-bold text-slate-800"&gt;Menu Availability Manager&lt;/h2&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button onclick="openAddMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>+ Add New Drink</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="overflow-x-auto"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;table class="w-full text-left border-collapse text-sm"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;tr class="border-b text-slate-400 font-semibold uppercase text-xs"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;th class="py-3 px-2"&gt;Drink Name&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;th class="py-3 px-2"&gt;Temperature&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;th class="py-3 px-2"&gt;Price&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;th class="py-3 px-2"&gt;Status&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;th class="py-3 px-2 text-right"&gt;Action&lt;/th&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;/tr&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/thead&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;tbody id="adminMenuTable"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;!-- Dynamic Admin Menu Rows --&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/tbody&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/table&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>&lt;/section&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/main&gt;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;script&gt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>// GLOBAL APP STATE &amp; SCRIPT URL</p>
-<p class="p1"><span class="Apple-converted-space">    </span>const APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";<span class="Apple-converted-space"> </span></p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>let state = {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>menu: [</p>
-<p class="p1"><span class="Apple-converted-space">        </span>{ id: 1, name: "Iced Milk Tea", tempOptions: "Cold", price: 20, available: true },</p>
-<p class="p1"><span class="Apple-converted-space">        </span>{ id: 2, name: "Espresso Coffee", tempOptions: "Hot &amp; Cold", price: 25, available: true },</p>
-<p class="p1"><span class="Apple-converted-space">        </span>{ id: 3, name: "Matcha Latte", tempOptions: "Hot &amp; Cold", price: 28, available: true },</p>
-<p class="p1"><span class="Apple-converted-space">        </span>{ id: 4, name: "Lemon Lemonade", tempOptions: "Cold", price: 18, available: true },</p>
-<p class="p1"><span class="Apple-converted-space">        </span>{ id: 5, name: "Hot Chocolate", tempOptions: "Hot", price: 22, available: false }</p>
-<p class="p1"><span class="Apple-converted-space">      </span>],</p>
-<p class="p1"><span class="Apple-converted-space">      </span>orders: [],</p>
-<p class="p1"><span class="Apple-converted-space">      </span>nextOrderNum: 101,</p>
-<p class="p1"><span class="Apple-converted-space">      </span>selectedItem: null,</p>
-<p class="p1"><span class="Apple-converted-space">      </span>selectedTemp: "Cold",</p>
-<p class="p1"><span class="Apple-converted-space">      </span>customization: ""</p>
-<p class="p1"><span class="Apple-converted-space">    </span>};</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// AUDIO CHIME FOR RASPBERRY PI 5 SPEAKER</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function triggerChime() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>try {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const audioCtx = new (window.AudioContext || window.webkitAudioContext)();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const osc = audioCtx.createOscillator();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const gain = audioCtx.createGain();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.type = "sine";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5 note</p>
-<p class="p1"><span class="Apple-converted-space">        </span>gain.gain.setValueAtTime(0.3, audioCtx.currentTime);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.connect(gain);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>gain.connect(audioCtx.destination);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.start();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>osc.stop(audioCtx.currentTime + 0.8);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>} catch (e) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>console.log("Audio not supported or restricted by browser policy");</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// VIEW SWITCHER</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function switchView(viewName) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelectorAll('.view-panel').forEach(el =&gt; el.classList.add('hidden'));</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelectorAll('.nav-btn').forEach(el =&gt; el.classList.remove('active'));</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById(`view-${viewName}`).classList.remove('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById(`tab-${viewName}`).classList.add('active');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// INITIALIZATION &amp; RENDER</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function init() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>setInterval(updateTimers, 1000); // Live timer counter</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderAll() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderCashierMenu();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderKDS();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderPickup();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderClearPage();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderAdmin();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// 1. CASHIER FUNCTIONS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderCashierMenu() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const container = document.getElementById('cashierMenuList');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>container.innerHTML = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const availItems = state.menu.filter(i =&gt; i.available);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('cashierItemCount').innerText = `${availItems.length} items available`;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>availItems.forEach(item =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const card = document.createElement('button');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.className = `p-4 border rounded-xl text-left transition hover:shadow-md flex flex-col justify-between h-28 ${state.selectedItem?.id === item.id ? 'border-amber-600 bg-amber-50' : 'border-slate-200 bg-white'}`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.onclick = () =&gt; selectMenuItem(item);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="font-bold text-slate-800 text-sm"&gt;${item.name}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-xs text-slate-400"&gt;${item.tempOptions}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;p class="font-black text-amber-700"&gt;$${item.price.toFixed(2)}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>container.appendChild(card);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('cashierOrderNum').innerText = `#${state.nextOrderNum}`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function selectMenuItem(item) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.selectedItem = item;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.customization = "";</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('emptyOrderNotice').classList.add('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('selectedItemDetails').classList.remove('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('detailName').innerText = item.name;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('detailPrice').innerText = `$${item.price.toFixed(2)}`;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('cashierTotal').innerText = item.price.toFixed(2);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('inputCustom').value = "";</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderTempButtons();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderCashierMenu();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function selectTemp(temp) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.selectedTemp = temp;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderTempButtons();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderTempButtons() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const btnCold = document.getElementById('btnTempCold');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const btnHot = document.getElementById('btnTempHot');</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (state.selectedTemp === 'Cold') {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>} else {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function addCustom(txt) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const input = document.getElementById('inputCustom');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>input.value = input.value ? `${input.value}, ${txt}` : txt;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function submitOrder() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (!state.selectedItem) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>alert("Please select a drink first!");</p>
-<p class="p1"><span class="Apple-converted-space">        </span>return;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>const newOrder = {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>orderNum: String(state.nextOrderNum),</p>
-<p class="p1"><span class="Apple-converted-space">        </span>orderTime: new Date().toISOString(),</p>
-<p class="p1"><span class="Apple-converted-space">        </span>pickupTime: "",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>cashier: document.getElementById('inputCashier').value || "Cashier",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>guestName: document.getElementById('inputGuest').value || "Guest",</p>
-<p class="p1"><span class="Apple-converted-space">        </span>productName: state.selectedItem.name,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>temp: state.selectedTemp,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>customization: document.getElementById('inputCustom').value,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>price: state.selectedItem.price,</p>
-<p class="p1"><span class="Apple-converted-space">        </span>status: "PENDING"</p>
-<p class="p1"><span class="Apple-converted-space">      </span>};</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.orders.push(newOrder);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.nextOrderNum++;</p>
-<p class="p2"><span class="Apple-converted-space">      </span></p>
-<p class="p1"><span class="Apple-converted-space">      </span>// Reset POS Form</p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.selectedItem = null;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('selectedItemDetails').classList.add('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('emptyOrderNotice').classList.remove('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('inputGuest').value = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('cashierTotal').innerText = "0";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// 2. KDS FUNCTIONS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderKDS() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const container = document.getElementById('kdsGrid');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>container.innerHTML = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const activeOrders = state.orders.filter(o =&gt; o.status === "PENDING");</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('kdsActiveCount').innerText = `${activeOrders.length} Active Orders`;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>activeOrders.forEach(order =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const elapsedSec = Math.floor((new Date() - new Date(order.orderTime)) / 1000);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const card = document.createElement('div');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="flex justify-between items-start mb-3"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;span class="text-2xl font-black text-slate-800"&gt;#${order.orderNum}&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>&lt;p class="text-xs font-semibold text-slate-400"&gt;Guest: ${order.guestName}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 elapsed-timer" data-time="${order.orderTime}"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">                </span>${formatTimer(elapsedSec)}</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="border-t border-b py-3 my-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;p class="font-extrabold text-slate-800 text-lg"&gt;${order.productName}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>&lt;p class="text-xs font-bold ${order.temp === 'Hot' ? 'text-rose-600' : 'text-blue-600'}"&gt;${order.temp.toUpperCase()}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>${order.customization ? `&lt;p class="text-xs bg-amber-50 text-amber-800 p-1.5 rounded-lg mt-2 font-medium"&gt;${order.customization}&lt;/p&gt;` : ''}</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;button onclick="markOrderReady('${order.orderNum}')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm transition"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>Call Drink Ready (#${order.orderNum})</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>container.appendChild(card);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function markOrderReady(orderNum) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const order = state.orders.find(o =&gt; o.orderNum === orderNum);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (order) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>order.status = "READY";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>order.pickupTime = new Date().toISOString();</p>
-<p class="p1"><span class="Apple-converted-space">        </span>triggerChime(); // Sound notification</p>
-<p class="p1"><span class="Apple-converted-space">        </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// 3. PICKUP DISPLAY FUNCTIONS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderPickup() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const container = document.getElementById('pickupGrid');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>container.innerHTML = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const readyOrders = state.orders.filter(o =&gt; o.status === "READY");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (readyOrders.length === 0) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('noReadyNotice').classList.remove('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>} else {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('noReadyNotice').classList.add('hidden');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>readyOrders.forEach(order =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const card = document.createElement('div');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.className = "bg-emerald-500 text-slate-950 p-6 rounded-3xl text-center pulse-glow flex flex-col justify-between";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>card.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-xs uppercase tracking-widest font-extrabold text-emerald-950 mb-1"&gt;Your Drink Is Ready!&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-6xl font-black mb-2"&gt;#${order.orderNum}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;p class="text-xl font-bold text-emerald-950"&gt;${order.guestName}&lt;/p&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;div class="mt-4 pt-3 border-t border-emerald-400 text-xs font-semibold text-emerald-900"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>${order.productName} (${order.temp})</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>container.appendChild(card);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// 4. PORTABLE CLEARING FUNCTIONS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderClearPage() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const container = document.getElementById('clearQuickButtons');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>container.innerHTML = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const readyOrders = state.orders.filter(o =&gt; o.status === "READY");</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>readyOrders.forEach(order =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const btn = document.createElement('button');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btn.className = "bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-lg px-4 py-2 rounded-xl border border-amber-300";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btn.innerText = `#${order.orderNum}`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>btn.onclick = () =&gt; clearOrder(order.orderNum);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>container.appendChild(btn);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function clearOrder(orderNum) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const order = state.orders.find(o =&gt; o.orderNum === String(orderNum));</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (order) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>order.status = "CLEARED";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function submitManualClear() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const val = document.getElementById('clearInputNum').value;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (val) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>clearOrder(val);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById('clearInputNum').value = "";</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// 5. ADMIN FUNCTIONS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function renderAdmin() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>// Calculate Stats</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const totalRev = state.orders.reduce((acc, o) =&gt; acc + o.price, 0);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.getElementById('adminOrderCount').innerText = state.orders.length;</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>// Table Render</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const tbody = document.getElementById('adminMenuTable');</p>
-<p class="p1"><span class="Apple-converted-space">      </span>tbody.innerHTML = "";</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">      </span>state.menu.forEach(item =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const tr = document.createElement('tr');</p>
-<p class="p1"><span class="Apple-converted-space">        </span>tr.className = "border-b border-slate-100";</p>
-<p class="p1"><span class="Apple-converted-space">        </span>tr.innerHTML = `</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;td class="py-3 px-2 font-bold text-slate-800"&gt;${item.name}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;td class="py-3 px-2 text-slate-500"&gt;${item.tempOptions}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;td class="py-3 px-2 font-semibold text-slate-700"&gt;$${item.price.toFixed(2)}&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;td class="py-3 px-2"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;span class="text-xs font-bold px-2.5 py-1 rounded-full ${item.available ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>${item.available ? 'Available' : 'Paused'}</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/span&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;td class="py-3 px-2 text-right"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;button onclick="toggleMenuAvailability(${item.id})" class="text-xs font-bold px-3 py-1.5 rounded-lg border ${item.available ? 'border-rose-200 text-rose-600 hover:bg-rose-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}"&gt;</p>
-<p class="p1"><span class="Apple-converted-space">              </span>${item.available ? 'Pause Item' : 'Enable Item'}</p>
-<p class="p1"><span class="Apple-converted-space">            </span>&lt;/button&gt;</p>
-<p class="p1"><span class="Apple-converted-space">          </span>&lt;/td&gt;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>`;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>tbody.appendChild(tr);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function toggleMenuAvailability(id) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const item = state.menu.find(m =&gt; m.id === id);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>if (item) {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>item.available = !item.available;</p>
-<p class="p1"><span class="Apple-converted-space">        </span>renderAll();</p>
-<p class="p1"><span class="Apple-converted-space">      </span>}</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// TIMER HELPERS</p>
-<p class="p1"><span class="Apple-converted-space">    </span>function updateTimers() {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>document.querySelectorAll('.elapsed-timer').forEach(el =&gt; {</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const orderTime = new Date(el.getAttribute('data-time'));</p>
-<p class="p1"><span class="Apple-converted-space">        </span>const elapsedSec = Math.floor((new Date() - orderTime) / 1000);</p>
-<p class="p1"><span class="Apple-converted-space">        </span>el.innerText = formatTimer(elapsedSec);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>});</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>function formatTimer(sec) {</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const m = Math.floor(sec / 60);</p>
-<p class="p1"><span class="Apple-converted-space">      </span>const s = sec % 60;</p>
-<p class="p1"><span class="Apple-converted-space">      </span>return `${m}:${s &lt; 10 ? '0' : ''}${s}`;</p>
-<p class="p1"><span class="Apple-converted-space">    </span>}</p>
-<p class="p2"><br></p>
-<p class="p1"><span class="Apple-converted-space">    </span>// Launch App</p>
-<p class="p1"><span class="Apple-converted-space">    </span>init();</p>
-<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
-<p class="p1">&lt;/body&gt;</p>
-<p class="p1">&lt;/html&gt;</p>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-600 text-white p-2 rounded-xl font-black text-lg">
+          <i class="fa-solid font-bold fa-mug-hot"></i> CAFE
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-800 leading-tight">School Cafe E-System</h1>
+          <p class="text-xs text-slate-500" id="syncStatus"><span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"></span>Connected to Google Sheets</p>
+        </div>
+      </div>
+
+      <!-- View Switcher Tabs -->
+      <nav class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-sm font-semibold">
+        <button onclick="switchView('cashier')" id="tab-cashier" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition active">
+          <i class="fa-solid fa-cash-register mr-1"></i> Cashier
+        </button>
+        <button onclick="switchView('kds')" id="tab-kds" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-fire-burner mr-1"></i> Bar KDS
+        </button>
+        <button onclick="switchView('pickup')" id="tab-pickup" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
+        </button>
+        <button onclick="switchView('clear')" id="tab-clear" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-mobile-screen-button mr-1"></i> Helper Clear
+        </button>
+        <button onclick="switchView('admin')" id="tab-admin" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-chart-line mr-1"></i> Admin & Menu
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+
+    <!-- 1. CASHIER POS VIEW -->
+    <section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Menu Selection (8 cols) -->
+      <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-utensils text-amber-600 mr-2"></i>Select Drink</h2>
+          <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium" id="cashierItemCount">0 items available</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="cashierMenuList">
+          <!-- Dynamic Menu Cards -->
+        </div>
+      </div>
+
+      <!-- Order Ticket Builder (5 cols) -->
+      <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h2 class="text-xl font-bold text-slate-800">Current Order</h2>
+            <span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum">#101</span>
+          </div>
+
+          <!-- Cashier & Guest Inputs -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Cashier Name</label>
+              <input type="text" id="inputCashier" value="Alex" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Guest Name</label>
+              <input type="text" id="inputGuest" placeholder="e.g. Mr. Smith" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            </div>
+          </div>
+
+          <!-- Selected Item Details -->
+          <div id="selectedItemDetails" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 hidden">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-bold text-slate-800 text-lg" id="detailName">Iced Latte</h3>
+              <span class="font-bold text-amber-700 text-lg" id="detailPrice">$25</span>
+            </div>
+            
+            <!-- Temperature Selection -->
+            <div class="mb-3">
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Temperature Option</label>
+              <div class="grid grid-cols-2 gap-2" id="tempOptionGroup">
+                <button type="button" onclick="selectTemp('Cold')" id="btnTempCold" class="py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800">Cold 🧊</button>
+                <button type="button" onclick="selectTemp('Hot')" id="btnTempHot" class="py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600">Hot ☕</button>
+              </div>
+            </div>
+
+            <!-- Customizations -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Customization / Notes</label>
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <button onclick="addCustom('Less Ice')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ Less Ice</button>
+                <button onclick="addCustom('No Sugar')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ No Sugar</button>
+                <button onclick="addCustom('Extra Oat Milk')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ Oat Milk</button>
+              </div>
+              <input type="text" id="inputCustom" placeholder="Custom note..." class="w-full px-3 py-1.5 border rounded-lg text-sm bg-white">
+            </div>
+          </div>
+
+          <div id="emptyOrderNotice" class="text-center py-8 text-slate-400">
+            <i class="fa-solid fa-hand-pointer text-3xl mb-2"></i>
+            <p class="text-sm">Tap a drink from the menu to start</p>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-lg shadow-lg shadow-emerald-200 transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Confirm & Submit ($<span id="cashierTotal">0</span>)</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 2. BARISTA KITCHEN DISPLAY (KDS) VIEW -->
+    <section id="view-kds" class="view-panel hidden">
+      <div class="flex justify-between items-center mb-6">
+        <div>
+          <h2 class="text-2xl font-black text-slate-800">Barista Kitchen Display</h2>
+          <p class="text-sm text-slate-500">Live incoming beverage orders</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid">
+        <!-- Dynamic KDS Order Cards -->
+      </div>
+    </section>
+
+    <!-- 3. CUSTOMER PICKUP SCREEN VIEW (Raspberry Pi 5 Display) -->
+    <section id="view-pickup" class="view-panel hidden">
+      <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-slate-800 pb-6">
+          <div>
+            <h1 class="text-4xl font-black tracking-tight text-amber-400">SCHOOL CAFE</h1>
+            <p class="text-slate-400 text-lg">Beverage Pickup Screen</p>
+          </div>
+          <button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700">
+            <i class="fa-solid fa-volume-high mr-1"></i> Test Speaker
+          </button>
+        </div>
+
+        <!-- Ready Cards Container -->
+        <div class="my-auto py-8">
+          <p class="text-slate-400 font-semibold mb-4 text-center uppercase tracking-widest text-sm">Now Ready For Pickup</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid">
+            <!-- Dynamic Pickup Cards -->
+          </div>
+          <div id="noReadyNotice" class="text-center text-slate-600 py-12">
+            <i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"></i>
+            <p class="text-xl font-medium">Preparing delicious drinks...</p>
+          </div>
+        </div>
+
+        <!-- Footer Banner -->
+        <div class="bg-amber-500 text-slate-950 p-4 rounded-2xl text-center font-extrabold text-xl shadow-lg">
+          <i class="fa-solid fa-bell mr-2"></i> Please have your cash receipt/order number ready!
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PORTABLE CLEARING DEVICE VIEW -->
+    <section id="view-clear" class="view-panel hidden max-w-md mx-auto">
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-bold text-slate-800 mb-1 text-center"><i class="fa-solid fa-hand-holding-hand text-amber-600 mr-2"></i>Guest Order Pickup</h2>
+        <p class="text-xs text-slate-500 text-center mb-6">Enter or tap order number to clear from display screen</p>
+
+        <!-- Quick Ready Orders List -->
+        <div class="mb-6">
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Orders Ready Outside</label>
+          <div class="flex flex-wrap gap-2" id="clearQuickButtons">
+            <!-- Quick Tap Order Badges -->
+          </div>
+        </div>
+
+        <!-- Keypad Input Form -->
+        <div class="space-y-4">
+          <div>
+            <input type="number" id="clearInputNum" placeholder="Enter Order #" class="w-full text-center text-3xl font-black p-3 border-2 border-slate-300 rounded-xl focus:border-amber-500 outline-none">
+          </div>
+          <button onclick="submitManualClear()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-lg shadow-md">
+            Clear Order From Screen
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ADMIN & MENU MANAGEMENT VIEW -->
+    <section id="view-admin" class="view-panel hidden space-y-6">
+      
+      <!-- Metrics Dashboard -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-bold uppercase">Total Revenue (Today)</p>
+          <p class="text-3xl font-black text-emerald-600 mt-1" id="adminRevenue">$0.00</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-bold uppercase">Total Orders Served</p>
+          <p class="text-3xl font-black text-slate-800 mt-1" id="adminOrderCount">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-bold uppercase">Avg. Prep Time</p>
+          <p class="text-3xl font-black text-amber-600 mt-1" id="adminAvgTime">-- min</p>
+        </div>
+      </div>
+
+      <!-- Menu Management Table -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800">Menu Availability Manager</h2>
+          <button onclick="openAddMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700">
+            + Add New Drink
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
+                <th class="py-3 px-2">Drink Name</th>
+                <th class="py-3 px-2">Temperature</th>
+                <th class="py-3 px-2">Price</th>
+                <th class="py-3 px-2">Status</th>
+                <th class="py-3 px-2 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminMenuTable">
+              <!-- Dynamic Admin Menu Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // GLOBAL APP STATE & SCRIPT URL
+    const APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"; 
+
+    let state = {
+      menu: [
+        { id: 1, name: "Iced Milk Tea", tempOptions: "Cold", price: 20, available: true },
+        { id: 2, name: "Espresso Coffee", tempOptions: "Hot & Cold", price: 25, available: true },
+        { id: 3, name: "Matcha Latte", tempOptions: "Hot & Cold", price: 28, available: true },
+        { id: 4, name: "Lemon Lemonade", tempOptions: "Cold", price: 18, available: true },
+        { id: 5, name: "Hot Chocolate", tempOptions: "Hot", price: 22, available: false }
+      ],
+      orders: [],
+      nextOrderNum: 101,
+      selectedItem: null,
+      selectedTemp: "Cold",
+      customization: ""
+    };
+
+    // AUDIO CHIME FOR RASPBERRY PI 5 SPEAKER
+    function triggerChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5 note
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+      } catch (e) {
+        console.log("Audio not supported or restricted by browser policy");
+      }
+    }
+
+    // VIEW SWITCHER
+    function switchView(viewName) {
+      document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(`view-${viewName}`).classList.remove('hidden');
+      document.getElementById(`tab-${viewName}`).classList.add('active');
+      renderAll();
+    }
+
+    // INITIALIZATION & RENDER
+    function init() {
+      renderAll();
+      setInterval(updateTimers, 1000); // Live timer counter
+    }
+
+    function renderAll() {
+      renderCashierMenu();
+      renderKDS();
+      renderPickup();
+      renderClearPage();
+      renderAdmin();
+    }
+
+    // 1. CASHIER FUNCTIONS
+    function renderCashierMenu() {
+      const container = document.getElementById('cashierMenuList');
+      container.innerHTML = "";
+      const availItems = state.menu.filter(i => i.available);
+      document.getElementById('cashierItemCount').innerText = `${availItems.length} items available`;
+
+      availItems.forEach(item => {
+        const card = document.createElement('button');
+        card.className = `p-4 border rounded-xl text-left transition hover:shadow-md flex flex-col justify-between h-28 ${state.selectedItem?.id === item.id ? 'border-amber-600 bg-amber-50' : 'border-slate-200 bg-white'}`;
+        card.onclick = () => selectMenuItem(item);
+        card.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-800 text-sm">${item.name}</p>
+            <p class="text-xs text-slate-400">${item.tempOptions}</p>
+          </div>
+          <p class="font-black text-amber-700">$${item.price.toFixed(2)}</p>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('cashierOrderNum').innerText = `#${state.nextOrderNum}`;
+    }
+
+    function selectMenuItem(item) {
+      state.selectedItem = item;
+      state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
+      state.customization = "";
+      
+      document.getElementById('emptyOrderNotice').classList.add('hidden');
+      document.getElementById('selectedItemDetails').classList.remove('hidden');
+      document.getElementById('detailName').innerText = item.name;
+      document.getElementById('detailPrice').innerText = `$${item.price.toFixed(2)}`;
+      document.getElementById('cashierTotal').innerText = item.price.toFixed(2);
+      document.getElementById('inputCustom').value = "";
+      
+      renderTempButtons();
+      renderCashierMenu();
+    }
+
+    function selectTemp(temp) {
+      state.selectedTemp = temp;
+      renderTempButtons();
+    }
+
+    function renderTempButtons() {
+      const btnCold = document.getElementById('btnTempCold');
+      const btnHot = document.getElementById('btnTempHot');
+      
+      if (state.selectedTemp === 'Cold') {
+        btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
+        btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
+      } else {
+        btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
+        btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
+      }
+    }
+
+    function addCustom(txt) {
+      const input = document.getElementById('inputCustom');
+      input.value = input.value ? `${input.value}, ${txt}` : txt;
+    }
+
+    function submitOrder() {
+      if (!state.selectedItem) {
+        alert("Please select a drink first!");
+        return;
+      }
+      
+      const newOrder = {
+        orderNum: String(state.nextOrderNum),
+        orderTime: new Date().toISOString(),
+        pickupTime: "",
+        cashier: document.getElementById('inputCashier').value || "Cashier",
+        guestName: document.getElementById('inputGuest').value || "Guest",
+        productName: state.selectedItem.name,
+        temp: state.selectedTemp,
+        customization: document.getElementById('inputCustom').value,
+        price: state.selectedItem.price,
+        status: "PENDING"
+      };
+
+      state.orders.push(newOrder);
+      state.nextOrderNum++;
+      
+      // Reset POS Form
+      state.selectedItem = null;
+      document.getElementById('selectedItemDetails').classList.add('hidden');
+      document.getElementById('emptyOrderNotice').classList.remove('hidden');
+      document.getElementById('inputGuest').value = "";
+      document.getElementById('cashierTotal').innerText = "0";
+
+      renderAll();
+    }
+
+    // 2. KDS FUNCTIONS
+    function renderKDS() {
+      const container = document.getElementById('kdsGrid');
+      container.innerHTML = "";
+      const activeOrders = state.orders.filter(o => o.status === "PENDING");
+      document.getElementById('kdsActiveCount').innerText = `${activeOrders.length} Active Orders`;
+
+      activeOrders.forEach(order => {
+        const elapsedSec = Math.floor((new Date() - new Date(order.orderTime)) / 1000);
+        const card = document.createElement('div');
+        card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-start mb-3">
+              <div>
+                <span class="text-2xl font-black text-slate-800">#${order.orderNum}</span>
+                <p class="text-xs font-semibold text-slate-400">Guest: ${order.guestName}</p>
+              </div>
+              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 elapsed-timer" data-time="${order.orderTime}">
+                ${formatTimer(elapsedSec)}
+              </span>
+            </div>
+            <div class="border-t border-b py-3 my-2">
+              <p class="font-extrabold text-slate-800 text-lg">${order.productName}</p>
+              <p class="text-xs font-bold ${order.temp === 'Hot' ? 'text-rose-600' : 'text-blue-600'}">${order.temp.toUpperCase()}</p>
+              ${order.customization ? `<p class="text-xs bg-amber-50 text-amber-800 p-1.5 rounded-lg mt-2 font-medium">${order.customization}</p>` : ''}
+            </div>
+          </div>
+          <button onclick="markOrderReady('${order.orderNum}')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm transition">
+            Call Drink Ready (#${order.orderNum})
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function markOrderReady(orderNum) {
+      const order = state.orders.find(o => o.orderNum === orderNum);
+      if (order) {
+        order.status = "READY";
+        order.pickupTime = new Date().toISOString();
+        triggerChime(); // Sound notification
+        renderAll();
+      }
+    }
+
+    // 3. PICKUP DISPLAY FUNCTIONS
+    function renderPickup() {
+      const container = document.getElementById('pickupGrid');
+      container.innerHTML = "";
+      const readyOrders = state.orders.filter(o => o.status === "READY");
+
+      if (readyOrders.length === 0) {
+        document.getElementById('noReadyNotice').classList.remove('hidden');
+      } else {
+        document.getElementById('noReadyNotice').classList.add('hidden');
+      }
+
+      readyOrders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = "bg-emerald-500 text-slate-950 p-6 rounded-3xl text-center pulse-glow flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <p class="text-xs uppercase tracking-widest font-extrabold text-emerald-950 mb-1">Your Drink Is Ready!</p>
+            <p class="text-6xl font-black mb-2">#${order.orderNum}</p>
+            <p class="text-xl font-bold text-emerald-950">${order.guestName}</p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-emerald-400 text-xs font-semibold text-emerald-900">
+            ${order.productName} (${order.temp})
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // 4. PORTABLE CLEARING FUNCTIONS
+    function renderClearPage() {
+      const container = document.getElementById('clearQuickButtons');
+      container.innerHTML = "";
+      const readyOrders = state.orders.filter(o => o.status === "READY");
+
+      readyOrders.forEach(order => {
+        const btn = document.createElement('button');
+        btn.className = "bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-lg px-4 py-2 rounded-xl border border-amber-300";
+        btn.innerText = `#${order.orderNum}`;
+        btn.onclick = () => clearOrder(order.orderNum);
+        container.appendChild(btn);
+      });
+    }
+
+    function clearOrder(orderNum) {
+      const order = state.orders.find(o => o.orderNum === String(orderNum));
+      if (order) {
+        order.status = "CLEARED";
+        renderAll();
+      }
+    }
+
+    function submitManualClear() {
+      const val = document.getElementById('clearInputNum').value;
+      if (val) {
+        clearOrder(val);
+        document.getElementById('clearInputNum').value = "";
+      }
+    }
+
+    // 5. ADMIN FUNCTIONS
+    function renderAdmin() {
+      // Calculate Stats
+      const totalRev = state.orders.reduce((acc, o) => acc + o.price, 0);
+      document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
+      document.getElementById('adminOrderCount').innerText = state.orders.length;
+
+      // Table Render
+      const tbody = document.getElementById('adminMenuTable');
+      tbody.innerHTML = "";
+
+      state.menu.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = "border-b border-slate-100";
+        tr.innerHTML = `
+          <td class="py-3 px-2 font-bold text-slate-800">${item.name}</td>
+          <td class="py-3 px-2 text-slate-500">${item.tempOptions}</td>
+          <td class="py-3 px-2 font-semibold text-slate-700">$${item.price.toFixed(2)}</td>
+          <td class="py-3 px-2">
+            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${item.available ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+              ${item.available ? 'Available' : 'Paused'}
+            </span>
+          </td>
+          <td class="py-3 px-2 text-right">
+            <button onclick="toggleMenuAvailability(${item.id})" class="text-xs font-bold px-3 py-1.5 rounded-lg border ${item.available ? 'border-rose-200 text-rose-600 hover:bg-rose-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}">
+              ${item.available ? 'Pause Item' : 'Enable Item'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleMenuAvailability(id) {
+      const item = state.menu.find(m => m.id === id);
+      if (item) {
+        item.available = !item.available;
+        renderAll();
+      }
+    }
+
+    // TIMER HELPERS
+    function updateTimers() {
+      document.querySelectorAll('.elapsed-timer').forEach(el => {
+        const orderTime = new Date(el.getAttribute('data-time'));
+        const elapsedSec = Math.floor((new Date() - orderTime) / 1000);
+        el.innerText = formatTimer(elapsedSec);
+      });
+    }
+
+    function formatTimer(sec) {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    // Launch App
+    init();
+  </script>
 </body>
 </html>
