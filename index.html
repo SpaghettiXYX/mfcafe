@@ -183,7 +183,7 @@
       </div>
     </section>
 
-    <!-- 5. ADMIN & ORDERS VIEW -->
+    <!-- 5. ADMIN VIEW -->
     <section id="view-admin" class="view-panel hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -200,7 +200,7 @@
         </div>
       </div>
 
-      <!-- Orders Records Management Table -->
+      <!-- Orders Management Table -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-list-check text-amber-600 mr-2"></i>Orders Records Management</h2>
         <div class="overflow-x-auto">
@@ -281,7 +281,7 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZGFzlUPvL_3rHfst92LFic_DELWcPj8J7mCXPaxII12vS1BAcN5KCQY_9eW_cvmvtVg/exec"; 
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtknAJ9gnx9Ve6_sStLSmN-YpdemKriqU0PZzWPd9hbQCFsCcq6Ka6atkIL7Z6jkgSqw/exec"; 
 
     let state = {
       menu: [],
@@ -346,6 +346,7 @@
 
     function renderCashierMenu() {
       const container = document.getElementById('cashierMenuList');
+      if (!container) return;
       container.innerHTML = "";
       const availItems = state.menu.filter(i => i.available);
       document.getElementById('cashierItemCount').innerText = `${availItems.length} items available`;
@@ -387,6 +388,7 @@
     function renderTempButtons() {
       const btnCold = document.getElementById('btnTempCold');
       const btnHot = document.getElementById('btnTempHot');
+      if (!btnCold || !btnHot) return;
       if (state.selectedTemp === 'Cold') {
         btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
         btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
@@ -406,7 +408,7 @@
       const newOrder = {
         orderNum: String(state.nextOrderNum),
         orderTime: new Date().toISOString(),
-        cashier: document.getElementById('inputCashier').value || "Cashier",
+        cashier: document.getElementById('inputCashier').value || "Alex",
         guestName: document.getElementById('inputGuest').value || "Guest",
         productName: state.selectedItem.name,
         temp: state.selectedTemp,
@@ -431,12 +433,14 @@
       document.getElementById('selectedItemDetails').classList.add('hidden');
       document.getElementById('emptyOrderNotice').classList.remove('hidden');
       document.getElementById('inputGuest').value = "";
+      document.getElementById('inputCustom').value = "";
       document.getElementById('cashierTotal').innerText = "0";
       renderAll();
     }
 
     function renderKDS() {
       const container = document.getElementById('kdsGrid');
+      if (!container) return;
       container.innerHTML = "";
       const activeOrders = state.orders.filter(o => o.status === "PENDING");
       document.getElementById('kdsActiveCount').innerText = `${activeOrders.length} Active Orders`;
@@ -490,12 +494,13 @@
 
     function renderPickup() {
       const container = document.getElementById('pickupGrid');
+      if (!container) return;
       container.innerHTML = "";
       const readyOrders = state.orders.filter(o => o.status === "READY");
-      if (readyOrders.length === 0) {
-        document.getElementById('noReadyNotice').classList.remove('hidden');
-      } else {
-        document.getElementById('noReadyNotice').classList.add('hidden');
+      const notice = document.getElementById('noReadyNotice');
+      if (notice) {
+        if (readyOrders.length === 0) notice.classList.remove('hidden');
+        else notice.classList.add('hidden');
       }
 
       readyOrders.forEach(order => {
@@ -517,6 +522,7 @@
 
     function renderClearPage() {
       const container = document.getElementById('clearQuickButtons');
+      if (!container) return;
       container.innerHTML = "";
       const readyOrders = state.orders.filter(o => o.status === "READY");
       readyOrders.forEach(order => {
@@ -532,7 +538,6 @@
       const order = state.orders.find(o => o.orderNum === String(orderNum));
       if (order) {
         order.status = "CLEARED";
-
         if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
           fetch(APPS_SCRIPT_URL, {
             method: "POST",
@@ -555,42 +560,42 @@
 
     function renderAdmin() {
       const totalRev = state.orders.reduce((acc, o) => acc + o.price, 0);
-      document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
-      document.getElementById('adminOrderCount').innerText = state.orders.length;
-      document.getElementById('adminItemCount').innerText = state.menu.length;
+      if (document.getElementById('adminRevenue')) document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
+      if (document.getElementById('adminOrderCount')) document.getElementById('adminOrderCount').innerText = state.orders.length;
+      if (document.getElementById('adminItemCount')) document.getElementById('adminItemCount').innerText = state.menu.length;
 
-      // Render Orders Table
       const ordersTbody = document.getElementById('adminOrdersTable');
-      ordersTbody.innerHTML = "";
-
-      if (state.orders.length === 0) {
-        ordersTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">No orders recorded yet.</td></tr>`;
-      } else {
-        state.orders.forEach(order => {
-          const tr = document.createElement('tr');
-          tr.className = "border-b border-slate-100 hover:bg-slate-50";
-          tr.innerHTML = `
-            <td class="py-3 px-2 font-black text-slate-800">#${order.orderNum}</td>
-            <td class="py-3 px-2 text-slate-600">${order.guestName}</td>
-            <td class="py-3 px-2 font-semibold text-slate-800">${order.productName} (${order.temp})</td>
-            <td class="py-3 px-2 font-semibold text-amber-700">$${order.price.toFixed(2)}</td>
-            <td class="py-3 px-2">
-              <span class="text-xs font-bold px-2.5 py-1 rounded-full ${order.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : order.status === 'READY' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
-                ${order.status}
-              </span>
-            </td>
-            <td class="py-3 px-2 text-right">
-              <button onclick="deleteOrderRecord('${order.orderNum}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition">
-                <i class="fa-solid fa-trash mr-1"></i> Delete Order
-              </button>
-            </td>
-          `;
-          ordersTbody.appendChild(tr);
-        });
+      if (ordersTbody) {
+        ordersTbody.innerHTML = "";
+        if (state.orders.length === 0) {
+          ordersTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">No orders recorded yet.</td></tr>`;
+        } else {
+          state.orders.forEach(order => {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-slate-100 hover:bg-slate-50";
+            tr.innerHTML = `
+              <td class="py-3 px-2 font-black text-slate-800">#${order.orderNum}</td>
+              <td class="py-3 px-2 text-slate-600">${order.guestName}</td>
+              <td class="py-3 px-2 font-semibold text-slate-800">${order.productName} (${order.temp})</td>
+              <td class="py-3 px-2 font-semibold text-amber-700">$${order.price.toFixed(2)}</td>
+              <td class="py-3 px-2">
+                <span class="text-xs font-bold px-2.5 py-1 rounded-full ${order.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : order.status === 'READY' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+                  ${order.status}
+                </span>
+              </td>
+              <td class="py-3 px-2 text-right">
+                <button onclick="deleteOrderRecord('${order.orderNum}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition">
+                  <i class="fa-solid fa-trash mr-1"></i> Delete Order
+                </button>
+              </td>
+            `;
+            ordersTbody.appendChild(tr);
+          });
+        }
       }
 
-      // Render Menu Table
       const tbody = document.getElementById('adminMenuTable');
+      if (!tbody) return;
       tbody.innerHTML = "";
 
       state.menu.forEach(item => {
@@ -619,21 +624,6 @@
         `;
         tbody.appendChild(tr);
       });
-    }
-
-    function deleteOrderRecord(orderNum) {
-      if (!confirm(`Are you sure you want to delete Order #${orderNum} and clear it from Google Sheets?`)) return;
-      state.orders = state.orders.filter(o => o.orderNum !== String(orderNum));
-
-      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
-        });
-      }
-      renderAll();
     }
 
     function openMenuModal(itemName = null) {
@@ -675,13 +665,7 @@
           item.price = price;
         }
       } else {
-        const newItem = {
-          id: Date.now(),
-          name: name,
-          tempOptions: tempOptions,
-          price: price,
-          available: true
-        };
+        const newItem = { id: Date.now(), name, tempOptions, price, available: true };
         state.menu.push(newItem);
       }
 
@@ -710,10 +694,24 @@
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+          body: JSON.stringify({ action: "deleteMenuItem", itemName })
         });
       }
+      renderAll();
+    }
 
+    function deleteOrderRecord(orderNum) {
+      if (!confirm(`Are you sure you want to delete Order #${orderNum} and clear it from Google Sheets?`)) return;
+      state.orders = state.orders.filter(o => o.orderNum !== String(orderNum));
+
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
+        });
+      }
       renderAll();
     }
 
@@ -721,7 +719,6 @@
       const item = state.menu.find(m => m.id === id);
       if (item) {
         item.available = !item.available;
-
         if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
           fetch(APPS_SCRIPT_URL, {
             method: "POST",
