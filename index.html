@@ -58,18 +58,14 @@
 
     <!-- 1. CASHIER POS VIEW -->
     <section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- Menu Selection (8 cols) -->
       <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-utensils text-amber-600 mr-2"></i>Select Drink</h2>
           <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium" id="cashierItemCount">0 items available</span>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="cashierMenuList">
-          <!-- Dynamic Menu Cards -->
-        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="cashierMenuList"></div>
       </div>
 
-      <!-- Order Ticket Builder (5 cols) -->
       <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
         <div>
           <div class="flex justify-between items-center border-b pb-3 mb-4">
@@ -77,7 +73,6 @@
             <span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum">#101</span>
           </div>
 
-          <!-- Cashier & Guest Inputs -->
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Cashier Name</label>
@@ -89,14 +84,12 @@
             </div>
           </div>
 
-          <!-- Selected Item Details -->
           <div id="selectedItemDetails" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 hidden">
             <div class="flex justify-between items-center mb-2">
               <h3 class="font-bold text-slate-800 text-lg" id="detailName">Iced Latte</h3>
               <span class="font-bold text-amber-700 text-lg" id="detailPrice">$25</span>
             </div>
             
-            <!-- Temperature Selection -->
             <div class="mb-3">
               <label class="block text-xs font-semibold text-slate-500 mb-1">Temperature Option</label>
               <div class="grid grid-cols-2 gap-2" id="tempOptionGroup">
@@ -105,7 +98,6 @@
               </div>
             </div>
 
-            <!-- Customizations -->
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Customization / Notes</label>
               <div class="flex flex-wrap gap-1.5 mb-2">
@@ -123,7 +115,6 @@
           </div>
         </div>
 
-        <!-- Submit Button -->
         <button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-lg shadow-lg shadow-emerald-200 transition flex items-center justify-center space-x-2">
           <i class="fa-solid fa-circle-check"></i>
           <span>Confirm & Submit ($<span id="cashierTotal">0</span>)</span>
@@ -138,21 +129,14 @@
           <h2 class="text-2xl font-black text-slate-800">Barista Kitchen Display</h2>
           <p class="text-sm text-slate-500">Live incoming beverage orders</p>
         </div>
-        <div class="flex items-center space-x-2">
-          <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
-        </div>
+        <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
       </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid">
-        <!-- Dynamic KDS Order Cards -->
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid"></div>
     </section>
 
-    <!-- 3. CUSTOMER PICKUP SCREEN VIEW (Raspberry Pi 5 Display) -->
+    <!-- 3. CUSTOMER PICKUP SCREEN VIEW -->
     <section id="view-pickup" class="view-panel hidden">
       <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
-        
-        <!-- Header -->
         <div class="flex justify-between items-center border-b border-slate-800 pb-6">
           <div>
             <h1 class="text-4xl font-black tracking-tight text-amber-400">SCHOOL CAFE</h1>
@@ -163,44 +147,34 @@
           </button>
         </div>
 
-        <!-- Ready Cards Container -->
         <div class="my-auto py-8">
           <p class="text-slate-400 font-semibold mb-4 text-center uppercase tracking-widest text-sm">Now Ready For Pickup</p>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid">
-            <!-- Dynamic Pickup Cards -->
-          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid"></div>
           <div id="noReadyNotice" class="text-center text-slate-600 py-12">
             <i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"></i>
             <p class="text-xl font-medium">Preparing delicious drinks...</p>
           </div>
         </div>
 
-        <!-- Footer Banner -->
         <div class="bg-amber-500 text-slate-950 p-4 rounded-2xl text-center font-extrabold text-xl shadow-lg">
-          <i class="fa-solid fa-bell mr-2"></i> Please have your cash receipt/order number ready!
+          <i class="fa-solid fa-bell mr-2"></i> Please have your order number ready!
         </div>
       </div>
     </section>
 
-    <!-- 4. PORTABLE CLEARING DEVICE VIEW -->
+    <!-- 4. PORTABLE CLEARING VIEW -->
     <section id="view-clear" class="view-panel hidden max-w-md mx-auto">
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="text-xl font-bold text-slate-800 mb-1 text-center"><i class="fa-solid fa-hand-holding-hand text-amber-600 mr-2"></i>Guest Order Pickup</h2>
         <p class="text-xs text-slate-500 text-center mb-6">Enter or tap order number to clear from display screen</p>
 
-        <!-- Quick Ready Orders List -->
         <div class="mb-6">
           <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Orders Ready Outside</label>
-          <div class="flex flex-wrap gap-2" id="clearQuickButtons">
-            <!-- Quick Tap Order Badges -->
-          </div>
+          <div class="flex flex-wrap gap-2" id="clearQuickButtons"></div>
         </div>
 
-        <!-- Keypad Input Form -->
         <div class="space-y-4">
-          <div>
-            <input type="number" id="clearInputNum" placeholder="Enter Order #" class="w-full text-center text-3xl font-black p-3 border-2 border-slate-300 rounded-xl focus:border-amber-500 outline-none">
-          </div>
+          <input type="number" id="clearInputNum" placeholder="Enter Order #" class="w-full text-center text-3xl font-black p-3 border-2 border-slate-300 rounded-xl focus:border-amber-500 outline-none">
           <button onclick="submitManualClear()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-lg shadow-md">
             Clear Order From Screen
           </button>
@@ -210,8 +184,6 @@
 
     <!-- 5. ADMIN & MENU MANAGEMENT VIEW -->
     <section id="view-admin" class="view-panel hidden space-y-6">
-      
-      <!-- Metrics Dashboard -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-500 font-bold uppercase">Total Revenue (Today)</p>
@@ -222,16 +194,15 @@
           <p class="text-3xl font-black text-slate-800 mt-1" id="adminOrderCount">0</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-500 font-bold uppercase">Avg. Prep Time</p>
-          <p class="text-3xl font-black text-amber-600 mt-1" id="adminAvgTime">-- min</p>
+          <p class="text-xs text-slate-500 font-bold uppercase">Active Menu Items</p>
+          <p class="text-3xl font-black text-amber-600 mt-1" id="adminItemCount">0</p>
         </div>
       </div>
 
-      <!-- Menu Management Table -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-slate-800">Menu Availability Manager</h2>
-          <button onclick="openAddMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700">
+          <h2 class="text-xl font-bold text-slate-800">Menu Editor & Availability</h2>
+          <button onclick="openMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700">
             + Add New Drink
           </button>
         </div>
@@ -240,15 +211,13 @@
             <thead>
               <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
                 <th class="py-3 px-2">Drink Name</th>
-                <th class="py-3 px-2">Temperature</th>
-                <th class="py-3 px-2">Price</th>
+                <th class="py-3 px-2">Temperature Options</th>
+                <th class="py-3 px-2">Price ($)</th>
                 <th class="py-3 px-2">Status</th>
-                <th class="py-3 px-2 text-right">Action</th>
+                <th class="py-3 px-2 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody id="adminMenuTable">
-              <!-- Dynamic Admin Menu Rows -->
-            </tbody>
+            <tbody id="adminMenuTable"></tbody>
           </table>
         </div>
       </div>
@@ -256,9 +225,41 @@
 
   </main>
 
+  <!-- EDIT / ADD MENU ITEM MODAL -->
+  <div id="menuModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-slate-800" id="modalTitle">Edit Drink Item</h3>
+        <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+      <form id="menuForm" onsubmit="saveMenuItem(event)" class="space-y-4">
+        <input type="hidden" id="modalOldName">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Drink Name</label>
+          <input type="text" id="modalName" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Offering</label>
+          <select id="modalTemp" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            <option value="Cold">Cold Only 🧊</option>
+            <option value="Hot">Hot Only ☕</option>
+            <option value="Hot & Cold">Both Hot & Cold 🧊☕</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
+          <input type="number" step="0.5" id="modalPrice" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+        </div>
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeMenuModal()" class="px-4 py-2 border rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold">Save Drink</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // GLOBAL APP STATE & SCRIPT URL
-    const APPS_SCRIPT_URL = "https://docs.google.com/spreadsheets/d/1WZJONKSMg29LTJtRwqBKc8C8PNKmW1iPgW2-Iv2JXys/edit?gid=0#gid=0"; 
+    const APPS_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE"; 
 
     let state = {
       menu: [
@@ -271,44 +272,37 @@
       orders: [],
       nextOrderNum: 101,
       selectedItem: null,
-      selectedTemp: "Cold",
-      customization: ""
+      selectedTemp: "Cold"
     };
 
-    // AUDIO CHIME FOR RASPBERRY PI 5 SPEAKER
     function triggerChime() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = "sine";
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // A5 note
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3);
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.8);
-      } catch (e) {
-        console.log("Audio not supported or restricted by browser policy");
-      }
+      } catch (e) {}
     }
 
-    // VIEW SWITCHER
     function switchView(viewName) {
       document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      
       document.getElementById(`view-${viewName}`).classList.remove('hidden');
       document.getElementById(`tab-${viewName}`).classList.add('active');
       renderAll();
     }
 
-    // INITIALIZATION & RENDER
     function init() {
       renderAll();
-      setInterval(updateTimers, 1000); // Live timer counter
+      setInterval(updateTimers, 1000);
     }
 
     function renderAll() {
@@ -319,7 +313,6 @@
       renderAdmin();
     }
 
-    // 1. CASHIER FUNCTIONS
     function renderCashierMenu() {
       const container = document.getElementById('cashierMenuList');
       container.innerHTML = "";
@@ -346,15 +339,11 @@
     function selectMenuItem(item) {
       state.selectedItem = item;
       state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
-      state.customization = "";
-      
       document.getElementById('emptyOrderNotice').classList.add('hidden');
       document.getElementById('selectedItemDetails').classList.remove('hidden');
       document.getElementById('detailName').innerText = item.name;
       document.getElementById('detailPrice').innerText = `$${item.price.toFixed(2)}`;
       document.getElementById('cashierTotal').innerText = item.price.toFixed(2);
-      document.getElementById('inputCustom').value = "";
-      
       renderTempButtons();
       renderCashierMenu();
     }
@@ -367,7 +356,6 @@
     function renderTempButtons() {
       const btnCold = document.getElementById('btnTempCold');
       const btnHot = document.getElementById('btnTempHot');
-      
       if (state.selectedTemp === 'Cold') {
         btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
         btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
@@ -383,15 +371,10 @@
     }
 
     function submitOrder() {
-      if (!state.selectedItem) {
-        alert("Please select a drink first!");
-        return;
-      }
-      
+      if (!state.selectedItem) return alert("Select a drink first!");
       const newOrder = {
         orderNum: String(state.nextOrderNum),
         orderTime: new Date().toISOString(),
-        pickupTime: "",
         cashier: document.getElementById('inputCashier').value || "Cashier",
         guestName: document.getElementById('inputGuest').value || "Guest",
         productName: state.selectedItem.name,
@@ -403,18 +386,24 @@
 
       state.orders.push(newOrder);
       state.nextOrderNum++;
-      
-      // Reset POS Form
+
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "createOrder", order: newOrder })
+        });
+      }
+
       state.selectedItem = null;
       document.getElementById('selectedItemDetails').classList.add('hidden');
       document.getElementById('emptyOrderNotice').classList.remove('hidden');
       document.getElementById('inputGuest').value = "";
       document.getElementById('cashierTotal').innerText = "0";
-
       renderAll();
     }
 
-    // 2. KDS FUNCTIONS
     function renderKDS() {
       const container = document.getElementById('kdsGrid');
       container.innerHTML = "";
@@ -454,18 +443,15 @@
       const order = state.orders.find(o => o.orderNum === orderNum);
       if (order) {
         order.status = "READY";
-        order.pickupTime = new Date().toISOString();
-        triggerChime(); // Sound notification
+        triggerChime();
         renderAll();
       }
     }
 
-    // 3. PICKUP DISPLAY FUNCTIONS
     function renderPickup() {
       const container = document.getElementById('pickupGrid');
       container.innerHTML = "";
       const readyOrders = state.orders.filter(o => o.status === "READY");
-
       if (readyOrders.length === 0) {
         document.getElementById('noReadyNotice').classList.remove('hidden');
       } else {
@@ -489,12 +475,10 @@
       });
     }
 
-    // 4. PORTABLE CLEARING FUNCTIONS
     function renderClearPage() {
       const container = document.getElementById('clearQuickButtons');
       container.innerHTML = "";
       const readyOrders = state.orders.filter(o => o.status === "READY");
-
       readyOrders.forEach(order => {
         const btn = document.createElement('button');
         btn.className = "bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-lg px-4 py-2 rounded-xl border border-amber-300";
@@ -520,14 +504,12 @@
       }
     }
 
-    // 5. ADMIN FUNCTIONS
     function renderAdmin() {
-      // Calculate Stats
       const totalRev = state.orders.reduce((acc, o) => acc + o.price, 0);
       document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
       document.getElementById('adminOrderCount').innerText = state.orders.length;
+      document.getElementById('adminItemCount').innerText = state.menu.length;
 
-      // Table Render
       const tbody = document.getElementById('adminMenuTable');
       tbody.innerHTML = "";
 
@@ -543,14 +525,105 @@
               ${item.available ? 'Available' : 'Paused'}
             </span>
           </td>
-          <td class="py-3 px-2 text-right">
-            <button onclick="toggleMenuAvailability(${item.id})" class="text-xs font-bold px-3 py-1.5 rounded-lg border ${item.available ? 'border-rose-200 text-rose-600 hover:bg-rose-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}">
-              ${item.available ? 'Pause Item' : 'Enable Item'}
+          <td class="py-3 px-2 text-right space-x-2">
+            <button onclick="toggleMenuAvailability(${item.id})" class="text-xs font-bold px-2.5 py-1 rounded-lg border ${item.available ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}">
+              ${item.available ? 'Pause' : 'Enable'}
+            </button>
+            <button onclick="openMenuModal('${item.name}')" class="text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
+              <i class="fa-solid fa-pen mr-1"></i> Edit
+            </button>
+            <button onclick="deleteMenuItem('${item.name}')" class="text-xs font-bold px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50">
+              <i class="fa-solid fa-trash mr-1"></i> Delete
             </button>
           </td>
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    // MENU EDIT & MODAL FUNCTIONS
+    function openMenuModal(itemName = null) {
+      const modal = document.getElementById('menuModal');
+      modal.classList.remove('hidden');
+
+      if (itemName) {
+        const item = state.menu.find(m => m.name === itemName);
+        document.getElementById('modalTitle').innerText = "Edit Drink Item";
+        document.getElementById('modalOldName').value = item.name;
+        document.getElementById('modalName').value = item.name;
+        document.getElementById('modalTemp').value = item.tempOptions;
+        document.getElementById('modalPrice').value = item.price;
+      } else {
+        document.getElementById('modalTitle').innerText = "Add New Drink";
+        document.getElementById('modalOldName').value = "";
+        document.getElementById('modalName').value = "";
+        document.getElementById('modalTemp').value = "Cold";
+        document.getElementById('modalPrice').value = "";
+      }
+    }
+
+    function closeMenuModal() {
+      document.getElementById('menuModal').classList.add('hidden');
+    }
+
+    function saveMenuItem(e) {
+      e.preventDefault();
+      const oldName = document.getElementById('modalOldName').value;
+      const name = document.getElementById('modalName').value;
+      const tempOptions = document.getElementById('modalTemp').value;
+      const price = parseFloat(document.getElementById('modalPrice').value) || 0;
+
+      if (oldName) {
+        // Edit existing item
+        const item = state.menu.find(m => m.name === oldName);
+        if (item) {
+          item.name = name;
+          item.tempOptions = tempOptions;
+          item.price = price;
+        }
+      } else {
+        // Add new item
+        const newItem = {
+          id: Date.now(),
+          name: name,
+          tempOptions: tempOptions,
+          price: price,
+          available: true
+        };
+        state.menu.push(newItem);
+      }
+
+      // Sync with Google Apps Script
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: oldName ? "updateMenu" : "addMenuItem",
+            item: { oldName, name, tempOptions, price, available: true }
+          })
+        });
+      }
+
+      closeMenuModal();
+      renderAll();
+    }
+
+    function deleteMenuItem(itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
+      state.menu = state.menu.filter(m => m.name !== itemName);
+
+      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+        });
+      }
+
+      renderAll();
     }
 
     function toggleMenuAvailability(id) {
@@ -561,7 +634,6 @@
       }
     }
 
-    // TIMER HELPERS
     function updateTimers() {
       document.querySelectorAll('.elapsed-timer').forEach(el => {
         const orderTime = new Date(el.getAttribute('data-time'));
@@ -576,7 +648,6 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
-    // Launch App
     init();
   </script>
 </body>
