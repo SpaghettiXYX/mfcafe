@@ -323,24 +323,25 @@
 
     // Fetch persistent database rows from Google Sheet backend
     // Fetch latest records from Google Sheet database silently in background
+// Updated fetchFromSheet with Cache-Busting
 function fetchFromSheet() {
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
-  fetch(`${APPS_SCRIPT_URL}?action=getInitialData`)
+  // Add Date.now() to ensure the browser never serves cached old data
+  const cacheBusterUrl = `${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`;
+
+  fetch(cacheBusterUrl, { cache: "no-cache" })
     .then(res => res.json())
     .then(data => {
-      // Update global state with live sheet data
       if (Array.isArray(data.menu) && data.menu.length > 0) {
         state.menu = data.menu;
       }
       if (Array.isArray(data.orders)) {
-        // Check if there are new 'READY' orders to trigger chime alert
         const oldReadyCount = state.orders.filter(o => o.status === "READY").length;
         const newReadyCount = data.orders.filter(o => o.status === "READY").length;
         
         state.orders = data.orders;
 
-        // If a new order was marked READY by the barista, ring the chime automatically!
         if (newReadyCount > oldReadyCount) {
           triggerChime();
         }
@@ -349,7 +350,6 @@ function fetchFromSheet() {
         state.nextOrderNum = data.nextOrderNum;
       }
 
-      // Re-render views with new data
       renderAll();
     })
     .catch(err => console.log("Background auto-refresh error:", err));
