@@ -36,7 +36,7 @@
         </div>
         <div>
           <h1 class="text-lg font-bold text-slate-800 leading-tight">MFCafe E-Portal</h1>
-          <p class="text-xs text-slate-500" id="syncStatus"><span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"></span>Connected to Google Sheets</p>
+          <p class="text-xs text-slate-500" id="syncStatus"><span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"></span>Works with Google Sheets</p>
         </div>
       </div>
 
@@ -88,7 +88,7 @@
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Guest Name</label>
-              <input type="text" id="inputGuest" placeholder="e.g. Mr. Smith" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+              <input type="text" id="inputGuest" placeholder="e.g. Spaghetti Xu" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
             </div>
           </div>
 
@@ -134,7 +134,7 @@
     <section id="view-kds" class="view-panel hidden">
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h2 class="text-2xl font-black text-slate-800">KDS</h2>
+          <h2 class="text-2xl font-black text-slate-800">Bar KDS</h2>
           <p class="text-sm text-slate-500">Live incoming beverage orders</p>
         </div>
         <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
@@ -148,7 +148,7 @@
         <div class="flex justify-between items-center border-b border-slate-800 pb-6">
           <div>
             <h1 class="text-4xl font-black tracking-tight text-amber-400">MF Cafe</h1>
-            <p class="text-slate-400 text-lg">Beverage Pickup Screen</p>
+            <p class="text-slate-400 text-lg"> Wait a moment, our barista is preparing your beverage... </p>
           </div>
           <button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700">
             <i class="fa-solid fa-volume-high mr-1"></i> Test Speaker
@@ -160,12 +160,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid"></div>
           <div id="noReadyNotice" class="text-center text-slate-600 py-12">
             <i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"></i>
-            <p class="text-xl font-medium">Preparing delicious drinks...</p>
+            <p class="text-xl font-medium">Preparing superb beverages...</p>
           </div>
         </div>
 
         <div class="bg-amber-500 text-slate-950 p-4 rounded-2xl text-center font-extrabold text-xl shadow-lg">
-          <i class="fa-solid fa-bell mr-2"></i> Please have your order number ready!
+          <i class="fa-solid fa-bell mr-2"></i> Please redeem your drink at the pickup area with your ticket!
         </div>
       </div>
     </section>
@@ -202,7 +202,7 @@
           <p class="text-3xl font-black text-slate-800 mt-1" id="adminOrderCount">0</p>
         </div>
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-500 font-bold uppercase">Active Menu Items</p>
+          <p class="text-xs text-slate-500 font-bold uppercase">Menu Items Count</p>
           <p class="text-3xl font-black text-amber-600 mt-1" id="adminItemCount">0</p>
         </div>
       </div>
@@ -295,7 +295,7 @@
     let state = {
       menu: [],
       orders: [],
-      nextOrderNum: 101,
+      nextOrderNum: 001,
       selectedItem: null,
       selectedTemp: "Cold"
     };
