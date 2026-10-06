@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLMCSS Cafe E-System</title>
+  <title>MFCafe Portal</title>
+  
+  <!-- Web Browser Tab Favicon (School Logo) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+  
+  <!-- Tailwind CSS & FontAwesome Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -20,23 +25,25 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-  <!-- Navigation Bar -->
+  <!-- Top Navigation Header with BLMCSS Branding -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
+        <!-- School Cafe Branding Badge -->
         <div class="bg-amber-600 text-white px-3 py-2 rounded-xl font-black text-sm tracking-wider flex items-center space-x-1.5 shadow-sm">
           <i class="fa-solid fa-school text-xs"></i>
-          <span>BLMCSS CAFE</span>
+          <span>MFCafe Portal</span>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-800 leading-tight">School Cafe E-System</h1>
+          <h1 class="text-lg font-bold text-slate-800 leading-tight">MFCafe E-Portal</h1>
           <p class="text-xs text-slate-500" id="syncStatus"><span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"></span>Connected to Google Sheets</p>
         </div>
       </div>
 
+      <!-- Single Page Application (SPA) View Switcher -->
       <nav class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-sm font-semibold">
         <button onclick="switchView('cashier')" id="tab-cashier" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition active">
-          <i class="fa-solid fa-cash-register mr-1"></i> Cashier
+          <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
         </button>
         <button onclick="switchView('kds')" id="tab-kds" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
           <i class="fa-solid fa-fire-burner mr-1"></i> Bar KDS
@@ -45,19 +52,19 @@
           <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
         </button>
         <button onclick="switchView('clear')" id="tab-clear" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-mobile-screen-button mr-1"></i> Helper Clear
+          <i class="fa-solid fa-mobile-screen-button mr-1"></i> Clearing Pickup Screen
         </button>
         <button onclick="switchView('admin')" id="tab-admin" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-chart-line mr-1"></i> Admin & Menu
+          <i class="fa-solid fa-chart-line mr-1"></i> Admin Panel
         </button>
       </nav>
     </div>
   </header>
 
-  <!-- MAIN CONTAINER -->
+  <!-- MAIN VIEW CONTAINER -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
 
-    <!-- 1. CASHIER VIEW -->
+    <!-- 1. CASHIER POS VIEW -->
     <section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
@@ -71,13 +78,13 @@
         <div>
           <div class="flex justify-between items-center border-b pb-3 mb-4">
             <h2 class="text-xl font-bold text-slate-800">Current Order</h2>
-            <span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum">#101</span>
+            <span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum">#001</span>
           </div>
 
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Cashier Name</label>
-              <input type="text" id="inputCashier" value="Alex" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+              <input type="text" id="inputCashier" value="Spaghetti" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Guest Name</label>
@@ -87,8 +94,8 @@
 
           <div id="selectedItemDetails" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 hidden">
             <div class="flex justify-between items-center mb-2">
-              <h3 class="font-bold text-slate-800 text-lg" id="detailName">Iced Latte</h3>
-              <span class="font-bold text-amber-700 text-lg" id="detailPrice">$25</span>
+              <h3 class="font-bold text-slate-800 text-lg" id="detailName">Drink Name</h3>
+              <span class="font-bold text-amber-700 text-lg" id="detailPrice">$0.00</span>
             </div>
             
             <div class="mb-3">
@@ -118,16 +125,16 @@
 
         <button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-lg shadow-lg shadow-emerald-200 transition flex items-center justify-center space-x-2">
           <i class="fa-solid fa-circle-check"></i>
-          <span>Confirm & Submit ($<span id="cashierTotal">0</span>)</span>
+          <span>Confirm & Submit ($<span id="cashierTotal">0.00</span>)</span>
         </button>
       </div>
     </section>
 
-    <!-- 2. BARISTA KDS VIEW -->
+    <!-- 2. BARISTA KITCHEN DISPLAY (KDS) VIEW -->
     <section id="view-kds" class="view-panel hidden">
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h2 class="text-2xl font-black text-slate-800">Barista Kitchen Display</h2>
+          <h2 class="text-2xl font-black text-slate-800">KDS</h2>
           <p class="text-sm text-slate-500">Live incoming beverage orders</p>
         </div>
         <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
@@ -135,12 +142,12 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid"></div>
     </section>
 
-    <!-- 3. PICKUP SCREEN VIEW -->
+    <!-- 3. CUSTOMER PICKUP DISPLAY VIEW -->
     <section id="view-pickup" class="view-panel hidden">
       <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
         <div class="flex justify-between items-center border-b border-slate-800 pb-6">
           <div>
-            <h1 class="text-4xl font-black tracking-tight text-amber-400">BLMCSS CAFE</h1>
+            <h1 class="text-4xl font-black tracking-tight text-amber-400">MF Cafe</h1>
             <p class="text-slate-400 text-lg">Beverage Pickup Screen</p>
           </div>
           <button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700">
@@ -163,7 +170,7 @@
       </div>
     </section>
 
-    <!-- 4. PORTABLE CLEARING VIEW -->
+    <!-- 4. HELPER PORTABLE CLEARING VIEW -->
     <section id="view-clear" class="view-panel hidden max-w-md mx-auto">
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="text-xl font-bold text-slate-800 mb-1 text-center"><i class="fa-solid fa-hand-holding-hand text-amber-600 mr-2"></i>Guest Order Pickup</h2>
@@ -183,7 +190,7 @@
       </div>
     </section>
 
-    <!-- 5. ADMIN VIEW -->
+    <!-- 5. ADMIN & MENU MANAGEMENT VIEW -->
     <section id="view-admin" class="view-panel hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -200,7 +207,7 @@
         </div>
       </div>
 
-      <!-- Orders Management Table -->
+      <!-- Orders Records Table with Delete Option -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-list-check text-amber-600 mr-2"></i>Orders Records Management</h2>
         <div class="overflow-x-auto">
@@ -220,7 +227,7 @@
         </div>
       </div>
 
-      <!-- Menu Management Table -->
+      <!-- Drink Menu Table with Edit/Delete Options -->
       <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-mug-saucer text-amber-600 mr-2"></i>Menu Editor & Availability</h2>
@@ -247,7 +254,7 @@
 
   </main>
 
-  <!-- MENU MODAL -->
+  <!-- EDIT / ADD MENU MODAL -->
   <div id="menuModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
       <div class="flex justify-between items-center mb-4">
@@ -281,8 +288,10 @@
   </div>
 
   <script>
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwtknAJ9gnx9Ve6_sStLSmN-YpdemKriqU0PZzWPd9hbQCFsCcq6Ka6atkIL7Z6jkgSqw/exec"; 
+    // REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwolhojXHNeoEtn-n1vhoKWS20KpW_XG1wnhudcFgHfgQYQID4Ly4rEzmc524oMrPi7kQ/exec"; 
 
+    // Global Application State
     let state = {
       menu: [],
       orders: [],
@@ -291,6 +300,7 @@
       selectedTemp: "Cold"
     };
 
+    // Play chime sound when an order is ready
     function triggerChime() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -308,6 +318,7 @@
       } catch (e) {}
     }
 
+    // Switch active view in Single Page Application
     function switchView(viewName) {
       document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
       document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -316,24 +327,32 @@
       renderAll();
     }
 
+    // Fetch persistent database rows from Google Sheet backend
     function fetchFromSheet() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData`)
         .then(res => res.json())
         .then(data => {
-          if (data.menu) state.menu = data.menu;
-          if (data.orders) state.orders = data.orders;
-          if (data.nextOrderNum) state.nextOrderNum = data.nextOrderNum;
+          if (Array.isArray(data.menu) && data.menu.length > 0) {
+            state.menu = data.menu;
+          }
+          if (Array.isArray(data.orders)) {
+            state.orders = data.orders;
+          }
+          if (data.nextOrderNum) {
+            state.nextOrderNum = data.nextOrderNum;
+          }
           renderAll();
         })
         .catch(err => console.log("Sheet fetch error:", err));
     }
 
+    // Initialize application on load
     function init() {
       fetchFromSheet();
       renderAll();
       setInterval(updateTimers, 1000);
-      setInterval(fetchFromSheet, 10000);
+      setInterval(fetchFromSheet, 10000); // Polling sync every 10 seconds
     }
 
     function renderAll() {
@@ -344,6 +363,7 @@
       renderAdmin();
     }
 
+    // Render Cashier Menu items
     function renderCashierMenu() {
       const container = document.getElementById('cashierMenuList');
       if (!container) return;
@@ -403,6 +423,7 @@
       input.value = input.value ? `${input.value}, ${txt}` : txt;
     }
 
+    // Submit new order and write to Google Sheets
     function submitOrder() {
       if (!state.selectedItem) return alert("Select a drink first!");
       const newOrder = {
@@ -434,10 +455,11 @@
       document.getElementById('emptyOrderNotice').classList.remove('hidden');
       document.getElementById('inputGuest').value = "";
       document.getElementById('inputCustom').value = "";
-      document.getElementById('cashierTotal').innerText = "0";
+      document.getElementById('cashierTotal').innerText = "0.00";
       renderAll();
     }
 
+    // Render Barista Kitchen Display
     function renderKDS() {
       const container = document.getElementById('kdsGrid');
       if (!container) return;
@@ -492,6 +514,7 @@
       }
     }
 
+    // Render Pickup Screen Display
     function renderPickup() {
       const container = document.getElementById('pickupGrid');
       if (!container) return;
@@ -520,6 +543,7 @@
       });
     }
 
+    // Render Helper Clear View
     function renderClearPage() {
       const container = document.getElementById('clearQuickButtons');
       if (!container) return;
@@ -558,12 +582,14 @@
       }
     }
 
+    // Render Admin Management Tables
     function renderAdmin() {
       const totalRev = state.orders.reduce((acc, o) => acc + o.price, 0);
       if (document.getElementById('adminRevenue')) document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
       if (document.getElementById('adminOrderCount')) document.getElementById('adminOrderCount').innerText = state.orders.length;
       if (document.getElementById('adminItemCount')) document.getElementById('adminItemCount').innerText = state.menu.length;
 
+      // Render Orders Records Table
       const ordersTbody = document.getElementById('adminOrdersTable');
       if (ordersTbody) {
         ordersTbody.innerHTML = "";
@@ -594,6 +620,7 @@
         }
       }
 
+      // Render Drink Menu Management Table
       const tbody = document.getElementById('adminMenuTable');
       if (!tbody) return;
       tbody.innerHTML = "";
@@ -626,6 +653,7 @@
       });
     }
 
+    // Modal Control Functions
     function openMenuModal(itemName = null) {
       const modal = document.getElementById('menuModal');
       modal.classList.remove('hidden');
@@ -650,6 +678,7 @@
       document.getElementById('menuModal').classList.add('hidden');
     }
 
+    // Save edited or new drink item to Google Sheet
     function saveMenuItem(e) {
       e.preventDefault();
       const oldName = document.getElementById('modalOldName').value;
@@ -685,6 +714,7 @@
       renderAll();
     }
 
+    // Delete drink item from menu & Google Sheet
     function deleteMenuItem(itemName) {
       if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
       state.menu = state.menu.filter(m => m.name !== itemName);
@@ -700,6 +730,7 @@
       renderAll();
     }
 
+    // Delete single order record from Google Sheet
     function deleteOrderRecord(orderNum) {
       if (!confirm(`Are you sure you want to delete Order #${orderNum} and clear it from Google Sheets?`)) return;
       state.orders = state.orders.filter(o => o.orderNum !== String(orderNum));
@@ -715,6 +746,7 @@
       renderAll();
     }
 
+    // Toggle menu availability status
     function toggleMenuAvailability(id) {
       const item = state.menu.find(m => m.id === id);
       if (item) {
@@ -734,6 +766,7 @@
       }
     }
 
+    // Timer format utilities
     function updateTimers() {
       document.querySelectorAll('.elapsed-timer').forEach(el => {
         const orderTime = new Date(el.getAttribute('data-time'));
@@ -748,6 +781,7 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
 
+    // Run initialization on page load
     init();
   </script>
 </body>
