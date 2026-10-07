@@ -4,25 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BLMCSS Cafe - Self Order</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- QRCode.js Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
 
+  <!-- Header -->
   <header class="text-center py-4 border-b border-slate-800">
-    <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-xs font-bold mb-2">
+    <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full text-xs font-bold mb-2 border border-amber-500/20">
       <i class="fa-solid fa-mug-hot"></i>
-      <span>BLMCSS CAFE</span>
+      <span>BLMCSS CAFE MOBILE</span>
     </div>
     <h1 class="text-2xl font-black text-white">Self-Order Beverages</h1>
-    <p class="text-xs text-slate-400 mt-1">Select your drink and show the QR code at the counter to pay</p>
+    <p class="text-xs text-slate-400 mt-1">Select your drink and present the QR code at the counter to pay</p>
   </header>
 
+  <!-- Form & Menu View -->
   <main id="orderView" class="flex-1 my-4 space-y-4 overflow-y-auto">
     <div>
       <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Your Name</label>
@@ -36,10 +42,11 @@
       </div>
     </div>
 
+    <!-- Selection Customization -->
     <div id="itemOptions" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 hidden space-y-3">
       <div class="flex justify-between items-center border-b border-slate-700 pb-2">
         <span id="selectedItemName" class="font-bold text-amber-400">Drink Name</span>
-        <span id="selectedItemPrice" class="font-bold">$0.00</span>
+        <span id="selectedItemPrice" class="font-black text-white">$0.00</span>
       </div>
 
       <div>
@@ -57,39 +64,45 @@
     </div>
   </main>
 
+  <!-- Submit Button -->
   <footer id="orderFooter" class="pt-2">
     <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-4 rounded-2xl text-base shadow-lg transition">
       Submit & Show Payment QR
     </button>
   </footer>
 
-  <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-slate-800/80 backdrop-blur-md rounded-3xl border border-slate-700 my-auto space-y-4">
-    <div class="bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-xs font-bold">
+  <!-- QR Ticket View -->
+  <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-slate-800/90 backdrop-blur-md rounded-3xl border border-slate-700 my-auto space-y-4">
+    <div class="bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full text-xs font-bold border border-amber-500/30">
       <i class="fa-solid fa-clock mr-1"></i> STATUS: UNPAID
     </div>
 
-    <h2 class="text-3xl font-black text-white" id="ticketOrderNum">#101</h2>
-    <p class="text-xs text-slate-300">Show this QR code to the cashier to pay</p>
+    <h2 class="text-4xl font-black text-amber-400" id="ticketOrderNum">#101</h2>
+    <p class="text-xs text-slate-300">Show this QR code to the cashier to confirm payment</p>
 
-    <div class="bg-white p-4 rounded-2xl shadow-xl my-2" id="qrcode"></div>
+    <!-- Dynamic QR Code -->
+    <div class="bg-white p-4 rounded-2xl shadow-xl my-2 border-4 border-amber-500" id="qrcode"></div>
 
-    <div class="text-xs text-slate-400 bg-slate-900 p-3 rounded-xl w-full text-left space-y-1">
-      <p><strong class="text-slate-200">Drink:</strong> <span id="ticketDrink">-</span></p>
-      <p><strong class="text-slate-200">Amount Due:</strong> <span id="ticketPrice" class="text-amber-400 font-bold">$0.00</span></p>
+    <div class="text-xs text-slate-300 bg-slate-900 p-3.5 rounded-xl w-full text-left space-y-1 border border-slate-700">
+      <p><strong class="text-slate-400">Guest:</strong> <span id="ticketGuest" class="text-white font-bold">-</span></p>
+      <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-white font-bold">-</span></p>
+      <p><strong class="text-slate-400">Amount Due:</strong> <span id="ticketPrice" class="text-amber-400 font-black text-sm">$0.00</span></p>
     </div>
 
-    <button onclick="resetCustomerForm()" class="text-xs text-slate-400 underline hover:text-slate-200 pt-2">
+    <button onclick="resetCustomerForm()" class="text-xs text-slate-400 underline hover:text-white pt-2">
       Order Another Drink
     </button>
   </div>
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsgBLV07pUqxdiZgP5S65LPCIZ18jgCQjaeYuDLh9rkkYJuNFmuFXjvqcD5gY0H-azIA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ3zZylr7nj9z0UrLKPS8FVvGJel57Eq9EHsMpUdd2M9W90_jUyzBHvtKNlzzDFRSWcQ/exec";
 
     let state = { menu: [], selectedItem: null, selectedTemp: "Cold", nextOrderNum: 101 };
 
     function init() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
         .then(res => res.json())
         .then(data => {
@@ -159,6 +172,7 @@
       document.getElementById('qrTicketView').classList.remove('hidden');
 
       document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
+      document.getElementById('ticketGuest').innerText = order.guestName;
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
       document.getElementById('ticketPrice').innerText = `$${order.price.toFixed(2)}`;
 
