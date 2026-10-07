@@ -316,7 +316,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9HyZKLV87oUnbayP571dCObQC2oWCKj4lO2xJaUN8_aHTMA5tFt4PN6xnsEGNyCrihw/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ0kpjFMY3WIC2Tv7fdEl5pjq0aOD44OYRWfbxEwK1wuCdq7Sy-sTK2AKF_3-LaDqe6Q/exec";
 
     let state = {
       menu: [],
@@ -349,7 +349,7 @@
     }
 
     function triggerChime() {
-      const audioUrl = "foodpanda-sound.mp3"; 
+      const audioUrl = "chime.mp3"; 
       const audio = new Audio(audioUrl);
       audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
     }
@@ -711,12 +711,14 @@
     }
 
     function renderAdmin() {
-      const rev = state.orders.reduce((sum, o) => sum + (o.price || 0), 0);
+      const paidOrders = state.orders.filter(o => o.status !== "UNPAID");
+      const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+      
       const revEl = document.getElementById('adminRevenue');
       if (revEl) revEl.innerText = `$${rev.toFixed(2)}`;
       
       const ordersCountEl = document.getElementById('adminTotalOrders');
-      if (ordersCountEl) ordersCountEl.innerText = state.orders.length;
+      if (ordersCountEl) ordersCountEl.innerText = paidOrders.length;
       
       const menuCountEl = document.getElementById('adminMenuItemsCount');
       if (menuCountEl) menuCountEl.innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
@@ -754,12 +756,16 @@
       const finLog = document.getElementById('adminFinancialLog');
       if (finLog) {
         finLog.innerHTML = "";
-        state.orders.slice(-15).reverse().forEach(o => {
+        state.orders.slice(-30).reverse().forEach(o => {
+          let statusBadgeColor = "text-amber-600";
+          if (o.status === "CLEARED") statusBadgeColor = "text-emerald-600";
+          if (o.status === "UNPAID") statusBadgeColor = "text-rose-600";
+
           finLog.innerHTML += `
             <div class="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <div>
                 <span class="font-black text-slate-800">#${escapeHtml(o.orderNum)} - ${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</span>
-                <span class="text-slate-500 block text-[11px] font-semibold">${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} | Status: <strong class="text-amber-600">${escapeHtml(o.status)}</strong></span>
+                <span class="text-slate-500 block text-[11px] font-semibold">${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} | Status: <strong class="${statusBadgeColor}">${escapeHtml(o.status)}</strong></span>
               </div>
               <div class="flex items-center space-x-3">
                 <span class="font-black text-emerald-600 text-sm">$${o.price.toFixed(2)}</span>
