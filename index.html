@@ -48,7 +48,7 @@
     <!-- VIEW 1: CASHIER POS -->
     <section id="view-cashier" class="space-y-4">
       
-      <!-- Unpaid Mobile Orders Panel & QR Scanner Trigger -->
+      <!-- Self-Order Unpaid Mobile Queue -->
       <div class="bg-slate-800 p-4 rounded-2xl border border-amber-500/30">
         <div class="flex justify-between items-center mb-3">
           <div class="flex items-center space-x-2">
@@ -63,7 +63,7 @@
         <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2"></div>
       </div>
 
-      <!-- Manual Order Creation Form -->
+      <!-- Counter Order Entry -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="lg:col-span-2 bg-slate-800 p-5 rounded-2xl border border-slate-700">
           <h2 class="font-extrabold text-white text-base mb-4 flex items-center">
@@ -102,7 +102,7 @@
           </button>
         </div>
 
-        <!-- Speaker Test & Active Orders Overview -->
+        <!-- System Controls Panel -->
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
           <div class="flex justify-between items-center border-b border-slate-700 pb-3">
             <h3 class="font-bold text-sm text-white">System Controls</h3>
@@ -111,9 +111,10 @@
               <span>Test Speaker</span>
             </button>
           </div>
-          <div>
-            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Live Order Tracker</h4>
-            <div id="posLiveOrderTracker" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
+          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 text-xs text-slate-400 space-y-2">
+            <p><i class="fa-solid fa-circle-info text-amber-400 mr-1.5"></i><strong>Cashier Instructions:</strong></p>
+            <p>1. When a customer self-orders via mobile, their order appears in the <strong>Unpaid Queue</strong> above.</p>
+            <p>2. Click <strong>Scan Customer QR</strong> to scan their phone screen or click <strong>Confirm Paid</strong> manually.</p>
           </div>
         </div>
       </div>
@@ -138,7 +139,6 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Preparing Column -->
         <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
           <h3 class="font-black text-slate-400 text-lg uppercase tracking-wider mb-4 border-b border-slate-700 pb-2">
             <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
@@ -146,7 +146,6 @@
           <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
 
-        <!-- Ready Column -->
         <div class="bg-emerald-950/40 p-5 rounded-2xl border border-emerald-500/40">
           <h3 class="font-black text-emerald-400 text-lg uppercase tracking-wider mb-4 border-b border-emerald-500/30 pb-2">
             <i class="fa-solid fa-bell text-emerald-400 mr-2 animate-bounce"></i> Ready For Pickup
@@ -164,7 +163,7 @@
       <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 5: ADMIN FINANCIAL SUMMARY -->
+    <!-- VIEW 5: ADMIN SUMMARY -->
     <section id="view-admin" class="hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
@@ -172,12 +171,28 @@
           <p id="adminRevenue" class="text-3xl font-black text-emerald-400 mt-1">$0.00</p>
         </div>
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Served</p>
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Logged</p>
           <p id="adminTotalOrders" class="text-3xl font-black text-amber-400 mt-1">0</p>
         </div>
         <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
           <p class="text-xs text-slate-400 font-bold uppercase">Active Menu Items</p>
           <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-400 mt-1">0</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+          <h3 class="font-extrabold text-white text-base border-b border-slate-700 pb-2">
+            <i class="fa-solid fa-list-check text-sky-400 mr-2"></i> Active Menu Items
+          </h3>
+          <div id="adminMenuList" class="space-y-2 max-h-72 overflow-y-auto"></div>
+        </div>
+
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+          <h3 class="font-extrabold text-white text-base border-b border-slate-700 pb-2">
+            <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-2"></i> Financial Log
+          </h3>
+          <div id="adminFinancialLog" class="space-y-2 max-h-72 overflow-y-auto text-xs"></div>
         </div>
       </div>
     </section>
@@ -201,7 +216,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsgBLV07pUqxdiZgP5S65LPCIZ18jgCQjaeYuDLh9rkkYJuNFmuFXjvqcD5gY0H-azIA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ3zZylr7nj9z0UrLKPS8FVvGJel57Eq9EHsMpUdd2M9W90_jUyzBHvtKNlzzDFRSWcQ/exec";
 
     let state = {
       menu: [],
@@ -213,6 +228,7 @@
 
     let lastDatabaseState = { orderCount: -1, summaryCount: -1 };
     let html5QrcodeScanner = null;
+    let isProcessingScan = false;
 
     function switchView(viewName) {
       ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
@@ -270,7 +286,6 @@
     function renderAll() {
       renderPosMenu();
       renderUnpaidOrders();
-      renderPosTracker();
       renderKDS();
       renderPickup();
       renderHelper();
@@ -355,34 +370,53 @@
     }
 
     function confirmOrderPayment(orderNum) {
-      const order = state.orders.find(o => String(o.orderNum) === String(orderNum));
+      const targetNum = String(orderNum).trim().replace("#", "");
+      const order = state.orders.find(o => String(o.orderNum) === targetNum);
+
       if (order) {
         order.status = "PENDING";
         renderAll();
+
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           mode: "no-cors",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "confirmPayment", orderNum: String(orderNum) })
+          body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
         });
+        return true;
       }
+      return false;
     }
 
     function startQRScanner() {
       document.getElementById('qrScannerModal').classList.remove('hidden');
-      if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("qr-reader");
+      isProcessingScan = false;
+
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+      }
 
       html5QrcodeScanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 200, height: 200 } },
         (decodedText) => {
-          const num = decodedText.trim().replace("#", "");
-          confirmOrderPayment(num);
-          triggerChime();
-          stopQRScanner();
+          if (isProcessingScan) return;
+          isProcessingScan = true;
+
+          const scannedNum = decodedText.trim().replace("#", "");
+          const success = confirmOrderPayment(scannedNum);
+
+          if (success) {
+            triggerChime();
+            stopQRScanner();
+          } else {
+            alert(`Order #${scannedNum} not found in unpaid queue.`);
+            isProcessingScan = false;
+          }
         },
         () => {}
-      ).catch(() => {
+      ).catch(err => {
+        console.log("Camera start error:", err);
         alert("Camera access failed or permission denied.");
         stopQRScanner();
       });
@@ -392,23 +426,15 @@
       if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
         html5QrcodeScanner.stop().then(() => {
           document.getElementById('qrScannerModal').classList.add('hidden');
+          isProcessingScan = false;
+        }).catch(() => {
+          document.getElementById('qrScannerModal').classList.add('hidden');
+          isProcessingScan = false;
         });
       } else {
         document.getElementById('qrScannerModal').classList.add('hidden');
+        isProcessingScan = false;
       }
-    }
-
-    function renderPosTracker() {
-      const container = document.getElementById('posLiveOrderTracker');
-      if (!container) return;
-      container.innerHTML = "";
-      state.orders.slice(-6).reverse().forEach(o => {
-        container.innerHTML += `
-          <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900 border border-slate-700">
-            <span><strong>#${o.orderNum}</strong> ${o.guestName}</span>
-            <span class="font-bold px-2 py-0.5 rounded text-[10px] ${o.status === 'READY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${o.status}</span>
-          </div>`;
-      });
     }
 
     function renderKDS() {
@@ -506,6 +532,33 @@
       document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
       document.getElementById('adminTotalOrders').innerText = state.orders.length;
       document.getElementById('adminMenuItemsCount').innerText = state.menu.length;
+
+      const menuList = document.getElementById('adminMenuList');
+      if (menuList) {
+        menuList.innerHTML = "";
+        state.menu.forEach(item => {
+          menuList.innerHTML += `
+            <div class="flex justify-between items-center p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs">
+              <span class="font-bold text-white">${item.name} (${item.tempOptions})</span>
+              <span class="font-black text-amber-400">$${item.price.toFixed(2)}</span>
+            </div>`;
+        });
+      }
+
+      const finLog = document.getElementById('adminFinancialLog');
+      if (finLog) {
+        finLog.innerHTML = "";
+        state.orders.slice(-10).reverse().forEach(o => {
+          finLog.innerHTML += `
+            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900 border border-slate-700">
+              <div>
+                <span class="font-bold text-white">#${o.orderNum} - ${o.productName}</span>
+                <span class="text-slate-400 block text-[10px]">${o.guestName} (${o.cashier})</span>
+              </div>
+              <span class="font-black text-emerald-400">$${o.price.toFixed(2)}</span>
+            </div>`;
+        });
+      }
     }
 
     function init() {
