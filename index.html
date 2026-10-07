@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLMCSS CAFE - Management System</title>
+  <title>BLMCSS CAFE - E-Portal</title>
   
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -13,142 +13,173 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
-  <!-- Navigation Bar -->
-  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+  <!-- Header matching MFCafe E-Portal photo style -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
-        <div class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-xl text-lg">
-          <i class="fa-solid fa-mug-hot"></i>
+        <div class="bg-amber-500 text-white font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
+          <i class="fa-solid fa-store"></i>
+          <span>MFCafe Portal</span>
         </div>
         <div>
-          <h1 class="font-black text-lg text-white leading-none">BLMCSS CAFE</h1>
-          <p class="text-[10px] text-amber-400 font-bold tracking-widest uppercase">E-Management System</p>
+          <h1 class="font-extrabold text-lg text-slate-800 leading-tight">MFCafe E-Portal</h1>
+          <p class="text-[11px] text-emerald-600 font-semibold flex items-center">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5"></span>
+            Works with Google Sheets
+          </p>
         </div>
       </div>
 
-      <!-- View Switcher Tabs -->
-      <nav class="flex bg-slate-900 p-1 rounded-xl border border-slate-700 text-xs font-bold">
-        <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow">Cashier POS</button>
-        <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Barista KDS</button>
-        <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Pickup Screen</button>
-        <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Helper / Clear</button>
-        <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Admin Summary</button>
+      <!-- Navigation Tabs -->
+      <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+        <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition">
+          <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
+        </button>
+        <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
+        </button>
+        <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
+        </button>
+        <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-square-check mr-1"></i> Clearing Pickup Screen
+        </button>
+        <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
+        </button>
       </nav>
     </div>
   </header>
 
   <!-- MAIN CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4">
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-4">
 
-    <!-- VIEW 1: CASHIER POS -->
+    <!-- VIEW 1: CASHIER POS (MATCHING PHOTO LAYOUT) -->
     <section id="view-cashier" class="space-y-4">
       
-      <!-- Self-Order Unpaid Mobile Queue -->
-      <div class="bg-slate-800 p-4 rounded-2xl border border-amber-500/30">
+      <!-- Unpaid Mobile Queue -->
+      <div class="bg-amber-500/10 p-4 rounded-3xl border border-amber-300/60">
         <div class="flex justify-between items-center mb-3">
           <div class="flex items-center space-x-2">
-            <span class="w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping"></span>
-            <h3 class="font-extrabold text-amber-400 text-sm">Self-Order Unpaid Queue</h3>
+            <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
+            <h3 class="font-extrabold text-amber-900 text-sm">Self-Order Unpaid Queue</h3>
           </div>
-          <button onclick="startQRScanner()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition flex items-center space-x-1.5">
-            <i class="fa-solid fa-qrcode"></i>
+          <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-qrcode text-amber-400"></i>
             <span>Scan Customer QR</span>
           </button>
         </div>
-        <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2"></div>
+        <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
       </div>
 
-      <!-- Counter Order Entry -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="lg:col-span-2 bg-slate-800 p-5 rounded-2xl border border-slate-700">
-          <h2 class="font-extrabold text-white text-base mb-4 flex items-center">
-            <i class="fa-solid fa-cash-register text-amber-400 mr-2"></i> Create Counter Order
-          </h2>
-          
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-1">Guest Name</label>
-              <input type="text" id="posGuestName" placeholder="e.g. Alex" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Select Drink Grid -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="font-black text-slate-800 text-lg flex items-center">
+              <i class="fa-solid fa-utensils text-amber-500 mr-2"></i> Select Drink
+            </h2>
+            <span id="menuAvailableBadge" class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full text-xs">
+              0 items available
+            </span>
+          </div>
+
+          <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- Right: Current Order Builder Panel -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 class="font-black text-slate-800 text-lg">Current Order</h3>
+              <span id="posOrderNumDisplay" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-lg text-xs">#101</span>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-400 mb-1">Cashier Name</label>
-              <input type="text" id="posCashierName" placeholder="e.g. Staff" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+
+            <!-- Inputs matching #1 & #2 -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Cashier Name</label>
+                <input type="text" id="posCashierName" placeholder="Cashier Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Guest Name</label>
+                <input type="text" id="posGuestName" placeholder="e.g. Spaghetti Xu" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+              </div>
+            </div>
+
+            <!-- Item Options matching #4 & #5 -->
+            <div id="posSelectionDetails" class="bg-amber-500/5 p-4 rounded-2xl border border-amber-200/60 hidden space-y-3">
+              <div class="flex justify-between items-center">
+                <span id="posSelectedItemName" class="font-black text-slate-800 text-sm">Test Drink</span>
+                <span id="posSelectedItemPrice" class="font-black text-amber-600 text-sm">$0.00</span>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Temperature Option</label>
+                <div class="flex space-x-2">
+                  <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
+                  <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+                </div>
+              </div>
+
+              <!-- Quick Customization Pills -->
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Customization / Notes</label>
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                  <button type="button" onclick="addNotePill('+ Less Ice')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Less Ice</button>
+                  <button type="button" onclick="addNotePill('+ No Sugar')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ No Sugar</button>
+                  <button type="button" onclick="addNotePill('+ Oat Milk')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Oat Milk</button>
+                </div>
+                <input type="text" id="posNotes" placeholder="Custom note..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+              </div>
             </div>
           </div>
 
-          <label class="block text-xs font-bold text-slate-400 mb-2">Select Drink</label>
-          <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4"></div>
-
-          <!-- Options -->
-          <div id="posSelectionDetails" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 hidden space-y-3">
-            <div class="flex justify-between items-center">
-              <span id="posSelectedItemName" class="font-bold text-amber-400 text-sm">Item</span>
-              <span id="posSelectedItemPrice" class="font-black text-white text-sm">$0.00</span>
-            </div>
-            <div class="flex space-x-2">
-              <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300">Cold 🧊</button>
-              <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400">Hot ☕</button>
-            </div>
-            <input type="text" id="posNotes" placeholder="Notes (e.g. Less ice)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
-          </div>
-
-          <button onclick="submitPosOrder()" class="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-3 rounded-xl text-sm shadow-lg transition">
-            Submit Order & Send to KDS
+          <!-- Confirm & Submit Button matching #6 & #8 -->
+          <button onclick="submitPosOrder()" id="btnSubmitPos" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="posSubmitBtnText">Confirm & Submit ($0.00)</span>
           </button>
         </div>
 
-        <!-- System Controls Panel -->
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
-          <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-            <h3 class="font-bold text-sm text-white">System Controls</h3>
-            <button onclick="triggerChime()" class="bg-slate-700 hover:bg-slate-600 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1">
-              <i class="fa-solid fa-volume-high"></i>
-              <span>Test Speaker</span>
-            </button>
-          </div>
-          <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-700 text-xs text-slate-400 space-y-2">
-            <p><i class="fa-solid fa-circle-info text-amber-400 mr-1.5"></i><strong>Cashier Instructions:</strong></p>
-            <p>1. When a customer self-orders via mobile, their order appears in the <strong>Unpaid Queue</strong> above.</p>
-            <p>2. Click <strong>Scan Customer QR</strong> to scan their phone screen or click <strong>Confirm Paid</strong> manually.</p>
-          </div>
-        </div>
       </div>
     </section>
 
     <!-- VIEW 2: BARISTA KDS SCREEN -->
     <section id="view-kds" class="hidden space-y-4">
-      <div class="flex justify-between items-center">
-        <h2 class="font-black text-xl text-amber-400 flex items-center">
-          <i class="fa-solid fa-fire text-amber-500 mr-2"></i> Kitchen Display System (KDS)
+      <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200">
+        <h2 class="font-black text-slate-800 text-lg flex items-center">
+          <i class="fa-solid fa-mug-saucer text-amber-500 mr-2"></i> Kitchen Display System (KDS)
         </h2>
-        <span id="kdsPendingCount" class="bg-amber-500/20 text-amber-400 font-bold px-3 py-1 rounded-full text-xs">0 Orders Pending</span>
+        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3.5 py-1.5 rounded-full text-xs">0 Orders Pending</span>
       </div>
       <div id="kdsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
     </section>
 
     <!-- VIEW 3: PUBLIC PICKUP DISPLAY -->
     <section id="view-pickup" class="hidden space-y-6">
-      <div class="text-center py-4 bg-slate-800 rounded-2xl border border-slate-700">
-        <h2 class="text-3xl font-black text-amber-400 tracking-wide">ORDER STATUS DISPLAY</h2>
+      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm">
+        <h2 class="text-3xl font-black text-amber-500 tracking-wide">ORDER STATUS DISPLAY</h2>
         <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
-          <h3 class="font-black text-slate-400 text-lg uppercase tracking-wider mb-4 border-b border-slate-700 pb-2">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <h3 class="font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
             <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
           </h3>
           <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
 
-        <div class="bg-emerald-950/40 p-5 rounded-2xl border border-emerald-500/40">
-          <h3 class="font-black text-emerald-400 text-lg uppercase tracking-wider mb-4 border-b border-emerald-500/30 pb-2">
-            <i class="fa-solid fa-bell text-emerald-400 mr-2 animate-bounce"></i> Ready For Pickup
+        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
+          <h3 class="font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
+            <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
           </h3>
           <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
@@ -157,58 +188,122 @@
 
     <!-- VIEW 4: HELPER / CLEAR VIEW -->
     <section id="view-helper" class="hidden space-y-4">
-      <h2 class="font-black text-xl text-white flex items-center">
-        <i class="fa-solid fa-handshake-angle text-emerald-400 mr-2"></i> Helper & Pickup Clearing View
-      </h2>
+      <div class="bg-white p-4 rounded-2xl border border-slate-200">
+        <h2 class="font-black text-slate-800 text-lg flex items-center">
+          <i class="fa-solid fa-square-check text-emerald-600 mr-2"></i> Clearing Pickup Screen
+        </h2>
+      </div>
       <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VIEW 5: ADMIN SUMMARY -->
+    <!-- VIEW 5: ENHANCED ADMIN PANEL (PAUSE, EDIT, ADD, DELETE) -->
     <section id="view-admin" class="hidden space-y-6">
+      
+      <!-- Metrics Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-400 font-bold uppercase">Total Revenue</p>
-          <p id="adminRevenue" class="text-3xl font-black text-emerald-400 mt-1">$0.00</p>
+          <p id="adminRevenue" class="text-3xl font-black text-emerald-600 mt-1">$0.00</p>
         </div>
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Logged</p>
-          <p id="adminTotalOrders" class="text-3xl font-black text-amber-400 mt-1">0</p>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Served</p>
+          <p id="adminTotalOrders" class="text-3xl font-black text-amber-500 mt-1">0</p>
         </div>
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-400 font-bold uppercase">Active Menu Items</p>
-          <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-400 mt-1">0</p>
+          <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-600 mt-1">0</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
-          <h3 class="font-extrabold text-white text-base border-b border-slate-700 pb-2">
-            <i class="fa-solid fa-list-check text-sky-400 mr-2"></i> Active Menu Items
-          </h3>
-          <div id="adminMenuList" class="space-y-2 max-h-72 overflow-y-auto"></div>
+      <!-- Menu Management Section -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">Menu Management</h3>
+            <p class="text-xs text-slate-400">Pause items, change prices, or edit temperature availability</p>
+          </div>
+          <button onclick="openAddMenuModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-plus mr-1"></i> Add New Item
+          </button>
         </div>
 
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
-          <h3 class="font-extrabold text-white text-base border-b border-slate-700 pb-2">
-            <i class="fa-solid fa-file-invoice-dollar text-emerald-400 mr-2"></i> Financial Log
-          </h3>
-          <div id="adminFinancialLog" class="space-y-2 max-h-72 overflow-y-auto text-xs"></div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
+                <th class="py-2.5 px-3">Item Name</th>
+                <th class="py-2.5 px-3">Temp Options</th>
+                <th class="py-2.5 px-3">Price</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminMenuTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
         </div>
       </div>
+
     </section>
 
   </main>
 
-  <!-- CAMERA QR SCANNER MODAL -->
-  <div id="qrScannerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-slate-800 rounded-3xl max-w-sm w-full p-6 border border-slate-700 text-center space-y-4">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-        <h3 class="font-extrabold text-white text-base"><i class="fa-solid fa-camera text-amber-400 mr-2"></i>Scan Customer QR</h3>
-        <button onclick="stopQRScanner()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
+  <!-- EDIT / ADD MENU ITEM MODAL -->
+  <div id="menuModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modalTitle" class="font-black text-slate-800 text-base">Edit Menu Item</h3>
+        <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
       </div>
-      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-2 border-dashed border-amber-500/50 bg-slate-900"></div>
-      <p class="text-xs text-slate-400 font-medium">Point camera at customer's phone QR code</p>
-      <button onclick="stopQRScanner()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl text-xs">
+
+      <input type="hidden" id="editOriginalName">
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Item Name</label>
+          <input type="text" id="editItemName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
+          <input type="number" step="0.5" id="editItemPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Options</label>
+          <select id="editItemTemp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <option value="Hot & Cold">Hot & Cold</option>
+            <option value="Hot">Hot Only</option>
+            <option value="Cold">Cold Only</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
+          <select id="editItemStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <option value="Active">Active</option>
+            <option value="Paused">Paused / Hidden</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="saveMenuItemSubmit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
+          Save Changes
+        </button>
+        <button onclick="closeMenuModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMERA QR SCANNER MODAL -->
+  <div id="qrScannerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-extrabold text-slate-800 text-base"><i class="fa-solid fa-camera text-amber-500 mr-2"></i>Scan Customer QR</h3>
+        <button onclick="stopQRScanner()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-2 border-dashed border-amber-500 bg-slate-50"></div>
+      <p class="text-xs text-slate-500 font-medium">Point camera at customer's phone QR code</p>
+      <button onclick="stopQRScanner()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">
         Cancel Scanning
       </button>
     </div>
@@ -216,7 +311,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ3zZylr7nj9z0UrLKPS8FVvGJel57Eq9EHsMpUdd2M9W90_jUyzBHvtKNlzzDFRSWcQ/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTjtZXccV7mmI1GfZLedSPbV1JRB0pkTUmXy1tGAGIbdjTyAyy-vQ3JT6VYZFunYEDnA/exec";
 
     let state = {
       menu: [],
@@ -229,17 +324,18 @@
     let lastDatabaseState = { orderCount: -1, summaryCount: -1 };
     let html5QrcodeScanner = null;
     let isProcessingScan = false;
+    let isModalAddMode = false;
 
     function switchView(viewName) {
       ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
         document.getElementById(`view-${v}`)?.classList.add('hidden');
         const tab = document.getElementById(`tab-${v}`);
-        if (tab) tab.className = "px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white";
+        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition";
       });
 
       document.getElementById(`view-${viewName}`)?.classList.remove('hidden');
       const activeTab = document.getElementById(`tab-${viewName}`);
-      if (activeTab) activeTab.className = "px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow";
+      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition";
       renderAll();
     }
 
@@ -277,7 +373,10 @@
             state.orders = data.orders;
             if (newReady > oldReady) triggerChime();
           }
-          if (data.nextOrderNum) state.nextOrderNum = data.nextOrderNum;
+          if (data.nextOrderNum) {
+            state.nextOrderNum = data.nextOrderNum;
+            document.getElementById('posOrderNumDisplay').innerText = `#${state.nextOrderNum}`;
+          }
           renderAll();
         })
         .catch(err => console.log("Fetch error:", err));
@@ -296,30 +395,45 @@
       const grid = document.getElementById('posMenuGrid');
       if (!grid) return;
       grid.innerHTML = "";
-      state.menu.forEach(item => {
+
+      const activeItems = state.menu.filter(i => i.status?.toLowerCase() === "active");
+      document.getElementById('menuAvailableBadge').innerText = `${activeItems.length} items available`;
+
+      activeItems.forEach(item => {
+        const isSelected = state.selectedPosItem?.name === item.name;
         const btn = document.createElement('button');
-        btn.className = `p-2.5 rounded-xl border text-left text-xs transition ${state.selectedPosItem?.name === item.name ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/50'}`;
+        btn.className = `p-4 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
         btn.onclick = () => {
           state.selectedPosItem = item;
           state.selectedPosTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
           document.getElementById('posSelectionDetails').classList.remove('hidden');
           document.getElementById('posSelectedItemName').innerText = item.name;
           document.getElementById('posSelectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
+          document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
           renderPosMenu();
         };
-        btn.innerHTML = `<p class="font-bold text-white">${item.name}</p><p class="text-amber-400 font-extrabold mt-0.5">$${item.price.toFixed(2)}</p>`;
+        btn.innerHTML = `
+          <p class="font-extrabold text-xs text-slate-800">${item.name}</p>
+          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${item.tempOptions}</p>
+          <p class="text-amber-600 font-black text-sm mt-2">$${item.price.toFixed(2)}</p>
+        `;
         grid.appendChild(btn);
       });
     }
 
     function setPosTemp(t) {
       state.selectedPosTemp = t;
-      document.getElementById('posBtnCold').className = t === 'Cold' ? 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300' : 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400';
-      document.getElementById('posBtnHot').className = t === 'Hot' ? 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300' : 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400';
+      document.getElementById('posBtnCold').className = t === 'Cold' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      document.getElementById('posBtnHot').className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+    }
+
+    function addNotePill(text) {
+      const field = document.getElementById('posNotes');
+      field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
     function submitPosOrder() {
-      if (!state.selectedPosItem) return alert("Select a drink first!");
+      if (!state.selectedPosItem) return alert("Please select a drink first!");
       const guest = document.getElementById('posGuestName').value.trim() || "Guest";
       const cashier = document.getElementById('posCashierName').value.trim() || "Staff";
 
@@ -344,24 +458,30 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "createOrder", order: orderData })
       });
+
+      // Reset selection
+      state.selectedPosItem = null;
+      document.getElementById('posSelectionDetails').classList.add('hidden');
+      document.getElementById('posNotes').value = "";
+      document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
     }
 
     function renderUnpaidOrders() {
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
       const unpaid = state.orders.filter(o => o.status === "UNPAID");
-      container.innerHTML = unpaid.length === 0 ? `<p class="text-xs text-slate-400 col-span-3 py-1">No unpaid mobile orders.</p>` : "";
+      container.innerHTML = unpaid.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid mobile orders right now.</p>` : "";
 
       unpaid.forEach(o => {
         const card = document.createElement('div');
-        card.className = "flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-amber-500/30 text-xs";
+        card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
         card.innerHTML = `
           <div>
-            <span class="font-black text-amber-400 text-sm">#${o.orderNum}</span>
-            <span class="ml-1.5 font-bold text-white">${o.guestName}</span>
-            <p class="text-slate-400">${o.productName} ($${o.price.toFixed(2)})</p>
+            <span class="font-black text-amber-600 text-sm">#${o.orderNum}</span>
+            <span class="ml-1.5 font-bold text-slate-800">${o.guestName}</span>
+            <p class="text-slate-500 text-[11px]">${o.productName} ($${o.price.toFixed(2)})</p>
           </div>
-          <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3 py-1 rounded-lg">
+          <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
             Confirm Paid
           </button>
         `;
@@ -416,7 +536,6 @@
         },
         () => {}
       ).catch(err => {
-        console.log("Camera start error:", err);
         alert("Camera access failed or permission denied.");
         stopQRScanner();
       });
@@ -442,20 +561,20 @@
       if (!grid) return;
       const pending = state.orders.filter(o => o.status === "PENDING");
       document.getElementById('kdsPendingCount').innerText = `${pending.length} Orders Pending`;
-      grid.innerHTML = pending.length === 0 ? `<p class="text-slate-500 col-span-4 text-center py-10">No orders waiting in kitchen.</p>` : "";
+      grid.innerHTML = pending.length === 0 ? `<p class="text-slate-400 col-span-4 text-center py-10 font-medium">No orders waiting in kitchen.</p>` : "";
 
       pending.forEach(o => {
         grid.innerHTML += `
-          <div class="bg-slate-800 border-2 border-amber-500/50 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+          <div class="bg-white border-2 border-amber-400 p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-                <span class="text-2xl font-black text-amber-400">#${o.orderNum}</span>
-                <span class="text-xs font-bold bg-slate-900 px-2.5 py-1 rounded-lg text-slate-300">${o.guestName}</span>
+              <div class="flex justify-between items-center border-b pb-2">
+                <span class="text-2xl font-black text-amber-600">#${o.orderNum}</span>
+                <span class="text-xs font-bold bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">${o.guestName}</span>
               </div>
-              <p class="font-extrabold text-white text-base mt-2">${o.productName} (${o.temp})</p>
-              ${o.customization ? `<p class="text-xs text-amber-300 bg-amber-500/10 p-2 rounded-lg mt-2">${o.customization}</p>` : ''}
+              <p class="font-extrabold text-slate-800 text-base mt-2">${o.productName} (${o.temp})</p>
+              ${o.customization ? `<p class="text-xs text-amber-900 bg-amber-50 p-2 rounded-xl mt-2 border border-amber-200/60 font-semibold">${o.customization}</p>` : ''}
             </div>
-            <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-2.5 rounded-xl text-xs">
+            <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs shadow-sm">
               Call Drink Ready
             </button>
           </div>`;
@@ -485,11 +604,11 @@
       readyList.innerHTML = "";
 
       state.orders.filter(o => o.status === "PENDING").forEach(o => {
-        prepList.innerHTML += `<div class="bg-slate-900 border border-slate-700 p-3 rounded-xl font-black text-xl text-slate-300">#${o.orderNum}</div>`;
+        prepList.innerHTML += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${o.orderNum}</div>`;
       });
 
       state.orders.filter(o => o.status === "READY").forEach(o => {
-        readyList.innerHTML += `<div class="bg-emerald-500 text-slate-950 p-3 rounded-xl font-black text-2xl animate-pulse">#${o.orderNum}</div>`;
+        readyList.innerHTML += `<div class="bg-emerald-600 text-white p-3 rounded-xl font-black text-2xl animate-pulse shadow-md">#${o.orderNum}</div>`;
       });
     }
 
@@ -497,16 +616,16 @@
       const grid = document.getElementById('helperGrid');
       if (!grid) return;
       const ready = state.orders.filter(o => o.status === "READY");
-      grid.innerHTML = ready.length === 0 ? `<p class="text-slate-500 col-span-3 text-center py-10">No ready orders to clear.</p>` : "";
+      grid.innerHTML = ready.length === 0 ? `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>` : "";
 
       ready.forEach(o => {
         grid.innerHTML += `
-          <div class="bg-slate-800 border border-emerald-500/40 p-4 rounded-2xl flex justify-between items-center">
+          <div class="bg-white border border-emerald-300 p-4 rounded-2xl shadow-sm flex justify-between items-center">
             <div>
-              <span class="text-2xl font-black text-emerald-400">#${o.orderNum}</span>
-              <p class="font-bold text-white text-sm">${o.guestName} - ${o.productName}</p>
+              <span class="text-2xl font-black text-emerald-600">#${o.orderNum}</span>
+              <p class="font-bold text-slate-800 text-sm">${o.guestName} - ${o.productName}</p>
             </div>
-            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-3 py-2 rounded-xl text-xs">
+            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs">
               Clear
             </button>
           </div>`;
@@ -531,34 +650,130 @@
       const rev = state.orders.reduce((sum, o) => sum + (o.price || 0), 0);
       document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
       document.getElementById('adminTotalOrders').innerText = state.orders.length;
-      document.getElementById('adminMenuItemsCount').innerText = state.menu.length;
+      document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
-      const menuList = document.getElementById('adminMenuList');
-      if (menuList) {
-        menuList.innerHTML = "";
+      const tbody = document.getElementById('adminMenuTableBody');
+      if (tbody) {
+        tbody.innerHTML = "";
         state.menu.forEach(item => {
-          menuList.innerHTML += `
-            <div class="flex justify-between items-center p-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs">
-              <span class="font-bold text-white">${item.name} (${item.tempOptions})</span>
-              <span class="font-black text-amber-400">$${item.price.toFixed(2)}</span>
-            </div>`;
+          const isPaused = item.status?.toLowerCase() === "paused";
+          tbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3 font-extrabold text-slate-800">${item.name}</td>
+              <td class="py-3 px-3 font-semibold text-slate-500">${item.tempOptions}</td>
+              <td class="py-3 px-3 font-black text-amber-600">$${item.price.toFixed(2)}</td>
+              <td class="py-3 px-3">
+                <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                  ${isPaused ? 'Paused' : 'Active'}
+                </span>
+              </td>
+              <td class="py-3 px-3 text-right space-x-1">
+                <button onclick="togglePauseItem('${item.name}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
+                  ${isPaused ? 'Unpause' : 'Pause'}
+                </button>
+                <button onclick="openEditMenuModal('${item.name}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                  Edit
+                </button>
+                <button onclick="deleteMenuItem('${item.name}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                  Delete
+                </button>
+              </td>
+            </tr>`;
         });
+      }
+    }
+
+    // Admin Menu Action Handlers
+    function togglePauseItem(itemName, newStatus) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (item) {
+        item.status = newStatus;
+        item.available = newStatus.toLowerCase() === "active";
+        renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "toggleMenuItem", itemName: itemName, newStatus: newStatus })
+        });
+      }
+    }
+
+    function openEditMenuModal(itemName) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (!item) return;
+      isModalAddMode = false;
+      document.getElementById('modalTitle').innerText = "Edit Menu Item";
+      document.getElementById('editOriginalName').value = item.name;
+      document.getElementById('editItemName').value = item.name;
+      document.getElementById('editItemPrice').value = item.price;
+      document.getElementById('editItemTemp').value = item.tempOptions;
+      document.getElementById('editItemStatus').value = item.status || "Active";
+      document.getElementById('menuModal').classList.remove('hidden');
+    }
+
+    function openAddMenuModal() {
+      isModalAddMode = true;
+      document.getElementById('modalTitle').innerText = "Add New Menu Item";
+      document.getElementById('editOriginalName').value = "";
+      document.getElementById('editItemName').value = "";
+      document.getElementById('editItemPrice').value = "";
+      document.getElementById('editItemTemp').value = "Hot & Cold";
+      document.getElementById('editItemStatus').value = "Active";
+      document.getElementById('menuModal').classList.remove('hidden');
+    }
+
+    function closeMenuModal() {
+      document.getElementById('menuModal').classList.add('hidden');
+    }
+
+    function saveMenuItemSubmit() {
+      const originalName = document.getElementById('editOriginalName').value;
+      const name = document.getElementById('editItemName').value.trim();
+      const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+      const tempOptions = document.getElementById('editItemTemp').value;
+      const status = document.getElementById('editItemStatus').value;
+
+      if (!name) return alert("Please enter item name!");
+
+      const itemData = { originalName, name, price, tempOptions, status };
+
+      if (isModalAddMode) {
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active" });
+      } else {
+        const item = state.menu.find(i => i.name === originalName);
+        if (item) {
+          item.name = name;
+          item.price = price;
+          item.tempOptions = tempOptions;
+          item.status = status;
+          item.available = status === "Active";
+        }
       }
 
-      const finLog = document.getElementById('adminFinancialLog');
-      if (finLog) {
-        finLog.innerHTML = "";
-        state.orders.slice(-10).reverse().forEach(o => {
-          finLog.innerHTML += `
-            <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900 border border-slate-700">
-              <div>
-                <span class="font-bold text-white">#${o.orderNum} - ${o.productName}</span>
-                <span class="text-slate-400 block text-[10px]">${o.guestName} (${o.cashier})</span>
-              </div>
-              <span class="font-black text-emerald-400">$${o.price.toFixed(2)}</span>
-            </div>`;
-        });
-      }
+      renderAll();
+      closeMenuModal();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
+      });
+    }
+
+    function deleteMenuItem(itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
+
+      state.menu = state.menu.filter(i => i.name !== itemName);
+      renderAll();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+      });
     }
 
     function init() {
