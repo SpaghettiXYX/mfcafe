@@ -332,19 +332,24 @@
 
     function switchView(viewName) {
       ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
-        document.getElementById(`view-${v}`)?.classList.add('hidden');
+        const viewEl = document.getElementById(`view-${v}`);
+        if (viewEl) viewEl.classList.add('hidden');
+        
         const tab = document.getElementById(`tab-${v}`);
         if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition";
       });
 
-      document.getElementById(`view-${viewName}`)?.classList.remove('hidden');
+      const activeView = document.getElementById(`view-${viewName}`);
+      if (activeView) activeView.classList.remove('hidden');
+
       const activeTab = document.getElementById(`tab-${viewName}`);
       if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition";
+      
       renderAll();
     }
 
     function triggerChime() {
-      const audioUrl = "chime.mp3"; 
+      const audioUrl = "foodpanda-sound.mp3"; 
       const audio = new Audio(audioUrl);
       audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
     }
@@ -393,7 +398,8 @@
           }
           if (data.nextOrderNum) {
             state.nextOrderNum = data.nextOrderNum;
-            document.getElementById('posOrderNumDisplay').innerText = `#${state.nextOrderNum}`;
+            const badge = document.getElementById('posOrderNumDisplay');
+            if (badge) badge.innerText = `#${state.nextOrderNum}`;
           }
           renderAll();
         })
@@ -415,7 +421,8 @@
       grid.innerHTML = "";
 
       const activeItems = state.menu.filter(i => i.status?.toLowerCase() === "active");
-      document.getElementById('menuAvailableBadge').innerText = `${activeItems.length} items available`;
+      const badge = document.getElementById('menuAvailableBadge');
+      if (badge) badge.innerText = `${activeItems.length} items available`;
 
       activeItems.forEach(item => {
         const isSelected = state.selectedPosItem?.name === item.name;
@@ -424,10 +431,17 @@
         btn.onclick = () => {
           state.selectedPosItem = item;
           state.selectedPosTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
-          document.getElementById('posSelectionDetails').classList.remove('hidden');
-          document.getElementById('posSelectedItemName').innerText = item.name;
-          document.getElementById('posSelectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
-          document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
+          document.getElementById('posSelectionDetails')?.classList.remove('hidden');
+          
+          const itemNameEl = document.getElementById('posSelectedItemName');
+          if (itemNameEl) itemNameEl.innerText = item.name;
+          
+          const itemPriceEl = document.getElementById('posSelectedItemPrice');
+          if (itemPriceEl) itemPriceEl.innerText = `$${item.price.toFixed(2)}`;
+          
+          const submitBtnTextEl = document.getElementById('posSubmitBtnText');
+          if (submitBtnTextEl) submitBtnTextEl.innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
+          
           renderPosMenu();
         };
         btn.innerHTML = `
@@ -441,19 +455,26 @@
 
     function setPosTemp(t) {
       state.selectedPosTemp = t;
-      document.getElementById('posBtnCold').className = t === 'Cold' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
-      document.getElementById('posBtnHot').className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      const btnCold = document.getElementById('posBtnCold');
+      const btnHot = document.getElementById('posBtnHot');
+      if (btnCold) btnCold.className = t === 'Cold' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
     }
 
     function addNotePill(text) {
       const field = document.getElementById('posNotes');
-      field.value = field.value ? `${field.value}, ${text}` : text;
+      if (field) field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
     function submitPosOrder() {
       if (!state.selectedPosItem) return alert("Please select a drink first!");
-      const guest = document.getElementById('posGuestName').value.trim() || "Guest";
-      const cashier = document.getElementById('posCashierName').value.trim() || "Staff";
+      const guestInput = document.getElementById('posGuestName');
+      const cashierInput = document.getElementById('posCashierName');
+      const notesInput = document.getElementById('posNotes');
+
+      const guest = guestInput ? guestInput.value.trim() || "Guest" : "Guest";
+      const cashier = cashierInput ? cashierInput.value.trim() || "Staff" : "Staff";
+      const notes = notesInput ? notesInput.value : "";
 
       const orderData = {
         orderNum: String(state.nextOrderNum),
@@ -462,7 +483,7 @@
         guestName: guest,
         productName: state.selectedPosItem.name,
         temp: state.selectedPosTemp,
-        customization: document.getElementById('posNotes').value,
+        customization: notes,
         price: state.selectedPosItem.price,
         status: "PENDING"
       };
@@ -478,9 +499,10 @@
       });
 
       state.selectedPosItem = null;
-      document.getElementById('posSelectionDetails').classList.add('hidden');
-      document.getElementById('posNotes').value = "";
-      document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
+      document.getElementById('posSelectionDetails')?.classList.add('hidden');
+      if (notesInput) notesInput.value = "";
+      const submitText = document.getElementById('posSubmitBtnText');
+      if (submitText) submitText.innerText = "Confirm & Submit ($0.00)";
     }
 
     function renderUnpaidOrders() {
@@ -526,7 +548,8 @@
     }
 
     function startQRScanner() {
-      document.getElementById('qrScannerModal').classList.remove('hidden');
+      const modal = document.getElementById('qrScannerModal');
+      if (modal) modal.classList.remove('hidden');
       isProcessingScan = false;
 
       if (!html5QrcodeScanner) {
@@ -559,16 +582,17 @@
     }
 
     function stopQRScanner() {
+      const modal = document.getElementById('qrScannerModal');
       if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
         html5QrcodeScanner.stop().then(() => {
-          document.getElementById('qrScannerModal').classList.add('hidden');
+          if (modal) modal.classList.add('hidden');
           isProcessingScan = false;
         }).catch(() => {
-          document.getElementById('qrScannerModal').classList.add('hidden');
+          if (modal) modal.classList.add('hidden');
           isProcessingScan = false;
         });
       } else {
-        document.getElementById('qrScannerModal').classList.add('hidden');
+        if (modal) modal.classList.add('hidden');
         isProcessingScan = false;
       }
     }
@@ -576,9 +600,12 @@
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
+
       const pending = state.orders.filter(o => o.status === "PENDING");
       
-      document.getElementById('kdsPendingCount').innerText = `${pending.length} Active Orders`;
+      const badge = document.getElementById('kdsPendingCount');
+      if (badge) badge.innerText = `${pending.length} Active Orders`;
+
       grid.innerHTML = pending.length === 0 ? `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>` : "";
 
       pending.forEach(o => {
@@ -685,9 +712,14 @@
 
     function renderAdmin() {
       const rev = state.orders.reduce((sum, o) => sum + (o.price || 0), 0);
-      document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
-      document.getElementById('adminTotalOrders').innerText = state.orders.length;
-      document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
+      const revEl = document.getElementById('adminRevenue');
+      if (revEl) revEl.innerText = `$${rev.toFixed(2)}`;
+      
+      const ordersCountEl = document.getElementById('adminTotalOrders');
+      if (ordersCountEl) ordersCountEl.innerText = state.orders.length;
+      
+      const menuCountEl = document.getElementById('adminMenuItemsCount');
+      if (menuCountEl) menuCountEl.innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
@@ -773,18 +805,124 @@
       const item = state.menu.find(i => i.name === itemName);
       if (!item) return;
       isModalAddMode = false;
-      document.getElementById('modalTitle').innerText = "Edit Menu Item";
-      document.getElementById('editOriginalName').value = item.name;
-      document.getElementById('editItemName').value = item.name;
-      document.getElementById('editItemPrice').value = item.price;
-      document.getElementById('editItemTemp').value = item.tempOptions;
-      document.getElementById('editItemStatus').value = item.status || "Active";
-      document.getElementById('menuModal').classList.remove('hidden');
+
+      const modalTitle = document.getElementById('modalTitle');
+      if (modalTitle) modalTitle.innerText = "Edit Menu Item";
+
+      const origNameInput = document.getElementById('editOriginalName');
+      if (origNameInput) origNameInput.value = item.name;
+
+      const nameInput = document.getElementById('editItemName');
+      if (nameInput) nameInput.value = item.name;
+
+      const priceInput = document.getElementById('editItemPrice');
+      if (priceInput) priceInput.value = item.price;
+
+      const tempSelect = document.getElementById('editItemTemp');
+      if (tempSelect) tempSelect.value = item.tempOptions;
+
+      const statusSelect = document.getElementById('editItemStatus');
+      if (statusSelect) statusSelect.value = item.status || "Active";
+
+      const modal = document.getElementById('menuModal');
+      if (modal) modal.classList.remove('hidden');
     }
 
     function openAddMenuModal() {
       isModalAddMode = true;
-      document.getElementById('modalTitle').innerText = "Add New Menu Item";
-      document.getElementById('editOriginalName').value = "";
-      document.getElementById('editItemName').value = "";
-      document.getElementById('editItemPrice
+
+      const modalTitle = document.getElementById('modalTitle');
+      if (modalTitle) modalTitle.innerText = "Add New Menu Item";
+
+      const origNameInput = document.getElementById('editOriginalName');
+      if (origNameInput) origNameInput.value = "";
+
+      const nameInput = document.getElementById('editItemName');
+      if (nameInput) nameInput.value = "";
+
+      const priceInput = document.getElementById('editItemPrice');
+      if (priceInput) priceInput.value = "";
+
+      const tempSelect = document.getElementById('editItemTemp');
+      if (tempSelect) tempSelect.value = "Hot & Cold";
+
+      const statusSelect = document.getElementById('editItemStatus');
+      if (statusSelect) statusSelect.value = "Active";
+
+      const modal = document.getElementById('menuModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeMenuModal() {
+      const modal = document.getElementById('menuModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function saveMenuItemSubmit() {
+      const origInput = document.getElementById('editOriginalName');
+      const originalName = origInput ? origInput.value : "";
+
+      const nameInput = document.getElementById('editItemName');
+      const name = nameInput ? nameInput.value.trim() : "";
+
+      const priceInput = document.getElementById('editItemPrice');
+      const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
+
+      const tempSelect = document.getElementById('editItemTemp');
+      const tempOptions = tempSelect ? tempSelect.value : "Hot & Cold";
+
+      const statusSelect = document.getElementById('editItemStatus');
+      const status = statusSelect ? statusSelect.value : "Active";
+
+      if (!name) return alert("Please enter item name!");
+
+      const itemData = { originalName, name, price, tempOptions, status };
+
+      if (isModalAddMode) {
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active" });
+      } else {
+        const item = state.menu.find(i => i.name === originalName);
+        if (item) {
+          item.name = name;
+          item.price = price;
+          item.tempOptions = tempOptions;
+          item.status = status;
+          item.available = status === "Active";
+        }
+      }
+
+      renderAll();
+      closeMenuModal();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
+      });
+    }
+
+    function deleteMenuItem(itemName) {
+      if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
+
+      state.menu = state.menu.filter(i => i.name !== itemName);
+      renderAll();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+      });
+    }
+
+    function init() {
+      fetchFromSheet();
+      setInterval(updateTimers, 1000);
+      setInterval(fetchFromSheet, 3000);
+    }
+
+    init();
+  </script>
+</body>
+</html>
