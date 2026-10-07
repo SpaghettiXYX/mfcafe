@@ -316,7 +316,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ0kpjFMY3WIC2Tv7fdEl5pjq0aOD44OYRWfbxEwK1wuCdq7Sy-sTK2AKF_3-LaDqe6Q/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyASoBiu1uluzshIiJywointeEaG7LK0d-_X8W9TSbihi4aI8wVryKjui_rqJJU4HG5jw/exec";
 
     let state = {
       menu: [],
@@ -391,8 +391,8 @@
         .then(data => {
           if (Array.isArray(data.menu)) state.menu = data.menu;
           if (Array.isArray(data.orders)) {
-            const oldReady = state.orders.filter(o => o.status === "READY").length;
-            const newReady = data.orders.filter(o => o.status === "READY").length;
+            const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+            const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
             state.orders = data.orders;
             if (newReady > oldReady) triggerChime();
           }
@@ -508,7 +508,7 @@
     function renderUnpaidOrders() {
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
-      const unpaid = state.orders.filter(o => o.status === "UNPAID");
+      const unpaid = state.orders.filter(o => (o.status || "").toUpperCase() === "UNPAID");
       container.innerHTML = unpaid.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid mobile orders right now.</p>` : "";
 
       unpaid.forEach(o => {
@@ -530,7 +530,7 @@
 
     function confirmOrderPayment(orderNum) {
       const targetNum = String(orderNum).trim().replace("#", "");
-      const order = state.orders.find(o => String(o.orderNum) === targetNum);
+      const order = state.orders.find(o => String(o.orderNum).trim() === targetNum);
 
       if (order) {
         order.status = "PENDING";
@@ -601,7 +601,7 @@
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
 
-      const pending = state.orders.filter(o => o.status === "PENDING");
+      const pending = state.orders.filter(o => (o.status || "").toUpperCase() === "PENDING");
       
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${pending.length} Active Orders`;
@@ -646,7 +646,7 @@
     }
 
     function markOrderReady(orderNum) {
-      const o = state.orders.find(item => String(item.orderNum) === String(orderNum));
+      const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
       if (o) {
         o.status = "READY";
         renderAll();
@@ -667,11 +667,11 @@
       prepList.innerHTML = "";
       readyList.innerHTML = "";
 
-      state.orders.filter(o => o.status === "PENDING").forEach(o => {
+      state.orders.filter(o => (o.status || "").toUpperCase() === "PENDING").forEach(o => {
         prepList.innerHTML += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${escapeHtml(o.orderNum)}</div>`;
       });
 
-      state.orders.filter(o => o.status === "READY").forEach(o => {
+      state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
         readyList.innerHTML += `<div class="bg-emerald-600 text-white p-3 rounded-xl font-black text-2xl animate-pulse shadow-md">#${escapeHtml(o.orderNum)}</div>`;
       });
     }
@@ -679,7 +679,7 @@
     function renderHelper() {
       const grid = document.getElementById('helperGrid');
       if (!grid) return;
-      const ready = state.orders.filter(o => o.status === "READY");
+      const ready = state.orders.filter(o => (o.status || "").toUpperCase() === "READY");
       grid.innerHTML = ready.length === 0 ? `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>` : "";
 
       ready.forEach(o => {
@@ -697,7 +697,7 @@
     }
 
     function clearOrder(orderNum) {
-      const o = state.orders.find(item => String(item.orderNum) === String(orderNum));
+      const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
       if (o) {
         o.status = "CLEARED";
         renderAll();
@@ -711,7 +711,8 @@
     }
 
     function renderAdmin() {
-      const paidOrders = state.orders.filter(o => o.status !== "UNPAID");
+      // Exclude UNPAID orders from total revenue calculations
+      const paidOrders = state.orders.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
       const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
       
       const revEl = document.getElementById('adminRevenue');
@@ -723,6 +724,7 @@
       const menuCountEl = document.getElementById('adminMenuItemsCount');
       if (menuCountEl) menuCountEl.innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
+      // Render Menu Table
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
         tbody.innerHTML = "";
@@ -753,24 +755,41 @@
         });
       }
 
+      // Render Financial Log with CLEARED orders
       const finLog = document.getElementById('adminFinancialLog');
       if (finLog) {
         finLog.innerHTML = "";
-        state.orders.slice(-30).reverse().forEach(o => {
-          let statusBadgeColor = "text-amber-600";
-          if (o.status === "CLEARED") statusBadgeColor = "text-emerald-600";
-          if (o.status === "UNPAID") statusBadgeColor = "text-rose-600";
+        if (state.orders.length === 0) {
+          finLog.innerHTML = `<p class="text-slate-400 text-center py-4 font-medium">No order log history available.</p>`;
+          return;
+        }
+
+        [...state.orders].reverse().forEach(o => {
+          const statusUpper = (o.status || "").toUpperCase();
+          let statusBadgeColor = "text-amber-600 bg-amber-50 border-amber-200";
+          
+          if (statusUpper === "CLEARED") statusBadgeColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
+          if (statusUpper === "READY") statusBadgeColor = "text-sky-700 bg-sky-50 border-sky-200";
+          if (statusUpper === "UNPAID") statusBadgeColor = "text-rose-700 bg-rose-50 border-rose-200";
 
           finLog.innerHTML += `
             <div class="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <div>
-                <span class="font-black text-slate-800">#${escapeHtml(o.orderNum)} - ${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</span>
-                <span class="text-slate-500 block text-[11px] font-semibold">${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} | Status: <strong class="${statusBadgeColor}">${escapeHtml(o.status)}</strong></span>
+                <div class="flex items-center space-x-2">
+                  <span class="font-black text-slate-800">#${escapeHtml(o.orderNum)} - ${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${statusBadgeColor}">
+                    ${escapeHtml(statusUpper)}
+                  </span>
+                </div>
+                <span class="text-slate-500 block text-[11px] font-semibold mt-0.5">
+                  Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)}
+                  ${o.customization ? `| Note: <em class="text-amber-800">${escapeHtml(o.customization)}</em>` : ''}
+                </span>
               </div>
               <div class="flex items-center space-x-3">
                 <span class="font-black text-emerald-600 text-sm">$${o.price.toFixed(2)}</span>
                 <button onclick="deleteOrderSubmit('${o.orderNum}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
-                  Delete Order
+                  Delete
                 </button>
               </div>
             </div>`;
@@ -781,7 +800,7 @@
     function deleteOrderSubmit(orderNum) {
       if (!confirm(`Are you sure you want to delete Order #${orderNum}? This cannot be undone.`)) return;
 
-      state.orders = state.orders.filter(o => String(o.orderNum) !== String(orderNum));
+      state.orders = state.orders.filter(o => String(o.orderNum).trim() !== String(orderNum).trim());
       renderAll();
 
       fetch(APPS_SCRIPT_URL, {
