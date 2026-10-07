@@ -199,10 +199,9 @@
     </div>
   </div>
 
-  <!-- JAVASCRIPT APPLICATION LOGIC -->
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqZ-8p40iS6uM8hC9g0m8g9V_example/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzsgBLV07pUqxdiZgP5S65LPCIZ18jgCQjaeYuDLh9rkkYJuNFmuFXjvqcD5gY0H-azIA/exec";
 
     let state = {
       menu: [],
@@ -215,33 +214,25 @@
     let lastDatabaseState = { orderCount: -1, summaryCount: -1 };
     let html5QrcodeScanner = null;
 
-    // View Navigation
     function switchView(viewName) {
       ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
         document.getElementById(`view-${v}`)?.classList.add('hidden');
         const tab = document.getElementById(`tab-${v}`);
-        if (tab) {
-          tab.className = "px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white";
-        }
+        if (tab) tab.className = "px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white";
       });
 
       document.getElementById(`view-${viewName}`)?.classList.remove('hidden');
       const activeTab = document.getElementById(`tab-${viewName}`);
-      if (activeTab) {
-        activeTab.className = "px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow";
-      }
+      if (activeTab) activeTab.className = "px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow";
       renderAll();
     }
 
-    // Audio Chime Trigger (Option 1: Custom MP3 uploaded to GitHub)
     function triggerChime() {
-      // Points to chime.mp3 in the same GitHub repository
-      const audioUrl = "chime.mp3"; 
+      const audioUrl = "foodpanda-sound.mp3"; 
       const audio = new Audio(audioUrl);
       audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
     }
 
-    // Smart Refresh Check (Method 3: Lightweight Fingerprint Polling)
     function smartRefresh() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
@@ -251,13 +242,12 @@
           if (data.orderCount !== lastDatabaseState.orderCount || data.summaryCount !== lastDatabaseState.summaryCount) {
             lastDatabaseState.orderCount = data.orderCount;
             lastDatabaseState.summaryCount = data.summaryCount;
-            fetchFromSheet(); // Download full data only on change
+            fetchFromSheet();
           }
         })
         .catch(err => console.log("Smart check error:", err));
     }
 
-    // Download Full Dataset from Google Sheet
     function fetchFromSheet() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
@@ -277,7 +267,6 @@
         .catch(err => console.log("Fetch error:", err));
     }
 
-    // Render All Interface Views
     function renderAll() {
       renderPosMenu();
       renderUnpaidOrders();
@@ -288,7 +277,6 @@
       renderAdmin();
     }
 
-    // POS Functions
     function renderPosMenu() {
       const grid = document.getElementById('posMenuGrid');
       if (!grid) return;
@@ -343,7 +331,6 @@
       });
     }
 
-    // Unpaid Mobile Orders Render & Payment Confirmation
     function renderUnpaidOrders() {
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
@@ -381,7 +368,6 @@
       }
     }
 
-    // Camera QR Code Scanner Functions
     function startQRScanner() {
       document.getElementById('qrScannerModal').classList.remove('hidden');
       if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("qr-reader");
@@ -412,7 +398,6 @@
       }
     }
 
-    // Render Tracker, KDS, Pickup, Helper, Admin
     function renderPosTracker() {
       const container = document.getElementById('posLiveOrderTracker');
       if (!container) return;
@@ -523,10 +508,9 @@
       document.getElementById('adminMenuItemsCount').innerText = state.menu.length;
     }
 
-    // App Initialization
     function init() {
       fetchFromSheet();
-      setInterval(smartRefresh, 3000); // Smart lightweight refresh
+      setInterval(smartRefresh, 3000);
     }
 
     init();
