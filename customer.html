@@ -101,7 +101,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9HyZKLV87oUnbayP571dCObQC2oWCKj4lO2xJaUN8_aHTMA5tFt4PN6xnsEGNyCrihw/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZ0kpjFMY3WIC2Tv7fdEl5pjq0aOD44OYRWfbxEwK1wuCdq7Sy-sTK2AKF_3-LaDqe6Q/exec";
 
     let state = { menu: [], selectedItem: null, selectedTemp: "Cold", nextOrderNum: 101 };
 
@@ -131,7 +131,8 @@
       if (!container) return;
       container.innerHTML = "";
 
-      document.getElementById('mobileAvailableCount').innerText = `${state.menu.length} available`;
+      const badge = document.getElementById('mobileAvailableCount');
+      if (badge) badge.innerText = `${state.menu.length} available`;
 
       state.menu.forEach(item => {
         const isSelected = state.selectedItem?.name === item.name;
@@ -150,28 +151,41 @@
     function selectItem(item) {
       state.selectedItem = item;
       state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
-      document.getElementById('itemOptions').classList.remove('hidden');
-      document.getElementById('selectedItemName').innerText = item.name;
-      document.getElementById('selectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
-      document.getElementById('submitBtnText').innerText = `Submit Order ($${item.price.toFixed(2)}) & Show QR`;
+      document.getElementById('itemOptions')?.classList.remove('hidden');
+      
+      const nameEl = document.getElementById('selectedItemName');
+      if (nameEl) nameEl.innerText = item.name;
+      
+      const priceEl = document.getElementById('selectedItemPrice');
+      if (priceEl) priceEl.innerText = `$${item.price.toFixed(2)}`;
+      
+      const btnTextEl = document.getElementById('submitBtnText');
+      if (btnTextEl) btnTextEl.innerText = `Submit Order ($${item.price.toFixed(2)}) & Show QR`;
+      
       renderMenu();
     }
 
     function setTemp(temp) {
       state.selectedTemp = temp;
-      document.getElementById('btnCold').className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
-      document.getElementById('btnHot').className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      const btnCold = document.getElementById('btnCold');
+      const btnHot = document.getElementById('btnHot');
+      if (btnCold) btnCold.className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (btnHot) btnHot.className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
     }
 
     function addNotePill(text) {
       const field = document.getElementById('custNotes');
-      field.value = field.value ? `${field.value}, ${text}` : text;
+      if (field) field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
     function submitSelfOrder() {
-      const name = document.getElementById('custName').value.trim();
+      const nameInput = document.getElementById('custName');
+      const name = nameInput ? nameInput.value.trim() : "";
       if (!name) return alert("Please enter your name!");
       if (!state.selectedItem) return alert("Please select a drink!");
+
+      const notesInput = document.getElementById('custNotes');
+      const notes = notesInput ? notesInput.value : "";
 
       const orderData = {
         orderNum: String(state.nextOrderNum),
@@ -180,7 +194,7 @@
         guestName: name,
         productName: state.selectedItem.name,
         temp: state.selectedTemp,
-        customization: document.getElementById('custNotes').value,
+        customization: notes,
         price: state.selectedItem.price,
         status: "UNPAID"
       };
@@ -196,26 +210,39 @@
     }
 
     function showQRTicket(order) {
-      document.getElementById('orderView').classList.add('hidden');
-      document.getElementById('orderFooter').classList.add('hidden');
-      document.getElementById('qrTicketView').classList.remove('hidden');
+      document.getElementById('orderView')?.classList.add('hidden');
+      document.getElementById('orderFooter')?.classList.add('hidden');
+      document.getElementById('qrTicketView')?.classList.remove('hidden');
 
-      document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
-      document.getElementById('ticketGuest').innerText = order.guestName;
-      document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('ticketPrice').innerText = `$${order.price.toFixed(2)}`;
+      const ticketNum = document.getElementById('ticketOrderNum');
+      if (ticketNum) ticketNum.innerText = `#${order.orderNum}`;
 
-      document.getElementById('qrcode').innerHTML = "";
-      new QRCode(document.getElementById("qrcode"), { text: order.orderNum, width: 160, height: 160 });
+      const ticketGuest = document.getElementById('ticketGuest');
+      if (ticketGuest) ticketGuest.innerText = order.guestName;
+
+      const ticketDrink = document.getElementById('ticketDrink');
+      if (ticketDrink) ticketDrink.innerText = `${order.productName} (${order.temp})`;
+
+      const ticketPrice = document.getElementById('ticketPrice');
+      if (ticketPrice) ticketPrice.innerText = `$${order.price.toFixed(2)}`;
+
+      const qrcodeContainer = document.getElementById('qrcode');
+      if (qrcodeContainer) {
+        qrcodeContainer.innerHTML = "";
+        new QRCode(qrcodeContainer, { text: order.orderNum, width: 160, height: 160 });
+      }
     }
 
     function resetCustomerForm() {
-      document.getElementById('qrTicketView').classList.add('hidden');
-      document.getElementById('orderView').classList.remove('hidden');
-      document.getElementById('orderFooter').classList.remove('hidden');
+      document.getElementById('qrTicketView')?.classList.add('hidden');
+      document.getElementById('orderView')?.classList.remove('hidden');
+      document.getElementById('orderFooter')?.classList.remove('hidden');
       state.selectedItem = null;
-      document.getElementById('itemOptions').classList.add('hidden');
-      document.getElementById('submitBtnText').innerText = "Submit Order & Show QR Code";
+      document.getElementById('itemOptions')?.classList.add('hidden');
+      
+      const btnTextEl = document.getElementById('submitBtnText');
+      if (btnTextEl) btnTextEl.innerText = "Submit Order & Show QR Code";
+      
       init();
     }
 
