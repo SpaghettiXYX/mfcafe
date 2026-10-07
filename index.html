@@ -855,7 +855,7 @@
     function init() {
       fetchFromSheet();
       setInterval(updateTimers, 1000);
-      setInterval(smartRefresh, 3000);
+      setInterval(fetchFromSheet, 3000);
     }
 
     init();
