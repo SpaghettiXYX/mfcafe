@@ -3,793 +3,532 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MFCafe Portal</title>
+  <title>BLMCSS CAFE - Management System</title>
   
-  <!-- Web Browser Tab Favicon (School Logo) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
-  
-  <!-- Tailwind CSS & FontAwesome Icons -->
+  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  
+  <!-- HTML5 QR Code Camera Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-    .nav-btn.active { background-color: #1e293b; color: #ffffff; }
-    .pulse-glow { animation: pulseGlow 1.5s infinite alternate; }
-    @keyframes pulseGlow {
-      from { box-shadow: 0 0 10px rgba(34, 197, 94, 0.4); }
-      to { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9); }
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
 
-  <!-- Top Navigation Header with BLMCSS Branding -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+  <!-- Navigation Bar -->
+  <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
       <div class="flex items-center space-x-3">
-        <!-- School Cafe Branding Badge -->
-        <div class="bg-amber-600 text-white px-3 py-2 rounded-xl font-black text-sm tracking-wider flex items-center space-x-1.5 shadow-sm">
-          <i class="fa-solid fa-school text-xs"></i>
-          <span>MFCafe Portal</span>
+        <div class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-xl text-lg">
+          <i class="fa-solid fa-mug-hot"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-800 leading-tight">MFCafe E-Portal</h1>
-          <p class="text-xs text-slate-500" id="syncStatus"><span class="w-2 h-2 inline-block rounded-full bg-emerald-500 mr-1"></span>Works with Google Sheets</p>
+          <h1 class="font-black text-lg text-white leading-none">BLMCSS CAFE</h1>
+          <p class="text-[10px] text-amber-400 font-bold tracking-widest uppercase">E-Management System</p>
         </div>
       </div>
 
-      <!-- Single Page Application (SPA) View Switcher -->
-      <nav class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-sm font-semibold">
-        <button onclick="switchView('cashier')" id="tab-cashier" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition active">
-          <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
-        </button>
-        <button onclick="switchView('kds')" id="tab-kds" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-fire-burner mr-1"></i> Bar KDS
-        </button>
-        <button onclick="switchView('pickup')" id="tab-pickup" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
-        </button>
-        <button onclick="switchView('clear')" id="tab-clear" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-mobile-screen-button mr-1"></i> Clearing Pickup Screen
-        </button>
-        <button onclick="switchView('admin')" id="tab-admin" class="nav-btn px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-chart-line mr-1"></i> Admin Panel
-        </button>
+      <!-- View Switcher Tabs -->
+      <nav class="flex bg-slate-900 p-1 rounded-xl border border-slate-700 text-xs font-bold">
+        <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow">Cashier POS</button>
+        <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Barista KDS</button>
+        <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Pickup Screen</button>
+        <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Helper / Clear</button>
+        <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white">Admin Summary</button>
       </nav>
     </div>
   </header>
 
-  <!-- MAIN VIEW CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4">
 
-    <!-- 1. CASHIER POS VIEW -->
-    <section id="view-cashier" class="view-panel grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-utensils text-amber-600 mr-2"></i>Select Drink</h2>
-          <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium" id="cashierItemCount">0 items available</span>
+    <!-- VIEW 1: CASHIER POS -->
+    <section id="view-cashier" class="space-y-4">
+      
+      <!-- Unpaid Mobile Orders Panel & QR Scanner Trigger -->
+      <div class="bg-slate-800 p-4 rounded-2xl border border-amber-500/30">
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 bg-amber-400 rounded-full animate-ping"></span>
+            <h3 class="font-extrabold text-amber-400 text-sm">Self-Order Unpaid Queue</h3>
+          </div>
+          <button onclick="startQRScanner()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl shadow transition flex items-center space-x-1.5">
+            <i class="fa-solid fa-qrcode"></i>
+            <span>Scan Customer QR</span>
+          </button>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="cashierMenuList"></div>
+        <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2"></div>
       </div>
 
-      <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-        <div>
-          <div class="flex justify-between items-center border-b pb-3 mb-4">
-            <h2 class="text-xl font-bold text-slate-800">Current Order</h2>
-            <span class="text-sm font-extrabold bg-amber-100 text-amber-800 px-3 py-1 rounded-full" id="cashierOrderNum">#001</span>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 mb-4">
+      <!-- Manual Order Creation Form -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 bg-slate-800 p-5 rounded-2xl border border-slate-700">
+          <h2 class="font-extrabold text-white text-base mb-4 flex items-center">
+            <i class="fa-solid fa-cash-register text-amber-400 mr-2"></i> Create Counter Order
+          </h2>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             <div>
-              <label class="block text-xs font-semibold text-slate-500 mb-1">Cashier Name</label>
-              <input type="text" id="inputCashier" value="Spaghetti" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+              <label class="block text-xs font-bold text-slate-400 mb-1">Guest Name</label>
+              <input type="text" id="posGuestName" placeholder="e.g. Alex" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
             </div>
             <div>
-              <label class="block text-xs font-semibold text-slate-500 mb-1">Guest Name</label>
-              <input type="text" id="inputGuest" placeholder="e.g. Spaghetti Xu" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+              <label class="block text-xs font-bold text-slate-400 mb-1">Cashier Name</label>
+              <input type="text" id="posCashierName" placeholder="e.g. Staff" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
             </div>
           </div>
 
-          <div id="selectedItemDetails" class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 hidden">
-            <div class="flex justify-between items-center mb-2">
-              <h3 class="font-bold text-slate-800 text-lg" id="detailName">Drink Name</h3>
-              <span class="font-bold text-amber-700 text-lg" id="detailPrice">$0.00</span>
-            </div>
-            
-            <div class="mb-3">
-              <label class="block text-xs font-semibold text-slate-500 mb-1">Temperature Option</label>
-              <div class="grid grid-cols-2 gap-2" id="tempOptionGroup">
-                <button type="button" onclick="selectTemp('Cold')" id="btnTempCold" class="py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800">Cold 🧊</button>
-                <button type="button" onclick="selectTemp('Hot')" id="btnTempHot" class="py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600">Hot ☕</button>
-              </div>
-            </div>
+          <label class="block text-xs font-bold text-slate-400 mb-2">Select Drink</label>
+          <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4"></div>
 
-            <div>
-              <label class="block text-xs font-semibold text-slate-500 mb-1">Customization / Notes</label>
-              <div class="flex flex-wrap gap-1.5 mb-2">
-                <button onclick="addCustom('Less Ice')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ Less Ice</button>
-                <button onclick="addCustom('No Sugar')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ No Sugar</button>
-                <button onclick="addCustom('Extra Oat Milk')" class="text-xs bg-white border border-slate-200 px-2 py-1 rounded-md text-slate-600 hover:bg-slate-100">+ Oat Milk</button>
-              </div>
-              <input type="text" id="inputCustom" placeholder="Custom note..." class="w-full px-3 py-1.5 border rounded-lg text-sm bg-white">
+          <!-- Options -->
+          <div id="posSelectionDetails" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 hidden space-y-3">
+            <div class="flex justify-between items-center">
+              <span id="posSelectedItemName" class="font-bold text-amber-400 text-sm">Item</span>
+              <span id="posSelectedItemPrice" class="font-black text-white text-sm">$0.00</span>
             </div>
+            <div class="flex space-x-2">
+              <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300">Cold 🧊</button>
+              <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400">Hot ☕</button>
+            </div>
+            <input type="text" id="posNotes" placeholder="Notes (e.g. Less ice)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
           </div>
 
-          <div id="emptyOrderNotice" class="text-center py-8 text-slate-400">
-            <i class="fa-solid fa-hand-pointer text-3xl mb-2"></i>
-            <p class="text-sm">Tap a drink from the menu to start</p>
-          </div>
+          <button onclick="submitPosOrder()" class="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-3 rounded-xl text-sm shadow-lg transition">
+            Submit Order & Send to KDS
+          </button>
         </div>
 
-        <button onclick="submitOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl text-lg shadow-lg shadow-emerald-200 transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>Confirm & Submit ($<span id="cashierTotal">0.00</span>)</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- 2. BARISTA KITCHEN DISPLAY (KDS) VIEW -->
-    <section id="view-kds" class="view-panel hidden">
-      <div class="flex justify-between items-center mb-6">
-        <div>
-          <h2 class="text-2xl font-black text-slate-800">Bar KDS</h2>
-          <p class="text-sm text-slate-500">Live incoming beverage orders</p>
-        </div>
-        <span class="text-xs font-bold bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full" id="kdsActiveCount">0 Active Orders</span>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="kdsGrid"></div>
-    </section>
-
-    <!-- 3. CUSTOMER PICKUP DISPLAY VIEW -->
-    <section id="view-pickup" class="view-panel hidden">
-      <div class="bg-slate-900 text-white rounded-3xl p-8 min-h-[80vh] flex flex-col justify-between shadow-2xl relative overflow-hidden">
-        <div class="flex justify-between items-center border-b border-slate-800 pb-6">
+        <!-- Speaker Test & Active Orders Overview -->
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+            <h3 class="font-bold text-sm text-white">System Controls</h3>
+            <button onclick="triggerChime()" class="bg-slate-700 hover:bg-slate-600 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center space-x-1">
+              <i class="fa-solid fa-volume-high"></i>
+              <span>Test Speaker</span>
+            </button>
+          </div>
           <div>
-            <h1 class="text-4xl font-black tracking-tight text-amber-400">MF Cafe</h1>
-            <p class="text-slate-400 text-lg"> Wait a moment, our barista is preparing your beverage... </p>
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Live Order Tracker</h4>
+            <div id="posLiveOrderTracker" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
           </div>
-          <button onclick="triggerChime()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2 rounded-xl border border-slate-700">
-            <i class="fa-solid fa-volume-high mr-1"></i> Test Speaker
-          </button>
-        </div>
-
-        <div class="my-auto py-8">
-          <p class="text-slate-400 font-semibold mb-4 text-center uppercase tracking-widest text-sm">Now Ready For Pickup</p>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="pickupGrid"></div>
-          <div id="noReadyNotice" class="text-center text-slate-600 py-12">
-            <i class="fa-solid fa-mug-hot text-6xl mb-4 opacity-30"></i>
-            <p class="text-xl font-medium">Preparing superb beverages...</p>
-          </div>
-        </div>
-
-        <div class="bg-amber-500 text-slate-950 p-4 rounded-2xl text-center font-extrabold text-xl shadow-lg">
-          <i class="fa-solid fa-bell mr-2"></i> Please redeem your drink at the pickup area with your ticket!
         </div>
       </div>
     </section>
 
-    <!-- 4. HELPER PORTABLE CLEARING VIEW -->
-    <section id="view-clear" class="view-panel hidden max-w-md mx-auto">
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 class="text-xl font-bold text-slate-800 mb-1 text-center"><i class="fa-solid fa-hand-holding-hand text-amber-600 mr-2"></i>Guest Order Pickup</h2>
-        <p class="text-xs text-slate-500 text-center mb-6">Enter or tap order number to clear from display screen</p>
+    <!-- VIEW 2: BARISTA KDS SCREEN -->
+    <section id="view-kds" class="hidden space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="font-black text-xl text-amber-400 flex items-center">
+          <i class="fa-solid fa-fire text-amber-500 mr-2"></i> Kitchen Display System (KDS)
+        </h2>
+        <span id="kdsPendingCount" class="bg-amber-500/20 text-amber-400 font-bold px-3 py-1 rounded-full text-xs">0 Orders Pending</span>
+      </div>
+      <div id="kdsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+    </section>
 
-        <div class="mb-6">
-          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Orders Ready Outside</label>
-          <div class="flex flex-wrap gap-2" id="clearQuickButtons"></div>
+    <!-- VIEW 3: PUBLIC PICKUP DISPLAY -->
+    <section id="view-pickup" class="hidden space-y-6">
+      <div class="text-center py-4 bg-slate-800 rounded-2xl border border-slate-700">
+        <h2 class="text-3xl font-black text-amber-400 tracking-wide">ORDER STATUS DISPLAY</h2>
+        <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Preparing Column -->
+        <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
+          <h3 class="font-black text-slate-400 text-lg uppercase tracking-wider mb-4 border-b border-slate-700 pb-2">
+            <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
+          </h3>
+          <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
 
-        <div class="space-y-4">
-          <input type="number" id="clearInputNum" placeholder="Enter Order #" class="w-full text-center text-3xl font-black p-3 border-2 border-slate-300 rounded-xl focus:border-amber-500 outline-none">
-          <button onclick="submitManualClear()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl text-lg shadow-md">
-            Clear Order From Screen
-          </button>
+        <!-- Ready Column -->
+        <div class="bg-emerald-950/40 p-5 rounded-2xl border border-emerald-500/40">
+          <h3 class="font-black text-emerald-400 text-lg uppercase tracking-wider mb-4 border-b border-emerald-500/30 pb-2">
+            <i class="fa-solid fa-bell text-emerald-400 mr-2 animate-bounce"></i> Ready For Pickup
+          </h3>
+          <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
       </div>
     </section>
 
-    <!-- 5. ADMIN & MENU MANAGEMENT VIEW -->
-    <section id="view-admin" class="view-panel hidden space-y-6">
+    <!-- VIEW 4: HELPER / CLEAR VIEW -->
+    <section id="view-helper" class="hidden space-y-4">
+      <h2 class="font-black text-xl text-white flex items-center">
+        <i class="fa-solid fa-handshake-angle text-emerald-400 mr-2"></i> Helper & Pickup Clearing View
+      </h2>
+      <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- VIEW 5: ADMIN FINANCIAL SUMMARY -->
+    <section id="view-admin" class="hidden space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-500 font-bold uppercase">Total Revenue (Today)</p>
-          <p class="text-3xl font-black text-emerald-600 mt-1" id="adminRevenue">$0.00</p>
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Revenue</p>
+          <p id="adminRevenue" class="text-3xl font-black text-emerald-400 mt-1">$0.00</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-500 font-bold uppercase">Total Orders Served</p>
-          <p class="text-3xl font-black text-slate-800 mt-1" id="adminOrderCount">0</p>
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Served</p>
+          <p id="adminTotalOrders" class="text-3xl font-black text-amber-400 mt-1">0</p>
         </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-500 font-bold uppercase">Menu Items Count</p>
-          <p class="text-3xl font-black text-amber-600 mt-1" id="adminItemCount">0</p>
-        </div>
-      </div>
-
-      <!-- Orders Records Table with Delete Option -->
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h2 class="text-xl font-bold text-slate-800 mb-4"><i class="fa-solid fa-list-check text-amber-600 mr-2"></i>Orders Records Management</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
-                <th class="py-3 px-2">Order #</th>
-                <th class="py-3 px-2">Guest</th>
-                <th class="py-3 px-2">Drink</th>
-                <th class="py-3 px-2">Price</th>
-                <th class="py-3 px-2">Status</th>
-                <th class="py-3 px-2 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody id="adminOrdersTable"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Drink Menu Table with Edit/Delete Options -->
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-bold text-slate-800"><i class="fa-solid fa-mug-saucer text-amber-600 mr-2"></i>Menu Editor & Availability</h2>
-          <button onclick="openMenuModal()" class="bg-amber-600 text-white font-semibold text-sm px-4 py-2 rounded-xl hover:bg-amber-700">
-            + Add New Drink
-          </button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr class="border-b text-slate-400 font-semibold uppercase text-xs">
-                <th class="py-3 px-2">Drink Name</th>
-                <th class="py-3 px-2">Temperature</th>
-                <th class="py-3 px-2">Price ($)</th>
-                <th class="py-3 px-2">Status</th>
-                <th class="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="adminMenuTable"></tbody>
-          </table>
+        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+          <p class="text-xs text-slate-400 font-bold uppercase">Active Menu Items</p>
+          <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-400 mt-1">0</p>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- EDIT / ADD MENU MODAL -->
-  <div id="menuModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold text-slate-800" id="modalTitle">Edit Drink Item</h3>
-        <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+  <!-- CAMERA QR SCANNER MODAL -->
+  <div id="qrScannerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-800 rounded-3xl max-w-sm w-full p-6 border border-slate-700 text-center space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+        <h3 class="font-extrabold text-white text-base"><i class="fa-solid fa-camera text-amber-400 mr-2"></i>Scan Customer QR</h3>
+        <button onclick="stopQRScanner()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="menuForm" onsubmit="saveMenuItem(event)" class="space-y-4">
-        <input type="hidden" id="modalOldName">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Drink Name</label>
-          <input type="text" id="modalName" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Offering</label>
-          <select id="modalTemp" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-            <option value="Cold">Cold Only 🧊</option>
-            <option value="Hot">Hot Only ☕</option>
-            <option value="Hot & Cold">Both Hot & Cold 🧊☕</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
-          <input type="number" step="0.5" id="modalPrice" required class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-        </div>
-        <div class="flex justify-end space-x-2 pt-2">
-          <button type="button" onclick="closeMenuModal()" class="px-4 py-2 border rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-          <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-bold">Save Drink</button>
-        </div>
-      </form>
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-2 border-dashed border-amber-500/50 bg-slate-900"></div>
+      <p class="text-xs text-slate-400 font-medium">Point camera at customer's phone QR code</p>
+      <button onclick="stopQRScanner()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-xl text-xs">
+        Cancel Scanning
+      </button>
     </div>
   </div>
 
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
   <script>
-    // REPLACE THIS WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwolhojXHNeoEtn-n1vhoKWS20KpW_XG1wnhudcFgHfgQYQID4Ly4rEzmc524oMrPi7kQ/exec"; 
+    // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwqZ-8p40iS6uM8hC9g0m8g9V_example/exec";
 
-    // Global Application State
     let state = {
       menu: [],
       orders: [],
-      nextOrderNum: 001,
-      selectedItem: null,
-      selectedTemp: "Cold"
+      nextOrderNum: 101,
+      selectedPosItem: null,
+      selectedPosTemp: "Cold"
     };
 
-    // Play chime sound when an order is ready
-    function triggerChime() {
-      // Replace this URL with your custom .mp3 audio file link
-      const audioUrl = "foodpanda-sound.mp3"; 
-      const audio = new Audio(audioUrl);
-      
-      // Play sound with fallback handling if blocked by browser autoplay rules
-      audio.play().catch(err => {
-        console.log("Audio playback blocked by browser or file failed to load:", err);
-      });
-    }
+    let lastDatabaseState = { orderCount: -1, summaryCount: -1 };
+    let html5QrcodeScanner = null;
 
-    // Switch active view in Single Page Application
+    // View Navigation
     function switchView(viewName) {
-      document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
-      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(`view-${viewName}`).classList.remove('hidden');
-      document.getElementById(`tab-${viewName}`).classList.add('active');
-      renderAll();
-    }
-
-    // Fetch persistent database rows from Google Sheet backend
-    // Fetch latest records from Google Sheet database silently in background
-// Updated fetchFromSheet with Cache-Busting
-function fetchFromSheet() {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
-
-  // Add Date.now() to ensure the browser never serves cached old data
-  const cacheBusterUrl = `${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`;
-
-  fetch(cacheBusterUrl, { cache: "no-cache" })
-    .then(res => res.json())
-    .then(data => {
-      if (Array.isArray(data.menu) && data.menu.length > 0) {
-        state.menu = data.menu;
-      }
-      if (Array.isArray(data.orders)) {
-        const oldReadyCount = state.orders.filter(o => o.status === "READY").length;
-        const newReadyCount = data.orders.filter(o => o.status === "READY").length;
-        
-        state.orders = data.orders;
-
-        if (newReadyCount > oldReadyCount) {
-          triggerChime();
+      ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
+        document.getElementById(`view-${v}`)?.classList.add('hidden');
+        const tab = document.getElementById(`tab-${v}`);
+        if (tab) {
+          tab.className = "px-3.5 py-1.5 rounded-lg text-slate-400 hover:text-white";
         }
-      }
-      if (data.nextOrderNum) {
-        state.nextOrderNum = data.nextOrderNum;
-      }
+      });
 
+      document.getElementById(`view-${viewName}`)?.classList.remove('hidden');
+      const activeTab = document.getElementById(`tab-${viewName}`);
+      if (activeTab) {
+        activeTab.className = "px-3.5 py-1.5 rounded-lg text-amber-400 bg-slate-800 shadow";
+      }
       renderAll();
-    })
-    .catch(err => console.log("Background auto-refresh error:", err));
-}
-
-    // Initialize application on load
-    function init() {
-      fetchFromSheet();
-      renderAll();
-      setInterval(updateTimers, 1000);
-      setInterval(fetchFromSheet, 3000); // Polling sync every 10 seconds
     }
 
+    // Audio Chime Trigger (Option 1: Custom MP3 uploaded to GitHub)
+    function triggerChime() {
+      // Points to chime.mp3 in the same GitHub repository
+      const audioUrl = "chime.mp3"; 
+      const audio = new Audio(audioUrl);
+      audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
+    }
+
+    // Smart Refresh Check (Method 3: Lightweight Fingerprint Polling)
+    function smartRefresh() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+
+      fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(data => {
+          if (data.orderCount !== lastDatabaseState.orderCount || data.summaryCount !== lastDatabaseState.summaryCount) {
+            lastDatabaseState.orderCount = data.orderCount;
+            lastDatabaseState.summaryCount = data.summaryCount;
+            fetchFromSheet(); // Download full data only on change
+          }
+        })
+        .catch(err => console.log("Smart check error:", err));
+    }
+
+    // Download Full Dataset from Google Sheet
+    function fetchFromSheet() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+
+      fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data.menu)) state.menu = data.menu;
+          if (Array.isArray(data.orders)) {
+            const oldReady = state.orders.filter(o => o.status === "READY").length;
+            const newReady = data.orders.filter(o => o.status === "READY").length;
+            state.orders = data.orders;
+            if (newReady > oldReady) triggerChime();
+          }
+          if (data.nextOrderNum) state.nextOrderNum = data.nextOrderNum;
+          renderAll();
+        })
+        .catch(err => console.log("Fetch error:", err));
+    }
+
+    // Render All Interface Views
     function renderAll() {
-      renderCashierMenu();
+      renderPosMenu();
+      renderUnpaidOrders();
+      renderPosTracker();
       renderKDS();
       renderPickup();
-      renderClearPage();
+      renderHelper();
       renderAdmin();
     }
 
-    // Render Cashier Menu items
-    function renderCashierMenu() {
-      const container = document.getElementById('cashierMenuList');
-      if (!container) return;
-      container.innerHTML = "";
-      const availItems = state.menu.filter(i => i.available);
-      document.getElementById('cashierItemCount').innerText = `${availItems.length} items available`;
-
-      availItems.forEach(item => {
-        const card = document.createElement('button');
-        card.className = `p-4 border rounded-xl text-left transition hover:shadow-md flex flex-col justify-between h-28 ${state.selectedItem?.id === item.id ? 'border-amber-600 bg-amber-50' : 'border-slate-200 bg-white'}`;
-        card.onclick = () => selectMenuItem(item);
-        card.innerHTML = `
-          <div>
-            <p class="font-bold text-slate-800 text-sm">${item.name}</p>
-            <p class="text-xs text-slate-400">${item.tempOptions}</p>
-          </div>
-          <p class="font-black text-amber-700">$${item.price.toFixed(2)}</p>
-        `;
-        container.appendChild(card);
+    // POS Functions
+    function renderPosMenu() {
+      const grid = document.getElementById('posMenuGrid');
+      if (!grid) return;
+      grid.innerHTML = "";
+      state.menu.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = `p-2.5 rounded-xl border text-left text-xs transition ${state.selectedPosItem?.name === item.name ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/50'}`;
+        btn.onclick = () => {
+          state.selectedPosItem = item;
+          state.selectedPosTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
+          document.getElementById('posSelectionDetails').classList.remove('hidden');
+          document.getElementById('posSelectedItemName').innerText = item.name;
+          document.getElementById('posSelectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
+          renderPosMenu();
+        };
+        btn.innerHTML = `<p class="font-bold text-white">${item.name}</p><p class="text-amber-400 font-extrabold mt-0.5">$${item.price.toFixed(2)}</p>`;
+        grid.appendChild(btn);
       });
-
-      document.getElementById('cashierOrderNum').innerText = `#${state.nextOrderNum}`;
     }
 
-    function selectMenuItem(item) {
-      state.selectedItem = item;
-      state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
-      document.getElementById('emptyOrderNotice').classList.add('hidden');
-      document.getElementById('selectedItemDetails').classList.remove('hidden');
-      document.getElementById('detailName').innerText = item.name;
-      document.getElementById('detailPrice').innerText = `$${item.price.toFixed(2)}`;
-      document.getElementById('cashierTotal').innerText = item.price.toFixed(2);
-      renderTempButtons();
-      renderCashierMenu();
+    function setPosTemp(t) {
+      state.selectedPosTemp = t;
+      document.getElementById('posBtnCold').className = t === 'Cold' ? 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300' : 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400';
+      document.getElementById('posBtnHot').className = t === 'Hot' ? 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-amber-500 bg-amber-500/20 text-amber-300' : 'flex-1 py-1.5 rounded-lg text-xs font-bold border border-slate-700 text-slate-400';
     }
 
-    function selectTemp(temp) {
-      state.selectedTemp = temp;
-      renderTempButtons();
-    }
+    function submitPosOrder() {
+      if (!state.selectedPosItem) return alert("Select a drink first!");
+      const guest = document.getElementById('posGuestName').value.trim() || "Guest";
+      const cashier = document.getElementById('posCashierName').value.trim() || "Staff";
 
-    function renderTempButtons() {
-      const btnCold = document.getElementById('btnTempCold');
-      const btnHot = document.getElementById('btnTempHot');
-      if (!btnCold || !btnHot) return;
-      if (state.selectedTemp === 'Cold') {
-        btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
-        btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
-      } else {
-        btnHot.className = "py-1.5 rounded-lg border text-sm font-semibold border-amber-600 bg-amber-50 text-amber-800";
-        btnCold.className = "py-1.5 rounded-lg border text-sm font-semibold border-slate-200 text-slate-600";
-      }
-    }
-
-    function addCustom(txt) {
-      const input = document.getElementById('inputCustom');
-      input.value = input.value ? `${input.value}, ${txt}` : txt;
-    }
-
-    // Submit new order and write to Google Sheets
-    function submitOrder() {
-      if (!state.selectedItem) return alert("Select a drink first!");
-      const newOrder = {
+      const orderData = {
         orderNum: String(state.nextOrderNum),
         orderTime: new Date().toISOString(),
-        cashier: document.getElementById('inputCashier').value || "Alex",
-        guestName: document.getElementById('inputGuest').value || "Guest",
-        productName: state.selectedItem.name,
-        temp: state.selectedTemp,
-        customization: document.getElementById('inputCustom').value,
-        price: state.selectedItem.price,
+        cashier: cashier,
+        guestName: guest,
+        productName: state.selectedPosItem.name,
+        temp: state.selectedPosTemp,
+        customization: document.getElementById('posNotes').value,
+        price: state.selectedPosItem.price,
         status: "PENDING"
       };
 
-      state.orders.push(newOrder);
-      state.nextOrderNum++;
-
-      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "createOrder", order: newOrder })
-        });
-      }
-
-      state.selectedItem = null;
-      document.getElementById('selectedItemDetails').classList.add('hidden');
-      document.getElementById('emptyOrderNotice').classList.remove('hidden');
-      document.getElementById('inputGuest').value = "";
-      document.getElementById('inputCustom').value = "";
-      document.getElementById('cashierTotal').innerText = "0.00";
+      state.orders.push(orderData);
       renderAll();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "createOrder", order: orderData })
+      });
     }
 
-    // Render Barista Kitchen Display
-    function renderKDS() {
-      const container = document.getElementById('kdsGrid');
+    // Unpaid Mobile Orders Render & Payment Confirmation
+    function renderUnpaidOrders() {
+      const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
-      container.innerHTML = "";
-      const activeOrders = state.orders.filter(o => o.status === "PENDING");
-      document.getElementById('kdsActiveCount').innerText = `${activeOrders.length} Active Orders`;
+      const unpaid = state.orders.filter(o => o.status === "UNPAID");
+      container.innerHTML = unpaid.length === 0 ? `<p class="text-xs text-slate-400 col-span-3 py-1">No unpaid mobile orders.</p>` : "";
 
-      activeOrders.forEach(order => {
-        const elapsedSec = Math.floor((new Date() - new Date(order.orderTime)) / 1000);
+      unpaid.forEach(o => {
         const card = document.createElement('div');
-        card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between";
+        card.className = "flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-amber-500/30 text-xs";
         card.innerHTML = `
           <div>
-            <div class="flex justify-between items-start mb-3">
-              <div>
-                <span class="text-2xl font-black text-slate-800">#${order.orderNum}</span>
-                <p class="text-xs font-semibold text-slate-400">Guest: ${order.guestName}</p>
-              </div>
-              <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 elapsed-timer" data-time="${order.orderTime}">
-                ${formatTimer(elapsedSec)}
-              </span>
-            </div>
-            <div class="border-t border-b py-3 my-2">
-              <p class="font-extrabold text-slate-800 text-lg">${order.productName}</p>
-              <p class="text-xs font-bold ${order.temp === 'Hot' ? 'text-rose-600' : 'text-blue-600'}">${order.temp.toUpperCase()}</p>
-              ${order.customization ? `<p class="text-xs bg-amber-50 text-amber-800 p-1.5 rounded-lg mt-2 font-medium">${order.customization}</p>` : ''}
-            </div>
+            <span class="font-black text-amber-400 text-sm">#${o.orderNum}</span>
+            <span class="ml-1.5 font-bold text-white">${o.guestName}</span>
+            <p class="text-slate-400">${o.productName} ($${o.price.toFixed(2)})</p>
           </div>
-          <button onclick="markOrderReady('${order.orderNum}')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm transition">
-            Call Drink Ready (#${order.orderNum})
+          <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3 py-1 rounded-lg">
+            Confirm Paid
           </button>
         `;
         container.appendChild(card);
       });
     }
 
-    function markOrderReady(orderNum) {
-      const order = state.orders.find(o => o.orderNum === orderNum);
+    function confirmOrderPayment(orderNum) {
+      const order = state.orders.find(o => String(o.orderNum) === String(orderNum));
       if (order) {
-        order.status = "READY";
-        triggerChime();
-
-        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-          fetch(APPS_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "markReady", orderNum: orderNum })
-          });
-        }
+        order.status = "PENDING";
         renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "confirmPayment", orderNum: String(orderNum) })
+        });
       }
     }
 
-    // Render Pickup Screen Display
-    function renderPickup() {
-      const container = document.getElementById('pickupGrid');
-      if (!container) return;
-      container.innerHTML = "";
-      const readyOrders = state.orders.filter(o => o.status === "READY");
-      const notice = document.getElementById('noReadyNotice');
-      if (notice) {
-        if (readyOrders.length === 0) notice.classList.remove('hidden');
-        else notice.classList.add('hidden');
-      }
+    // Camera QR Code Scanner Functions
+    function startQRScanner() {
+      document.getElementById('qrScannerModal').classList.remove('hidden');
+      if (!html5QrcodeScanner) html5QrcodeScanner = new Html5Qrcode("qr-reader");
 
-      readyOrders.forEach(order => {
-        const card = document.createElement('div');
-        card.className = "bg-emerald-500 text-slate-950 p-6 rounded-3xl text-center pulse-glow flex flex-col justify-between";
-        card.innerHTML = `
-          <div>
-            <p class="text-xs uppercase tracking-widest font-extrabold text-emerald-950 mb-1">Your Drink Is Ready!</p>
-            <p class="text-6xl font-black mb-2">#${order.orderNum}</p>
-            <p class="text-xl font-bold text-emerald-950">${order.guestName}</p>
-          </div>
-          <div class="mt-4 pt-3 border-t border-emerald-400 text-xs font-semibold text-emerald-900">
-            ${order.productName} (${order.temp})
-          </div>
-        `;
-        container.appendChild(card);
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 200, height: 200 } },
+        (decodedText) => {
+          const num = decodedText.trim().replace("#", "");
+          confirmOrderPayment(num);
+          triggerChime();
+          stopQRScanner();
+        },
+        () => {}
+      ).catch(() => {
+        alert("Camera access failed or permission denied.");
+        stopQRScanner();
       });
     }
 
-    // Render Helper Clear View
-    function renderClearPage() {
-      const container = document.getElementById('clearQuickButtons');
+    function stopQRScanner() {
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        html5QrcodeScanner.stop().then(() => {
+          document.getElementById('qrScannerModal').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('qrScannerModal').classList.add('hidden');
+      }
+    }
+
+    // Render Tracker, KDS, Pickup, Helper, Admin
+    function renderPosTracker() {
+      const container = document.getElementById('posLiveOrderTracker');
       if (!container) return;
       container.innerHTML = "";
-      const readyOrders = state.orders.filter(o => o.status === "READY");
-      readyOrders.forEach(order => {
-        const btn = document.createElement('button');
-        btn.className = "bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-lg px-4 py-2 rounded-xl border border-amber-300";
-        btn.innerText = `#${order.orderNum}`;
-        btn.onclick = () => clearOrder(order.orderNum);
-        container.appendChild(btn);
+      state.orders.slice(-6).reverse().forEach(o => {
+        container.innerHTML += `
+          <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900 border border-slate-700">
+            <span><strong>#${o.orderNum}</strong> ${o.guestName}</span>
+            <span class="font-bold px-2 py-0.5 rounded text-[10px] ${o.status === 'READY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">${o.status}</span>
+          </div>`;
+      });
+    }
+
+    function renderKDS() {
+      const grid = document.getElementById('kdsGrid');
+      if (!grid) return;
+      const pending = state.orders.filter(o => o.status === "PENDING");
+      document.getElementById('kdsPendingCount').innerText = `${pending.length} Orders Pending`;
+      grid.innerHTML = pending.length === 0 ? `<p class="text-slate-500 col-span-4 text-center py-10">No orders waiting in kitchen.</p>` : "";
+
+      pending.forEach(o => {
+        grid.innerHTML += `
+          <div class="bg-slate-800 border-2 border-amber-500/50 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <span class="text-2xl font-black text-amber-400">#${o.orderNum}</span>
+                <span class="text-xs font-bold bg-slate-900 px-2.5 py-1 rounded-lg text-slate-300">${o.guestName}</span>
+              </div>
+              <p class="font-extrabold text-white text-base mt-2">${o.productName} (${o.temp})</p>
+              ${o.customization ? `<p class="text-xs text-amber-300 bg-amber-500/10 p-2 rounded-lg mt-2">${o.customization}</p>` : ''}
+            </div>
+            <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-2.5 rounded-xl text-xs">
+              Call Drink Ready
+            </button>
+          </div>`;
+      });
+    }
+
+    function markOrderReady(orderNum) {
+      const o = state.orders.find(item => String(item.orderNum) === String(orderNum));
+      if (o) {
+        o.status = "READY";
+        renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "markReady", orderNum: String(orderNum) })
+        });
+      }
+    }
+
+    function renderPickup() {
+      const prepList = document.getElementById('pickupPreparingList');
+      const readyList = document.getElementById('pickupReadyList');
+      if (!prepList || !readyList) return;
+
+      prepList.innerHTML = "";
+      readyList.innerHTML = "";
+
+      state.orders.filter(o => o.status === "PENDING").forEach(o => {
+        prepList.innerHTML += `<div class="bg-slate-900 border border-slate-700 p-3 rounded-xl font-black text-xl text-slate-300">#${o.orderNum}</div>`;
+      });
+
+      state.orders.filter(o => o.status === "READY").forEach(o => {
+        readyList.innerHTML += `<div class="bg-emerald-500 text-slate-950 p-3 rounded-xl font-black text-2xl animate-pulse">#${o.orderNum}</div>`;
+      });
+    }
+
+    function renderHelper() {
+      const grid = document.getElementById('helperGrid');
+      if (!grid) return;
+      const ready = state.orders.filter(o => o.status === "READY");
+      grid.innerHTML = ready.length === 0 ? `<p class="text-slate-500 col-span-3 text-center py-10">No ready orders to clear.</p>` : "";
+
+      ready.forEach(o => {
+        grid.innerHTML += `
+          <div class="bg-slate-800 border border-emerald-500/40 p-4 rounded-2xl flex justify-between items-center">
+            <div>
+              <span class="text-2xl font-black text-emerald-400">#${o.orderNum}</span>
+              <p class="font-bold text-white text-sm">${o.guestName} - ${o.productName}</p>
+            </div>
+            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-3 py-2 rounded-xl text-xs">
+              Clear
+            </button>
+          </div>`;
       });
     }
 
     function clearOrder(orderNum) {
-      const order = state.orders.find(o => o.orderNum === String(orderNum));
-      if (order) {
-        order.status = "CLEARED";
-        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-          fetch(APPS_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
-          });
-        }
+      const o = state.orders.find(item => String(item.orderNum) === String(orderNum));
+      if (o) {
+        o.status = "CLEARED";
         renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
+        });
       }
     }
 
-    function submitManualClear() {
-      const val = document.getElementById('clearInputNum').value;
-      if (val) {
-        clearOrder(val);
-        document.getElementById('clearInputNum').value = "";
-      }
-    }
-
-    // Render Admin Management Tables
     function renderAdmin() {
-      const totalRev = state.orders.reduce((acc, o) => acc + o.price, 0);
-      if (document.getElementById('adminRevenue')) document.getElementById('adminRevenue').innerText = `$${totalRev.toFixed(2)}`;
-      if (document.getElementById('adminOrderCount')) document.getElementById('adminOrderCount').innerText = state.orders.length;
-      if (document.getElementById('adminItemCount')) document.getElementById('adminItemCount').innerText = state.menu.length;
-
-      // Render Orders Records Table
-      const ordersTbody = document.getElementById('adminOrdersTable');
-      if (ordersTbody) {
-        ordersTbody.innerHTML = "";
-        if (state.orders.length === 0) {
-          ordersTbody.innerHTML = `<tr><td colspan="6" class="py-4 text-center text-slate-400">No orders recorded yet.</td></tr>`;
-        } else {
-          state.orders.forEach(order => {
-            const tr = document.createElement('tr');
-            tr.className = "border-b border-slate-100 hover:bg-slate-50";
-            tr.innerHTML = `
-              <td class="py-3 px-2 font-black text-slate-800">#${order.orderNum}</td>
-              <td class="py-3 px-2 text-slate-600">${order.guestName}</td>
-              <td class="py-3 px-2 font-semibold text-slate-800">${order.productName} (${order.temp})</td>
-              <td class="py-3 px-2 font-semibold text-amber-700">$${order.price.toFixed(2)}</td>
-              <td class="py-3 px-2">
-                <span class="text-xs font-bold px-2.5 py-1 rounded-full ${order.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : order.status === 'READY' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
-                  ${order.status}
-                </span>
-              </td>
-              <td class="py-3 px-2 text-right">
-                <button onclick="deleteOrderRecord('${order.orderNum}')" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 transition">
-                  <i class="fa-solid fa-trash mr-1"></i> Delete Order
-                </button>
-              </td>
-            `;
-            ordersTbody.appendChild(tr);
-          });
-        }
-      }
-
-      // Render Drink Menu Management Table
-      const tbody = document.getElementById('adminMenuTable');
-      if (!tbody) return;
-      tbody.innerHTML = "";
-
-      state.menu.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.className = "border-b border-slate-100";
-        tr.innerHTML = `
-          <td class="py-3 px-2 font-bold text-slate-800">${item.name}</td>
-          <td class="py-3 px-2 text-slate-500">${item.tempOptions}</td>
-          <td class="py-3 px-2 font-semibold text-slate-700">$${item.price.toFixed(2)}</td>
-          <td class="py-3 px-2">
-            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${item.available ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
-              ${item.available ? 'Available' : 'Paused'}
-            </span>
-          </td>
-          <td class="py-3 px-2 text-right space-x-2">
-            <button onclick="toggleMenuAvailability(${item.id})" class="text-xs font-bold px-2.5 py-1 rounded-lg border ${item.available ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}">
-              ${item.available ? 'Pause' : 'Enable'}
-            </button>
-            <button onclick="openMenuModal('${item.name}')" class="text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50">
-              <i class="fa-solid fa-pen mr-1"></i> Edit
-            </button>
-            <button onclick="deleteMenuItem('${item.name}')" class="text-xs font-bold px-2.5 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50">
-              <i class="fa-solid fa-trash mr-1"></i> Delete
-            </button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+      const rev = state.orders.reduce((sum, o) => sum + (o.price || 0), 0);
+      document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
+      document.getElementById('adminTotalOrders').innerText = state.orders.length;
+      document.getElementById('adminMenuItemsCount').innerText = state.menu.length;
     }
 
-    // Modal Control Functions
-    function openMenuModal(itemName = null) {
-      const modal = document.getElementById('menuModal');
-      modal.classList.remove('hidden');
-
-      if (itemName) {
-        const item = state.menu.find(m => m.name === itemName);
-        document.getElementById('modalTitle').innerText = "Edit Drink Item";
-        document.getElementById('modalOldName').value = item.name;
-        document.getElementById('modalName').value = item.name;
-        document.getElementById('modalTemp').value = item.tempOptions;
-        document.getElementById('modalPrice').value = item.price;
-      } else {
-        document.getElementById('modalTitle').innerText = "Add New Drink";
-        document.getElementById('modalOldName').value = "";
-        document.getElementById('modalName').value = "";
-        document.getElementById('modalTemp').value = "Cold";
-        document.getElementById('modalPrice').value = "";
-      }
+    // App Initialization
+    function init() {
+      fetchFromSheet();
+      setInterval(smartRefresh, 3000); // Smart lightweight refresh
     }
 
-    function closeMenuModal() {
-      document.getElementById('menuModal').classList.add('hidden');
-    }
-
-    // Save edited or new drink item to Google Sheet
-    function saveMenuItem(e) {
-      e.preventDefault();
-      const oldName = document.getElementById('modalOldName').value;
-      const name = document.getElementById('modalName').value;
-      const tempOptions = document.getElementById('modalTemp').value;
-      const price = parseFloat(document.getElementById('modalPrice').value) || 0;
-
-      if (oldName) {
-        const item = state.menu.find(m => m.name === oldName);
-        if (item) {
-          item.name = name;
-          item.tempOptions = tempOptions;
-          item.price = price;
-        }
-      } else {
-        const newItem = { id: Date.now(), name, tempOptions, price, available: true };
-        state.menu.push(newItem);
-      }
-
-      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: oldName ? "updateMenu" : "addMenuItem",
-            item: { oldName, name, tempOptions, price, available: true }
-          })
-        });
-      }
-
-      closeMenuModal();
-      renderAll();
-    }
-
-    // Delete drink item from menu & Google Sheet
-    function deleteMenuItem(itemName) {
-      if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
-      state.menu = state.menu.filter(m => m.name !== itemName);
-
-      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "deleteMenuItem", itemName })
-        });
-      }
-      renderAll();
-    }
-
-    // Delete single order record from Google Sheet
-    function deleteOrderRecord(orderNum) {
-      if (!confirm(`Are you sure you want to delete Order #${orderNum} and clear it from Google Sheets?`)) return;
-      state.orders = state.orders.filter(o => o.orderNum !== String(orderNum));
-
-      if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-        fetch(APPS_SCRIPT_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
-        });
-      }
-      renderAll();
-    }
-
-    // Toggle menu availability status
-    function toggleMenuAvailability(id) {
-      const item = state.menu.find(m => m.id === id);
-      if (item) {
-        item.available = !item.available;
-        if (APPS_SCRIPT_URL && !APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
-          fetch(APPS_SCRIPT_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "updateMenu",
-              item: { oldName: item.name, name: item.name, tempOptions: item.tempOptions, price: item.price, available: item.available }
-            })
-          });
-        }
-        renderAll();
-      }
-    }
-
-    // Timer format utilities
-    function updateTimers() {
-      document.querySelectorAll('.elapsed-timer').forEach(el => {
-        const orderTime = new Date(el.getAttribute('data-time'));
-        const elapsedSec = Math.floor((new Date() - orderTime) / 1000);
-        el.innerText = formatTimer(elapsedSec);
-      });
-    }
-
-    function formatTimer(sec) {
-      const m = Math.floor(sec / 60);
-      const s = sec % 60;
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
-    }
-
-    // Run initialization on page load
     init();
   </script>
 </body>
