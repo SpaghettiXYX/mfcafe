@@ -18,6 +18,35 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
+  <!-- LOGIN MODAL / OVERLAY -->
+  <div id="loginOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 text-center space-y-6">
+      <div class="w-16 h-16 bg-amber-500 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-amber-500/30">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <div>
+        <h2 class="text-2xl font-black text-slate-800">MFCAFE Portal Login</h2>
+        <p class="text-xs text-slate-400 font-semibold mt-1">Please log in with your authorized staff credentials</p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
+          <input type="text" id="loginUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        </div>
+        <p id="loginError" class="text-xs font-bold text-rose-500 hidden text-center"></p>
+      </div>
+
+      <button onclick="attemptLogin()" id="btnLogin" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition">
+        Log In to Portal
+      </button>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
@@ -35,24 +64,36 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
-      <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-        <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
-        </button>
-        <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition">
-          <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
-        </button>
-        <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
-        </button>
-        <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-square-check mr-1"></i> Clearing Pickup Screen
-        </button>
-        <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-          <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
-        </button>
-      </nav>
+      <!-- Navigation Tabs & User Profile -->
+      <div class="flex items-center space-x-3">
+        <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
+          </button>
+          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition">
+            <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
+          </button>
+          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
+          </button>
+          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-square-check mr-1"></i> Clearing Pickup Screen
+          </button>
+          <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
+          </button>
+        </nav>
+
+        <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+          <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center">
+            <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
+            <span id="lblUsername">Staff</span>
+          </span>
+          <button onclick="logout()" class="text-xs font-bold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200 transition">
+            Logout
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -62,12 +103,12 @@
     <!-- VIEW 1: CASHIER POS -->
     <section id="view-cashier" class="hidden space-y-4">
       
-      <!-- Unpaid Mobile Queue -->
+      <!-- Unpaid / Reserved Mobile Queue -->
       <div class="bg-amber-500/10 p-4 rounded-3xl border border-amber-300/60">
         <div class="flex justify-between items-center mb-3">
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
-            <h3 class="font-extrabold text-amber-900 text-sm">Self-Order Unpaid Queue</h3>
+            <h3 class="font-extrabold text-amber-900 text-sm">Self-Order & Pre-Order Queue</h3>
           </div>
           <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
             <i class="fa-solid fa-qrcode text-amber-400"></i>
@@ -80,8 +121,8 @@
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         <!-- Left: Select Drink Grid -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div class="flex justify-between items-center mb-4">
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex justify-between items-center">
             <h2 class="font-black text-slate-800 text-lg flex items-center">
               <i class="fa-solid fa-utensils text-amber-500 mr-2"></i> Select Drink
             </h2>
@@ -93,7 +134,7 @@
           <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         </div>
 
-        <!-- Right: Current Order Builder Panel -->
+        <!-- Right: Single-Item Order Builder Panel -->
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
           <div class="space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -104,7 +145,7 @@
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Cashier Name</label>
-                <input type="text" id="posCashierName" placeholder="Cashier Name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+                <input type="text" id="posCashierName" readonly placeholder="Cashier" class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
               </div>
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Guest Name</label>
@@ -112,6 +153,7 @@
               </div>
             </div>
 
+            <!-- Active Selected Drink Customization Panel -->
             <div id="posSelectionDetails" class="bg-amber-500/5 p-4 rounded-2xl border border-amber-200/60 hidden space-y-3">
               <div class="flex justify-between items-center">
                 <span id="posSelectedItemName" class="font-black text-slate-800 text-sm">Drink</span>
@@ -120,19 +162,12 @@
 
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Temperature Option</label>
-                <div class="flex space-x-2">
-                  <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
-                  <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
-                </div>
+                <div class="flex space-x-2" id="posTempBtnContainer"></div>
               </div>
 
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Customization / Notes</label>
-                <div class="flex flex-wrap gap-1.5 mb-2">
-                  <button type="button" onclick="addNotePill('+ Less Ice')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Less Ice</button>
-                  <button type="button" onclick="addNotePill('+ No Sugar')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ No Sugar</button>
-                  <button type="button" onclick="addNotePill('+ Oat Milk')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Oat Milk</button>
-                </div>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="posRemarkPillsContainer"></div>
                 <input type="text" id="posNotes" placeholder="Custom note..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
               </div>
             </div>
@@ -152,7 +187,7 @@
       <div class="flex justify-between items-start">
         <div>
           <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
-          <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage orders</p>
+          <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
         </div>
         <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
           0 Active Orders
@@ -213,6 +248,47 @@
         </div>
       </div>
 
+      <!-- Configurable Remark Hotkeys Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-tags text-amber-500 mr-2"></i> Remark Hotkeys Configuration
+        </h3>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Custom Remark Hotkeys (Comma separated)</label>
+          <input type="text" id="adminHotkeysInput" placeholder="+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+        </div>
+        <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+          Save Remark Hotkeys
+        </button>
+      </div>
+
+      <!-- User Account Management -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">Staff User Management</h3>
+            <p class="text-xs text-slate-400">Manage cashier logins and assigned User Codes for order numbering</p>
+          </div>
+          <button onclick="openAddUserModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-user-plus mr-1"></i> Add New User
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
+                <th class="py-2.5 px-3">Username</th>
+                <th class="py-2.5 px-3">Role</th>
+                <th class="py-2.5 px-3">User Code (Prefix)</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Menu Management Table -->
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -260,7 +336,7 @@
       </div>
       <div>
         <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Order Created Successfully</p>
-        <h2 id="modalOrderNum" class="text-4xl font-black text-amber-500 mt-1">#105</h2>
+        <h2 id="modalOrderNum" class="text-4xl font-black text-amber-500 mt-1">#1001</h2>
       </div>
 
       <div class="bg-slate-50 p-3.5 rounded-2xl text-left text-xs space-y-1.5 border border-slate-200/80">
@@ -272,6 +348,40 @@
       <button onclick="closeSuccessModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-3 rounded-xl text-xs transition">
         Done (Next Order)
       </button>
+    </div>
+  </div>
+
+  <!-- ADD USER MODAL -->
+  <div id="addUserModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-black text-slate-800 text-base">Add New Staff User</h3>
+        <button onclick="closeAddUserModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
+          <input type="text" id="newUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Password</label>
+          <input type="password" id="newPassword" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">User Code (Order Prefix)</label>
+          <input type="number" id="newUserCode" placeholder="e.g. 1 for 1001+, 2 for 2001+" value="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="saveUserSubmit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
+          Save User
+        </button>
+        <button onclick="closeAddUserModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
+          Cancel
+        </button>
+      </div>
     </div>
   </div>
 
@@ -339,21 +449,91 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNKe1wbmhfVC10YANKdeqVhUALnew4PApexNEKGs8XcYd7eo_fcOFiubFm5PIqdKCPZg/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYkFblv7uXYc1VaZeWFeByGqCTYOMvOgr1blc_zpbLuMBTSpxv1QeKP2RtbxVKZa2rlw/exec";
 
     let state = {
       menu: [],
       orders: [],
-      nextOrderNum: 101,
+      users: [],
       selectedPosItem: null,
       selectedPosTemp: "Cold",
-      currentCreatedOrder: null,
+      currentUser: null,
+      remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       serverVersion: null
     };
 
     let html5QrcodeScanner = null;
     let isProcessingScan = false;
     let isModalAddMode = false;
+
+    // Cookie Utilities
+    function setCookie(name, value, days = 7) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+    }
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+
+    function checkAuth() {
+      const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
+      if (savedUser) {
+        state.currentUser = savedUser;
+        document.getElementById("lblUsername").innerText = savedUser;
+        document.getElementById("posCashierName").value = savedUser;
+        document.getElementById("loginOverlay").classList.add("hidden");
+      } else {
+        document.getElementById("loginOverlay").classList.remove("hidden");
+      }
+    }
+
+    function attemptLogin() {
+      const u = document.getElementById("loginUsername").value.trim();
+      const p = document.getElementById("loginPassword").value.trim();
+      const errEl = document.getElementById("loginError");
+
+      if (!u || !p) {
+        errEl.innerText = "Please enter both username and password.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "login", username: u, password: p })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.currentUser = res.username;
+          setCookie("mfcafe_user", res.username, 7);
+          localStorage.setItem("mfcafe_user", res.username);
+          document.getElementById("lblUsername").innerText = res.username;
+          document.getElementById("posCashierName").value = res.username;
+          document.getElementById("loginOverlay").classList.add("hidden");
+          errEl.classList.add("hidden");
+          fetchFromSheet();
+        } else {
+          errEl.innerText = res.error || "Invalid username or password.";
+          errEl.classList.remove("hidden");
+        }
+      })
+      .catch(() => {
+        errEl.innerText = "Network error authenticating.";
+        errEl.classList.remove("hidden");
+      });
+    }
+
+    function logout() {
+      setCookie("mfcafe_user", "", -1);
+      localStorage.removeItem("mfcafe_user");
+      state.currentUser = null;
+      document.getElementById("loginOverlay").classList.remove("hidden");
+    }
 
     function switchView(viewName) {
       ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
@@ -430,14 +610,14 @@
         .then(data => {
           if (data.version) state.serverVersion = data.version;
           if (Array.isArray(data.menu)) state.menu = data.menu;
+          if (Array.isArray(data.users)) state.users = data.users;
+          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+
           if (Array.isArray(data.orders)) {
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
             const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
             state.orders = data.orders;
             if (newReady > oldReady) triggerChime();
-          }
-          if (data.nextOrderNum) {
-            state.nextOrderNum = data.nextOrderNum;
           }
           renderAll();
         })
@@ -466,22 +646,7 @@
         const isSelected = state.selectedPosItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `p-4 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
-        btn.onclick = () => {
-          state.selectedPosItem = item;
-          state.selectedPosTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
-          document.getElementById('posSelectionDetails')?.classList.remove('hidden');
-          
-          const itemNameEl = document.getElementById('posSelectedItemName');
-          if (itemNameEl) itemNameEl.innerText = item.name;
-          
-          const itemPriceEl = document.getElementById('posSelectedItemPrice');
-          if (itemPriceEl) itemPriceEl.innerText = `$${item.price.toFixed(2)}`;
-          
-          const submitBtnTextEl = document.getElementById('posSubmitBtnText');
-          if (submitBtnTextEl) submitBtnTextEl.innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
-          
-          renderPosMenu();
-        };
+        btn.onclick = () => selectPosMenuItem(item);
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
@@ -489,6 +654,48 @@
         `;
         grid.appendChild(btn);
       });
+    }
+
+    function selectPosMenuItem(item) {
+      state.selectedPosItem = item;
+      document.getElementById('posSelectionDetails')?.classList.remove('hidden');
+      
+      document.getElementById('posSelectedItemName').innerText = item.name;
+      document.getElementById('posSelectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
+      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
+
+      const tempContainer = document.getElementById('posTempBtnContainer');
+      tempContainer.innerHTML = "";
+
+      const opts = item.tempOptions || "Hot & Cold";
+      if (opts.includes("Cold") && opts.includes("Hot")) {
+        state.selectedPosTemp = "Cold";
+        tempContainer.innerHTML = `
+          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
+          <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+        `;
+      } else if (opts.includes("Hot")) {
+        state.selectedPosTemp = "Hot";
+        tempContainer.innerHTML = `
+          <button type="button" id="posBtnHot" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+        `;
+      } else {
+        state.selectedPosTemp = "Cold";
+        tempContainer.innerHTML = `
+          <button type="button" id="posBtnCold" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+        `;
+      }
+
+      const pillsContainer = document.getElementById('posRemarkPillsContainer');
+      pillsContainer.innerHTML = "";
+      const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
+      hotkeys.forEach(hk => {
+        pillsContainer.innerHTML += `
+          <button type="button" onclick="addNotePill('${escapeHtml(hk)}')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
+        `;
+      });
+
+      renderPosMenu();
     }
 
     function setPosTemp(t) {
@@ -511,7 +718,7 @@
       const notesInput = document.getElementById('posNotes');
 
       const guest = guestInput ? guestInput.value.trim() || "Guest" : "Guest";
-      const cashier = cashierInput ? cashierInput.value.trim() || "Staff" : "Staff";
+      const cashier = cashierInput ? cashierInput.value.trim() || state.currentUser || "Staff" : "Staff";
       const notes = notesInput ? notesInput.value : "";
 
       const btnSubmit = document.getElementById('btnSubmitPos');
@@ -544,14 +751,12 @@
         }
 
         if (res.success && res.order) {
-          state.currentCreatedOrder = res.order;
           showOrderSuccessModal(res.order);
 
           state.selectedPosItem = null;
           document.getElementById('posSelectionDetails')?.classList.add('hidden');
           if (notesInput) notesInput.value = "";
-          const submitText = document.getElementById('posSubmitBtnText');
-          if (submitText) submitText.innerText = "Confirm & Submit ($0.00)";
+          document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
           
           fetchFromSheet();
         } else {
@@ -571,17 +776,10 @@
       const modal = document.getElementById('orderSuccessModal');
       if (!modal) return;
 
-      const modalNum = document.getElementById('modalOrderNum');
-      if (modalNum) modalNum.innerText = `#${order.orderNum}`;
-
-      const modalGuest = document.getElementById('modalGuestName');
-      if (modalGuest) modalGuest.innerText = order.guestName;
-
-      const modalDrink = document.getElementById('modalDrinkName');
-      if (modalDrink) modalDrink.innerText = `${order.productName} (${order.temp})`;
-
-      const modalPrice = document.getElementById('modalPrice');
-      if (modalPrice) modalPrice.innerText = `$${order.price.toFixed(2)}`;
+      document.getElementById('modalOrderNum').innerText = `#${order.orderNum}`;
+      document.getElementById('modalGuestName').innerText = order.guestName;
+      document.getElementById('modalDrinkName').innerText = `${order.productName} (${order.temp})`;
+      document.getElementById('modalPrice').innerText = `$${(order.price || 0).toFixed(2)}`;
 
       modal.classList.remove('hidden');
     }
@@ -594,20 +792,25 @@
     function renderUnpaidOrders() {
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
-      const unpaid = state.orders.filter(o => (o.status || "").toUpperCase() === "UNPAID");
-      container.innerHTML = unpaid.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid mobile orders right now.</p>` : "";
 
-      unpaid.forEach(o => {
+      const queueOrders = state.orders.filter(o => ["UNPAID", "RESERVED"].includes((o.status || "").toUpperCase()));
+      container.innerHTML = queueOrders.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid or pre-order queue items right now.</p>` : "";
+
+      queueOrders.forEach(o => {
+        const isReserved = (o.status || "").toUpperCase() === "RESERVED";
         const card = document.createElement('div');
         card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
         card.innerHTML = `
           <div>
-            <span class="font-black text-amber-600 text-sm">#${escapeHtml(o.orderNum)}</span>
-            <span class="ml-1.5 font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
-            <p class="text-slate-500 text-[11px]">${escapeHtml(o.productName)} ($${o.price.toFixed(2)})</p>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-black text-amber-600 text-sm">#${escapeHtml(o.orderNum)}</span>
+              <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
+              ${isReserved ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>` : ''}
+            </div>
+            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} ($${o.price.toFixed(2)})</p>
           </div>
           <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
-            Confirm Paid
+            Confirm & Pay
           </button>
         `;
         container.appendChild(card);
@@ -686,20 +889,19 @@
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
 
-      const pending = state.orders.filter(o => (o.status || "").toUpperCase() === "PENDING");
+      const activeOrders = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase()));
       
       const badge = document.getElementById('kdsPendingCount');
-      if (badge) badge.innerText = `${pending.length} Active Orders`;
+      if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
 
-      grid.innerHTML = pending.length === 0 ? `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>` : "";
+      grid.innerHTML = activeOrders.length === 0 ? `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>` : "";
 
-      pending.forEach(o => {
+      activeOrders.forEach(o => {
         const timeAgo = getElapsedTimeStr(o.orderTime);
-        const tempUpper = escapeHtml((o.temp || 'Cold').toUpperCase());
-        const safeCustomization = escapeHtml(o.customization || "");
+        const isReserved = (o.status || "").toUpperCase() === "RESERVED";
 
         grid.innerHTML += `
-          <div class="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4">
+          <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4">
             <div class="space-y-3">
               <div class="flex justify-between items-start">
                 <div>
@@ -711,14 +913,20 @@
                 </span>
               </div>
 
+              ${isReserved ? `
+                <div class="bg-purple-600 text-white p-2.5 rounded-2xl shadow-sm text-center">
+                  <p class="text-xs font-black uppercase tracking-wider"><i class="fa-solid fa-clock mr-1"></i> RESERVED DRINKS</p>
+                  <p class="text-sm font-extrabold mt-0.5">Pickup Time: ${escapeHtml(o.pickupTime || 'Scheduled')}</p>
+                </div>
+              ` : ''}
+
               <div>
                 <p class="font-extrabold text-slate-900 text-base leading-snug">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
-                <p class="text-[11px] font-extrabold text-sky-500 uppercase tracking-wider mt-0.5">${tempUpper}</p>
               </div>
 
-              ${safeCustomization ? `
+              ${o.customization ? `
                 <div class="bg-amber-500/10 p-2.5 rounded-xl border border-amber-200/80">
-                  <p class="text-xs text-amber-800 font-bold leading-tight">${safeCustomization}</p>
+                  <p class="text-xs text-amber-800 font-bold leading-tight">${escapeHtml(o.customization)}</p>
                 </div>
               ` : ''}
             </div>
@@ -751,7 +959,7 @@
       prepList.innerHTML = "";
       readyList.innerHTML = "";
 
-      state.orders.filter(o => (o.status || "").toUpperCase() === "PENDING").forEach(o => {
+      state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
         prepList.innerHTML += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${escapeHtml(o.orderNum)}</div>`;
       });
 
@@ -763,6 +971,7 @@
     function renderHelper() {
       const grid = document.getElementById('helperGrid');
       if (!grid) return;
+
       const ready = state.orders.filter(o => (o.status || "").toUpperCase() === "READY");
       grid.innerHTML = ready.length === 0 ? `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>` : "";
 
@@ -797,14 +1006,29 @@
       const paidOrders = state.orders.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
       const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
       
-      const revEl = document.getElementById('adminRevenue');
-      if (revEl) revEl.innerText = `$${rev.toFixed(2)}`;
-      
-      const ordersCountEl = document.getElementById('adminTotalOrders');
-      if (ordersCountEl) ordersCountEl.innerText = paidOrders.length;
-      
-      const menuCountEl = document.getElementById('adminMenuItemsCount');
-      if (menuCountEl) menuCountEl.innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
+      document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
+      document.getElementById('adminTotalOrders').innerText = paidOrders.length;
+      document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
+
+      document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
+
+      const usersTbody = document.getElementById('adminUsersTableBody');
+      if (usersTbody) {
+        usersTbody.innerHTML = "";
+        state.users.forEach(u => {
+          usersTbody.innerHTML += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
+              <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
+              <td class="py-3 px-3 font-bold text-amber-600">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
+              <td class="py-3 px-3 text-right">
+                <button onclick="deleteUserSubmit('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                  Delete
+                </button>
+              </td>
+            </tr>`;
+        });
+      }
 
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
@@ -851,6 +1075,7 @@
           if (statusUpper === "CLEARED") statusBadgeColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
           if (statusUpper === "READY") statusBadgeColor = "text-sky-700 bg-sky-50 border-sky-200";
           if (statusUpper === "UNPAID") statusBadgeColor = "text-rose-700 bg-rose-50 border-rose-200";
+          if (statusUpper === "RESERVED") statusBadgeColor = "text-purple-700 bg-purple-50 border-purple-200";
 
           finLog.innerHTML += `
             <div class="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
@@ -862,7 +1087,7 @@
                   </span>
                 </div>
                 <span class="text-slate-500 block text-[11px] font-semibold mt-0.5">
-                  Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)}
+                  Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} ${o.pickupTime ? `| Pickup: ${escapeHtml(o.pickupTime)}` : ''}
                   ${o.customization ? `| Note: <em class="text-amber-800">${escapeHtml(o.customization)}</em>` : ''}
                 </span>
               </div>
@@ -875,6 +1100,62 @@
             </div>`;
         });
       }
+    }
+
+    function saveRemarkHotkeysSubmit() {
+      const val = document.getElementById('adminHotkeysInput').value.trim();
+      state.remarkHotkeys = val;
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveHotkeys", hotkeys: val })
+      })
+      .then(() => alert("Remark Hotkeys Updated Successfully!"));
+    }
+
+    function openAddUserModal() {
+      document.getElementById('newUsername').value = "";
+      document.getElementById('newPassword').value = "";
+      document.getElementById('newUserCode').value = "1";
+      document.getElementById('addUserModal').classList.remove('hidden');
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').classList.add('hidden');
+    }
+
+    function saveUserSubmit() {
+      const u = document.getElementById('newUsername').value.trim();
+      const p = document.getElementById('newPassword').value.trim();
+      const code = document.getElementById('newUserCode').value.trim() || "1";
+      if (!u || !p) return alert("Please enter username and password.");
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "addUser", username: u, password: p, role: "Staff", userCode: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          closeAddUserModal();
+          fetchFromSheet();
+        } else {
+          alert(res.error || "Failed to add user.");
+        }
+      });
+    }
+
+    function deleteUserSubmit(username) {
+      if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "deleteUser", username: username })
+      })
+      .then(() => fetchFromSheet());
     }
 
     function deleteOrderSubmit(orderNum) {
@@ -909,73 +1190,39 @@
       if (!item) return;
       isModalAddMode = false;
 
-      const modalTitle = document.getElementById('modalTitle');
-      if (modalTitle) modalTitle.innerText = "Edit Menu Item";
+      document.getElementById('modalTitle').innerText = "Edit Menu Item";
+      document.getElementById('editOriginalName').value = item.name;
+      document.getElementById('editItemName').value = item.name;
+      document.getElementById('editItemPrice').value = item.price;
+      document.getElementById('editItemTemp').value = item.tempOptions;
+      document.getElementById('editItemStatus').value = item.status || "Active";
 
-      const origNameInput = document.getElementById('editOriginalName');
-      if (origNameInput) origNameInput.value = item.name;
-
-      const nameInput = document.getElementById('editItemName');
-      if (nameInput) nameInput.value = item.name;
-
-      const priceInput = document.getElementById('editItemPrice');
-      if (priceInput) priceInput.value = item.price;
-
-      const tempSelect = document.getElementById('editItemTemp');
-      if (tempSelect) tempSelect.value = item.tempOptions;
-
-      const statusSelect = document.getElementById('editItemStatus');
-      if (statusSelect) statusSelect.value = item.status || "Active";
-
-      const modal = document.getElementById('menuModal');
-      if (modal) modal.classList.remove('hidden');
+      document.getElementById('menuModal').classList.remove('hidden');
     }
 
     function openAddMenuModal() {
       isModalAddMode = true;
 
-      const modalTitle = document.getElementById('modalTitle');
-      if (modalTitle) modalTitle.innerText = "Add New Menu Item";
+      document.getElementById('modalTitle').innerText = "Add New Menu Item";
+      document.getElementById('editOriginalName').value = "";
+      document.getElementById('editItemName').value = "";
+      document.getElementById('editItemPrice').value = "";
+      document.getElementById('editItemTemp').value = "Hot & Cold";
+      document.getElementById('editItemStatus').value = "Active";
 
-      const origNameInput = document.getElementById('editOriginalName');
-      if (origNameInput) origNameInput.value = "";
-
-      const nameInput = document.getElementById('editItemName');
-      if (nameInput) nameInput.value = "";
-
-      const priceInput = document.getElementById('editItemPrice');
-      if (priceInput) priceInput.value = "";
-
-      const tempSelect = document.getElementById('editItemTemp');
-      if (tempSelect) tempSelect.value = "Hot & Cold";
-
-      const statusSelect = document.getElementById('editItemStatus');
-      if (statusSelect) statusSelect.value = "Active";
-
-      const modal = document.getElementById('menuModal');
-      if (modal) modal.classList.remove('hidden');
+      document.getElementById('menuModal').classList.remove('hidden');
     }
 
     function closeMenuModal() {
-      const modal = document.getElementById('menuModal');
-      if (modal) modal.classList.add('hidden');
+      document.getElementById('menuModal').classList.add('hidden');
     }
 
     function saveMenuItemSubmit() {
-      const origInput = document.getElementById('editOriginalName');
-      const originalName = origInput ? origInput.value : "";
-
-      const nameInput = document.getElementById('editItemName');
-      const name = nameInput ? nameInput.value.trim() : "";
-
-      const priceInput = document.getElementById('editItemPrice');
-      const price = priceInput ? parseFloat(priceInput.value) || 0 : 0;
-
-      const tempSelect = document.getElementById('editItemTemp');
-      const tempOptions = tempSelect ? tempSelect.value : "Hot & Cold";
-
-      const statusSelect = document.getElementById('editItemStatus');
-      const status = statusSelect ? statusSelect.value : "Active";
+      const originalName = document.getElementById('editOriginalName').value;
+      const name = document.getElementById('editItemName').value.trim();
+      const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+      const tempOptions = document.getElementById('editItemTemp').value;
+      const status = document.getElementById('editItemStatus').value;
 
       if (!name) return alert("Please enter item name!");
 
@@ -1018,6 +1265,7 @@
     }
 
     function init() {
+      checkAuth();
       fetchFromSheet();
       setInterval(updateTimers, 1000);
       setInterval(smartCheckUpdates, 2000);
