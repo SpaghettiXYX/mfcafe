@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLMCSS Cafe - Customer Self-Order</title>
+  <title>BLMCSS Cafe - Customer & Teacher Self-Order</title>
   
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,19 +22,27 @@
   <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
     <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-700 px-3.5 py-1 rounded-full text-xs font-extrabold mb-2 border border-amber-300/60">
       <i class="fa-solid fa-mug-hot text-amber-500"></i>
-      <span>MFCafe Mobile Portal</span>
+      <span>MFCafe Pre-Order Portal</span>
     </div>
-    <h1 class="text-2xl font-black text-slate-800">Self-Order Beverages</h1>
-    <p class="text-xs text-slate-500 mt-1 font-medium">Select your drink and show the QR code at the counter to pay</p>
+    <h1 class="text-2xl font-black text-slate-800">Self & Teacher Pre-Order</h1>
+    <p class="text-xs text-slate-500 mt-1 font-medium">Select your drink, choose pickup time, and get your QR ticket</p>
   </header>
 
   <!-- Form & Menu View -->
   <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
-    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-      <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Your Name</label>
-      <input type="text" id="custName" placeholder="e.g. Alex" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+    <!-- Guest Info & Pickup Time -->
+    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Your Name</label>
+        <input type="text" id="custName" placeholder="e.g. Mr. Wong / Spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+      </div>
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time (Pre-order / Teacher)</label>
+        <input type="text" id="custPickupTime" placeholder="e.g. 10:30 AM / Recess" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+      </div>
     </div>
 
+    <!-- Drink Selection Grid -->
     <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
       <div class="flex justify-between items-center mb-3">
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
@@ -45,6 +53,7 @@
       </div>
     </div>
 
+    <!-- Drink Customization Configurator -->
     <div id="itemOptions" class="bg-amber-500/5 p-4 rounded-3xl border border-amber-200/80 hidden space-y-3.5 shadow-sm">
       <div class="flex justify-between items-center border-b border-amber-200/60 pb-2">
         <span id="selectedItemName" class="font-black text-slate-800 text-sm">Drink Name</span>
@@ -53,19 +62,12 @@
 
       <div>
         <label class="block text-xs font-bold text-slate-400 mb-1">Temperature Option</label>
-        <div class="flex space-x-2">
-          <button type="button" onclick="setTemp('Cold')" id="btnCold" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
-          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
-        </div>
+        <div class="flex space-x-2" id="custTempBtnContainer"></div>
       </div>
 
       <div>
         <label class="block text-xs font-bold text-slate-400 mb-1">Customization / Notes</label>
-        <div class="flex flex-wrap gap-1.5 mb-2">
-          <button type="button" onclick="addNotePill('+ Less Ice')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Less Ice</button>
-          <button type="button" onclick="addNotePill('+ No Sugar')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ No Sugar</button>
-          <button type="button" onclick="addNotePill('+ Oat Milk')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400">+ Oat Milk</button>
-        </div>
+        <div class="flex flex-wrap gap-1.5 mb-2" id="custRemarkPillsContainer"></div>
         <input type="text" id="custNotes" placeholder="e.g. Less sugar, extra hot..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
       </div>
     </div>
@@ -74,24 +76,26 @@
   <footer id="orderFooter" class="pt-3">
     <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
       <i class="fa-solid fa-qrcode"></i>
-      <span id="submitBtnText">Submit Order & Show QR Code</span>
+      <span id="submitBtnText">Submit Pre-Order & Get QR Code</span>
     </button>
   </footer>
 
+  <!-- QR CODE TICKET VIEW -->
   <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
-    <div class="bg-amber-100 text-amber-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-amber-300/60">
-      <i class="fa-solid fa-clock mr-1"></i> STATUS: UNPAID
+    <div class="bg-purple-100 text-purple-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-purple-300">
+      <i class="fa-solid fa-clock mr-1"></i> STATUS: RESERVED
     </div>
 
     <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
-    <p class="text-xs text-slate-500 font-medium">Show this QR code to the cashier to confirm payment</p>
+    <p class="text-xs text-slate-500 font-medium">Show this QR code to bar staff or cashier upon pickup</p>
 
     <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400" id="qrcode"></div>
 
     <div class="text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl w-full text-left space-y-1.5 border border-slate-200">
       <p><strong class="text-slate-400">Guest:</strong> <span id="ticketGuest" class="text-slate-800 font-bold">-</span></p>
+      <p><strong class="text-slate-400">Pickup Time:</strong> <span id="ticketPickup" class="text-purple-700 font-black">-</span></p>
       <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-slate-800 font-bold">-</span></p>
-      <p><strong class="text-slate-400">Amount Due:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
+      <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
     </div>
 
     <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
@@ -101,9 +105,14 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNKe1wbmhfVC10YANKdeqVhUALnew4PApexNEKGs8XcYd7eo_fcOFiubFm5PIqdKCPZg/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYkFblv7uXYc1VaZeWFeByGqCTYOMvOgr1blc_zpbLuMBTSpxv1QeKP2RtbxVKZa2rlw/exec";
 
-    let state = { menu: [], selectedItem: null, selectedTemp: "Cold", nextOrderNum: 101 };
+    let state = {
+      menu: [],
+      selectedItem: null,
+      selectedTemp: "Cold",
+      remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot"
+    };
 
     function escapeHtml(str) {
       return String(str || "")
@@ -121,7 +130,7 @@
         .then(res => res.json())
         .then(data => {
           if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
-          if (data.nextOrderNum) state.nextOrderNum = data.nextOrderNum;
+          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           renderMenu();
         });
     }
@@ -150,18 +159,43 @@
 
     function selectItem(item) {
       state.selectedItem = item;
-      state.selectedTemp = item.tempOptions.includes("Cold") ? "Cold" : "Hot";
       document.getElementById('itemOptions')?.classList.remove('hidden');
       
-      const nameEl = document.getElementById('selectedItemName');
-      if (nameEl) nameEl.innerText = item.name;
-      
-      const priceEl = document.getElementById('selectedItemPrice');
-      if (priceEl) priceEl.innerText = `$${item.price.toFixed(2)}`;
-      
-      const btnTextEl = document.getElementById('submitBtnText');
-      if (btnTextEl) btnTextEl.innerText = `Submit Order ($${item.price.toFixed(2)}) & Show QR`;
-      
+      document.getElementById('selectedItemName').innerText = item.name;
+      document.getElementById('selectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
+      document.getElementById('submitBtnText').innerText = `Submit Pre-Order ($${item.price.toFixed(2)}) & Get QR`;
+
+      const tempContainer = document.getElementById('custTempBtnContainer');
+      tempContainer.innerHTML = "";
+
+      const opts = item.tempOptions || "Hot & Cold";
+      if (opts.includes("Cold") && opts.includes("Hot")) {
+        state.selectedTemp = "Cold";
+        tempContainer.innerHTML = `
+          <button type="button" onclick="setTemp('Cold')" id="btnCold" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
+          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+        `;
+      } else if (opts.includes("Hot")) {
+        state.selectedTemp = "Hot";
+        tempContainer.innerHTML = `
+          <button type="button" id="btnHot" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+        `;
+      } else {
+        state.selectedTemp = "Cold";
+        tempContainer.innerHTML = `
+          <button type="button" id="btnCold" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+        `;
+      }
+
+      const pillsContainer = document.getElementById('custRemarkPillsContainer');
+      pillsContainer.innerHTML = "";
+      const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
+      hotkeys.forEach(hk => {
+        pillsContainer.innerHTML += `
+          <button type="button" onclick="addNotePill('${escapeHtml(hk)}')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
+        `;
+      });
+
       renderMenu();
     }
 
@@ -180,7 +214,11 @@
 
     function submitSelfOrder() {
       const nameInput = document.getElementById('custName');
+      const pickupInput = document.getElementById('custPickupTime');
+
       const name = nameInput ? nameInput.value.trim() : "";
+      const pickupTime = pickupInput ? pickupInput.value.trim() : "Scheduled";
+
       if (!name) return alert("Please enter your name!");
       if (!state.selectedItem) return alert("Please select a drink!");
 
@@ -193,21 +231,22 @@
       const notesInput = document.getElementById('custNotes');
       const notes = notesInput ? notesInput.value : "";
 
-      const orderData = {
+      const orderPayload = {
         orderTime: new Date().toISOString(),
-        cashier: "Self-Order QR",
+        pickupTime: pickupTime,
+        cashier: "Teacher / Pre-Order",
         guestName: name,
         productName: state.selectedItem.name,
         temp: state.selectedTemp,
         customization: notes,
         price: state.selectedItem.price,
-        status: "UNPAID"
+        status: "RESERVED"
       };
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "createUnpaidOrder", order: orderData })
+        body: JSON.stringify({ action: "createReservedOrder", order: orderPayload })
       })
       .then(res => res.json())
       .then(res => {
@@ -235,17 +274,11 @@
       document.getElementById('orderFooter')?.classList.add('hidden');
       document.getElementById('qrTicketView')?.classList.remove('hidden');
 
-      const ticketNum = document.getElementById('ticketOrderNum');
-      if (ticketNum) ticketNum.innerText = `#${order.orderNum}`;
-
-      const ticketGuest = document.getElementById('ticketGuest');
-      if (ticketGuest) ticketGuest.innerText = order.guestName;
-
-      const ticketDrink = document.getElementById('ticketDrink');
-      if (ticketDrink) ticketDrink.innerText = `${order.productName} (${order.temp})`;
-
-      const ticketPrice = document.getElementById('ticketPrice');
-      if (ticketPrice) ticketPrice.innerText = `$${order.price.toFixed(2)}`;
+      document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
+      document.getElementById('ticketGuest').innerText = order.guestName;
+      document.getElementById('ticketPickup').innerText = order.pickupTime || "Scheduled";
+      document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
+      document.getElementById('ticketPrice').innerText = `$${(order.price || 0).toFixed(2)}`;
 
       const qrcodeContainer = document.getElementById('qrcode');
       if (qrcodeContainer) {
@@ -260,10 +293,7 @@
       document.getElementById('orderFooter')?.classList.remove('hidden');
       state.selectedItem = null;
       document.getElementById('itemOptions')?.classList.add('hidden');
-      
-      const btnTextEl = document.getElementById('submitBtnText');
-      if (btnTextEl) btnTextEl.innerText = "Submit Order & Show QR Code";
-      
+      document.getElementById('submitBtnText').innerText = "Submit Pre-Order & Get QR Code";
       init();
     }
 
