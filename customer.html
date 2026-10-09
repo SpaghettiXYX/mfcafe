@@ -83,7 +83,7 @@
       <i class="fa-solid fa-clock mr-1"></i> STATUS: UNPAID
     </div>
 
-    <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#101</h2>
+    <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
     <p class="text-xs text-slate-500 font-medium">Show this QR code to the cashier to confirm payment</p>
 
     <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400" id="qrcode"></div>
@@ -101,7 +101,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyASoBiu1uluzshIiJywointeEaG7LK0d-_X8W9TSbihi4aI8wVryKjui_rqJJU4HG5jw/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNKe1wbmhfVC10YANKdeqVhUALnew4PApexNEKGs8XcYd7eo_fcOFiubFm5PIqdKCPZg/exec";
 
     let state = { menu: [], selectedItem: null, selectedTemp: "Cold", nextOrderNum: 101 };
 
@@ -184,11 +184,16 @@
       if (!name) return alert("Please enter your name!");
       if (!state.selectedItem) return alert("Please select a drink!");
 
+      const btnSubmit = document.getElementById('btnSubmit');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.classList.add('opacity-50');
+      }
+
       const notesInput = document.getElementById('custNotes');
       const notes = notesInput ? notesInput.value : "";
 
       const orderData = {
-        orderNum: String(state.nextOrderNum),
         orderTime: new Date().toISOString(),
         cashier: "Self-Order QR",
         guestName: name,
@@ -201,12 +206,28 @@
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "createUnpaidOrder", order: orderData })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        if (res.success && res.order) {
+          showQRTicket(res.order);
+        } else {
+          alert("Order creation failed.");
+        }
+      })
+      .catch(err => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        alert("Network error.");
       });
-
-      showQRTicket(orderData);
     }
 
     function showQRTicket(order) {
@@ -229,7 +250,7 @@
       const qrcodeContainer = document.getElementById('qrcode');
       if (qrcodeContainer) {
         qrcodeContainer.innerHTML = "";
-        new QRCode(qrcodeContainer, { text: order.orderNum, width: 160, height: 160 });
+        new QRCode(qrcodeContainer, { text: String(order.orderNum), width: 160, height: 160 });
       }
     }
 
