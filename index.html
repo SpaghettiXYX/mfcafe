@@ -29,8 +29,8 @@
         <div>
           <h1 class="font-extrabold text-lg text-slate-800 leading-tight">MFCafe E-Portal</h1>
           <p class="text-[11px] text-emerald-600 font-semibold flex items-center">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5"></span>
-            Works with Google Sheets
+            <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse"></span>
+            Real-time Sync Active
           </p>
         </div>
       </div>
@@ -98,7 +98,7 @@
           <div class="space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 class="font-black text-slate-800 text-lg">Current Order</h3>
-              <span id="posOrderNumDisplay" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-lg text-xs">#101</span>
+              <span id="posOrderNumDisplay" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-lg text-xs">#Auto</span>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -252,6 +252,29 @@
 
   </main>
 
+  <!-- POST-SUBMIT ORDER SUCCESS MODAL -->
+  <div id="orderSuccessModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-check font-black"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Order Created Successfully</p>
+        <h2 id="modalOrderNum" class="text-4xl font-black text-amber-500 mt-1">#105</h2>
+      </div>
+
+      <div class="bg-slate-50 p-3.5 rounded-2xl text-left text-xs space-y-1.5 border border-slate-200/80">
+        <p><strong class="text-slate-400">Guest:</strong> <span id="modalGuestName" class="font-bold text-slate-800">-</span></p>
+        <p><strong class="text-slate-400">Drink:</strong> <span id="modalDrinkName" class="font-bold text-slate-800">-</span></p>
+        <p><strong class="text-slate-400">Amount Paid:</strong> <span id="modalPrice" class="font-black text-emerald-600">$0.00</span></p>
+      </div>
+
+      <button onclick="closeSuccessModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-3 rounded-xl text-xs transition">
+        Done (Next Order)
+      </button>
+    </div>
+  </div>
+
   <!-- EDIT / ADD MENU ITEM MODAL -->
   <div id="menuModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
@@ -316,14 +339,16 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyASoBiu1uluzshIiJywointeEaG7LK0d-_X8W9TSbihi4aI8wVryKjui_rqJJU4HG5jw/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwNKe1wbmhfVC10YANKdeqVhUALnew4PApexNEKGs8XcYd7eo_fcOFiubFm5PIqdKCPZg/exec";
 
     let state = {
       menu: [],
       orders: [],
       nextOrderNum: 101,
       selectedPosItem: null,
-      selectedPosTemp: "Cold"
+      selectedPosTemp: "Cold",
+      currentCreatedOrder: null,
+      serverVersion: null
     };
 
     let html5QrcodeScanner = null;
@@ -383,12 +408,27 @@
       });
     }
 
+    function smartCheckUpdates() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+
+      fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(info => {
+          if (info.version && info.version !== state.serverVersion) {
+            state.serverVersion = info.version;
+            fetchFromSheet();
+          }
+        })
+        .catch(err => console.log("Check error:", err));
+    }
+
     function fetchFromSheet() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
+          if (data.version) state.serverVersion = data.version;
           if (Array.isArray(data.menu)) state.menu = data.menu;
           if (Array.isArray(data.orders)) {
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
@@ -398,8 +438,6 @@
           }
           if (data.nextOrderNum) {
             state.nextOrderNum = data.nextOrderNum;
-            const badge = document.getElementById('posOrderNumDisplay');
-            if (badge) badge.innerText = `#${state.nextOrderNum}`;
           }
           renderAll();
         })
@@ -476,8 +514,13 @@
       const cashier = cashierInput ? cashierInput.value.trim() || "Staff" : "Staff";
       const notes = notesInput ? notesInput.value : "";
 
-      const orderData = {
-        orderNum: String(state.nextOrderNum),
+      const btnSubmit = document.getElementById('btnSubmitPos');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.classList.add('opacity-50');
+      }
+
+      const orderPayload = {
         orderTime: new Date().toISOString(),
         cashier: cashier,
         guestName: guest,
@@ -488,21 +531,64 @@
         status: "PENDING"
       };
 
-      state.orders.push(orderData);
-      renderAll();
-
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "createOrder", order: orderData })
-      });
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "createOrder", order: orderPayload })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
 
-      state.selectedPosItem = null;
-      document.getElementById('posSelectionDetails')?.classList.add('hidden');
-      if (notesInput) notesInput.value = "";
-      const submitText = document.getElementById('posSubmitBtnText');
-      if (submitText) submitText.innerText = "Confirm & Submit ($0.00)";
+        if (res.success && res.order) {
+          state.currentCreatedOrder = res.order;
+          showOrderSuccessModal(res.order);
+
+          state.selectedPosItem = null;
+          document.getElementById('posSelectionDetails')?.classList.add('hidden');
+          if (notesInput) notesInput.value = "";
+          const submitText = document.getElementById('posSubmitBtnText');
+          if (submitText) submitText.innerText = "Confirm & Submit ($0.00)";
+          
+          fetchFromSheet();
+        } else {
+          alert("Order submission failed: " + (res.error || "Unknown error"));
+        }
+      })
+      .catch(err => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        alert("Network error creating order.");
+      });
+    }
+
+    function showOrderSuccessModal(order) {
+      const modal = document.getElementById('orderSuccessModal');
+      if (!modal) return;
+
+      const modalNum = document.getElementById('modalOrderNum');
+      if (modalNum) modalNum.innerText = `#${order.orderNum}`;
+
+      const modalGuest = document.getElementById('modalGuestName');
+      if (modalGuest) modalGuest.innerText = order.guestName;
+
+      const modalDrink = document.getElementById('modalDrinkName');
+      if (modalDrink) modalDrink.innerText = `${order.productName} (${order.temp})`;
+
+      const modalPrice = document.getElementById('modalPrice');
+      if (modalPrice) modalPrice.innerText = `$${order.price.toFixed(2)}`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeSuccessModal() {
+      const modal = document.getElementById('orderSuccessModal');
+      if (modal) modal.classList.add('hidden');
     }
 
     function renderUnpaidOrders() {
@@ -538,8 +624,7 @@
 
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
         });
         return true;
@@ -652,8 +737,7 @@
         renderAll();
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "markReady", orderNum: String(orderNum) })
         });
       }
@@ -703,15 +787,13 @@
         renderAll();
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
         });
       }
     }
 
     function renderAdmin() {
-      // Exclude UNPAID orders from total revenue calculations
       const paidOrders = state.orders.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
       const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
       
@@ -724,7 +806,6 @@
       const menuCountEl = document.getElementById('adminMenuItemsCount');
       if (menuCountEl) menuCountEl.innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
-      // Render Menu Table
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
         tbody.innerHTML = "";
@@ -755,7 +836,6 @@
         });
       }
 
-      // Render Financial Log with CLEARED orders
       const finLog = document.getElementById('adminFinancialLog');
       if (finLog) {
         finLog.innerHTML = "";
@@ -805,8 +885,7 @@
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
       });
     }
@@ -819,8 +898,7 @@
         renderAll();
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "toggleMenuItem", itemName: itemName, newStatus: newStatus })
         });
       }
@@ -921,8 +999,7 @@
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
       });
     }
@@ -935,8 +1012,7 @@
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
       });
     }
@@ -944,7 +1020,7 @@
     function init() {
       fetchFromSheet();
       setInterval(updateTimers, 1000);
-      setInterval(fetchFromSheet, 3000);
+      setInterval(smartCheckUpdates, 2000);
     }
 
     init();
