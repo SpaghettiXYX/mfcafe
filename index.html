@@ -449,7 +449,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYkFblv7uXYc1VaZeWFeByGqCTYOMvOgr1blc_zpbLuMBTSpxv1QeKP2RtbxVKZa2rlw/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
 
     let state = {
       menu: [],
@@ -572,6 +572,7 @@
       if (!isoTimeStr) return "0:00";
       const start = new Date(isoTimeStr).getTime();
       const now = new Date().getTime();
+      if (isNaN(start)) return "0:00";
       const diffSec = Math.max(0, Math.floor((now - start) / 1000));
       
       const mins = Math.floor(diffSec / 60);
@@ -802,7 +803,7 @@
         card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
         card.innerHTML = `
           <div>
-            <div class="flex items-center space-x-1.5">
+            <div class="flex items-center space-x-1.5 flex-wrap">
               <span class="font-black text-amber-600 text-sm">#${escapeHtml(o.orderNum)}</span>
               <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
               ${isReserved ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>` : ''}
@@ -899,6 +900,7 @@
       activeOrders.forEach(o => {
         const timeAgo = getElapsedTimeStr(o.orderTime);
         const isReserved = (o.status || "").toUpperCase() === "RESERVED";
+        const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
 
         grid.innerHTML += `
           <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4">
@@ -913,10 +915,10 @@
                 </span>
               </div>
 
-              ${isReserved ? `
+              ${isReserved || o.pickupTime ? `
                 <div class="bg-purple-600 text-white p-2.5 rounded-2xl shadow-sm text-center">
                   <p class="text-xs font-black uppercase tracking-wider"><i class="fa-solid fa-clock mr-1"></i> RESERVED DRINKS</p>
-                  <p class="text-sm font-extrabold mt-0.5">Pickup Time: ${escapeHtml(o.pickupTime || 'Scheduled')}</p>
+                  <p class="text-sm font-extrabold mt-0.5">Pickup Time: ${pickupLabel}</p>
                 </div>
               ` : ''}
 
