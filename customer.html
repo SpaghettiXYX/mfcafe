@@ -103,6 +103,9 @@
     </button>
   </div>
 
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] space-y-2 pointer-events-none"></div>
+
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
@@ -113,6 +116,26 @@
       selectedTemp: "Cold",
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot"
     };
+
+    // ===== SAFE PRICE HELPER =====
+    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = "info", duration = 3000) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = { success: "bg-emerald-600", error: "bg-rose-600", warning: "bg-amber-500", info: "bg-slate-800" };
+      const icons = { success: "fa-circle-check", error: "fa-circle-xmark", warning: "fa-triangle-exclamation", info: "fa-circle-info" };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
 
     function escapeHtml(str) {
       return String(str || "")
@@ -132,7 +155,21 @@
           if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           renderMenu();
-        });
+        })
+        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+
+      // Poll for menu updates every 15s (so paused items disappear)
+      setInterval(() => {
+        if (document.getElementById("orderView")?.classList.contains("hidden")) return; // skip if on QR ticket
+        fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+            if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+            renderMenu();
+          })
+          .catch(() => {});
+      }, 15000);
     }
 
     function renderMenu() {
@@ -143,6 +180,11 @@
       const badge = document.getElementById('mobileAvailableCount');
       if (badge) badge.innerText = `${state.menu.length} available`;
 
+      if (state.menu.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
+        return;
+      }
+
       state.menu.forEach(item => {
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
@@ -151,7 +193,7 @@
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$${item.price.toFixed(2)}</p>
+          <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
         `;
         container.appendChild(btn);
       });
@@ -162,8 +204,8 @@
       document.getElementById('itemOptions')?.classList.remove('hidden');
       
       document.getElementById('selectedItemName').innerText = item.name;
-      document.getElementById('selectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
-      document.getElementById('submitBtnText').innerText = `Submit Pre-Order ($${item.price.toFixed(2)}) & Get QR`;
+      document.getElementById('selectedItemPrice').innerText = fmtPrice(item.price);
+      document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(item.price)}) & Get QR`;
 
       const tempContainer = document.getElementById('custTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -219,8 +261,8 @@
       const name = nameInput ? nameInput.value.trim() : "";
       const pickupTime = pickupInput ? pickupInput.value.trim() : "Scheduled";
 
-      if (!name) return alert("Please enter your name!");
-      if (!state.selectedItem) return alert("Please select a drink!");
+      if (!name) return showToast("Please enter your name!", "warning");
+      if (!state.selectedItem) return showToast("Please select a drink!", "warning");
 
       const btnSubmit = document.getElementById('btnSubmit');
       if (btnSubmit) {
@@ -257,7 +299,7 @@
         if (res.success && res.order) {
           showQRTicket(res.order);
         } else {
-          alert("Order creation failed.");
+          showToast(res.error || "Order creation failed.", "error");
         }
       })
       .catch(err => {
@@ -265,7 +307,7 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        alert("Network error.");
+        showToast("Network error. Please try again.", "error");
       });
     }
 
@@ -278,13 +320,14 @@
       document.getElementById('ticketGuest').innerText = order.guestName;
       document.getElementById('ticketPickup').innerText = order.pickupTime || "Scheduled";
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('ticketPrice').innerText = `$${(order.price || 0).toFixed(2)}`;
+      document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
 
       const qrcodeContainer = document.getElementById('qrcode');
       if (qrcodeContainer) {
         qrcodeContainer.innerHTML = "";
         new QRCode(qrcodeContainer, { text: String(order.orderNum), width: 160, height: 160 });
       }
+      showToast("Order submitted! Show this QR at pickup.", "success");
     }
 
     function resetCustomerForm() {

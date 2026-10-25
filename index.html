@@ -57,9 +57,10 @@
         </div>
         <div>
           <h1 class="font-extrabold text-lg text-slate-800 leading-tight">MFCafe E-Portal</h1>
-          <p class="text-[11px] text-emerald-600 font-semibold flex items-center">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse"></span>
-            Real-time Sync Active
+          <p id="syncStatusText" class="text-[11px] text-emerald-600 font-semibold flex items-center">
+            <span id="syncStatusDot" class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse"></span>
+            <span id="syncStatusLabel">Real-time Sync Active</span>
+            <span id="syncLastTime" class="ml-2 text-slate-400"></span>
           </p>
         </div>
       </div>
@@ -67,17 +68,20 @@
       <!-- Navigation Tabs & User Profile -->
       <div class="flex items-center space-x-3">
         <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
             <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
           </button>
-          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition">
+          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition relative">
             <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
+            <span id="badge-kds" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
             <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
+            <span id="badge-ready" class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-            <i class="fa-solid fa-square-check mr-1"></i> Clearing Pickup Screen
+          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+            <i class="fa-solid fa-square-check mr-1"></i> Clearing
+            <span id="badge-helper" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
           <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
             <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
@@ -85,6 +89,13 @@
         </nav>
 
         <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+          <span id="clockBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 hidden sm:block">
+            <i class="fa-regular fa-clock text-amber-500 mr-1"></i>
+            <span id="clockDisplay">--:--</span>
+          </span>
+          <button onclick="toggleSound()" id="soundToggle" title="Toggle notification sound" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
+            <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-600"></i>
+          </button>
           <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center">
             <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
             <span id="lblUsername">Staff</span>
@@ -447,6 +458,32 @@
     </div>
   </div>
 
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
+
+  <!-- CUSTOM CONFIRM DIALOG -->
+  <div id="confirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-800 text-base">Confirm Action</h3>
+          <p id="confirmMessage" class="text-sm text-slate-500 mt-1">Are you sure?</p>
+        </div>
+      </div>
+      <div class="flex space-x-2 pt-2">
+        <button id="confirmYesBtn" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition">
+          Confirm
+        </button>
+        <button id="confirmNoBtn" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-slate-200 transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
@@ -465,6 +502,100 @@
     let html5QrcodeScanner = null;
     let isProcessingScan = false;
     let isModalAddMode = false;
+    let soundEnabled = localStorage.getItem("mfcafe_sound") !== "off";
+
+    // ===== SAFE PRICE HELPER (prevents crash on undefined) =====
+    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = "info", duration = 3000) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = {
+        success: "bg-emerald-600",
+        error: "bg-rose-600",
+        warning: "bg-amber-500",
+        info: "bg-slate-800"
+      };
+      const icons = {
+        success: "fa-circle-check",
+        error: "fa-circle-xmark",
+        warning: "fa-triangle-exclamation",
+        info: "fa-circle-info"
+      };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-3 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto transform translate-x-0 transition-all duration-300 max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(120%)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // ===== CUSTOM CONFIRM DIALOG (returns Promise) =====
+    let confirmCallback = null;
+    function showConfirm(message) {
+      return new Promise(resolve => {
+        const modal = document.getElementById("confirmModal");
+        document.getElementById("confirmMessage").innerText = message;
+        modal.classList.remove("hidden");
+        confirmCallback = resolve;
+      });
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("confirmYesBtn")?.addEventListener("click", () => {
+        document.getElementById("confirmModal").classList.add("hidden");
+        if (confirmCallback) { confirmCallback(true); confirmCallback = null; }
+      });
+      document.getElementById("confirmNoBtn")?.addEventListener("click", () => {
+        document.getElementById("confirmModal").classList.add("hidden");
+        if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
+      });
+    });
+
+    // ===== SOUND TOGGLE =====
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      localStorage.setItem("mfcafe_sound", soundEnabled ? "on" : "off");
+      const icon = document.getElementById("soundIcon");
+      if (icon) {
+        icon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
+      }
+      showToast(soundEnabled ? "Sound notifications ON" : "Sound notifications OFF", soundEnabled ? "success" : "warning");
+    }
+
+    // ===== CLOCK =====
+    function updateClock() {
+      const el = document.getElementById("clockDisplay");
+      if (el) {
+        const now = new Date();
+        el.innerText = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+    }
+
+    // ===== CONNECTION STATUS =====
+    function setSyncStatus(status) {
+      const dot = document.getElementById("syncStatusDot");
+      const label = document.getElementById("syncStatusLabel");
+      const timeEl = document.getElementById("syncLastTime");
+      if (!dot || !label) return;
+      if (status === "online") {
+        dot.className = "w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse";
+        label.innerText = "Real-time Sync Active";
+        label.className = "text-emerald-600";
+        if (timeEl) timeEl.innerText = "· updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      } else if (status === "offline") {
+        dot.className = "w-2 h-2 bg-rose-500 rounded-full inline-block mr-1.5";
+        label.innerText = "Connection Lost — Reconnecting...";
+        label.className = "text-rose-600";
+      } else {
+        dot.className = "w-2 h-2 bg-amber-500 rounded-full inline-block mr-1.5 animate-pulse";
+        label.innerText = "Syncing...";
+        label.className = "text-amber-600";
+      }
+    }
 
     // Cookie Utilities
     function setCookie(name, value, days = 7) {
@@ -554,6 +685,7 @@
     }
 
     function triggerChime() {
+      if (!soundEnabled) return;
       const audioUrl = "chime.mp3"; 
       const audio = new Audio(audioUrl);
       audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
@@ -595,20 +727,26 @@
       fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(info => {
+          setSyncStatus("online");
           if (info.version && info.version !== state.serverVersion) {
             state.serverVersion = info.version;
             fetchFromSheet();
           }
         })
-        .catch(err => console.log("Check error:", err));
+        .catch(err => {
+          setSyncStatus("offline");
+          console.log("Check error:", err);
+        });
     }
 
     function fetchFromSheet() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      setSyncStatus("syncing");
 
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
+          setSyncStatus("online");
           if (data.version) state.serverVersion = data.version;
           if (Array.isArray(data.menu)) state.menu = data.menu;
           if (Array.isArray(data.users)) state.users = data.users;
@@ -622,16 +760,43 @@
           }
           renderAll();
         })
-        .catch(err => console.log("Fetch error:", err));
+        .catch(err => {
+          setSyncStatus("offline");
+          console.log("Fetch error:", err);
+        });
     }
 
     function renderAll() {
+      renderTabBadges();
       renderPosMenu();
       renderUnpaidOrders();
       renderKDS();
       renderPickup();
       renderHelper();
       renderAdmin();
+    }
+
+    function renderTabBadges() {
+      const kdsCount = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).length;
+      const readyCount = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+      const helperCount = readyCount; // same as ready orders needing clearing
+
+      const kdsBadge = document.getElementById("badge-kds");
+      const readyBadge = document.getElementById("badge-ready");
+      const helperBadge = document.getElementById("badge-helper");
+
+      if (kdsBadge) {
+        kdsBadge.innerText = kdsCount;
+        kdsBadge.classList.toggle("hidden", kdsCount === 0);
+      }
+      if (readyBadge) {
+        readyBadge.innerText = readyCount;
+        readyBadge.classList.toggle("hidden", readyCount === 0);
+      }
+      if (helperBadge) {
+        helperBadge.innerText = helperCount;
+        helperBadge.classList.toggle("hidden", helperCount === 0);
+      }
     }
 
     function renderPosMenu() {
@@ -651,7 +816,7 @@
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-sm mt-2">$${item.price.toFixed(2)}</p>
+          <p class="text-amber-600 font-black text-sm mt-2">${fmtPrice(item.price)}</p>
         `;
         grid.appendChild(btn);
       });
@@ -662,8 +827,8 @@
       document.getElementById('posSelectionDetails')?.classList.remove('hidden');
       
       document.getElementById('posSelectedItemName').innerText = item.name;
-      document.getElementById('posSelectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
-      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit ($${item.price.toFixed(2)})`;
+      document.getElementById('posSelectedItemPrice').innerText = fmtPrice(item.price);
+      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(item.price)})`;
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -713,7 +878,7 @@
     }
 
     function submitPosOrder() {
-      if (!state.selectedPosItem) return alert("Please select a drink first!");
+      if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
       const guestInput = document.getElementById('posGuestName');
       const cashierInput = document.getElementById('posCashierName');
       const notesInput = document.getElementById('posNotes');
@@ -761,7 +926,7 @@
           
           fetchFromSheet();
         } else {
-          alert("Order submission failed: " + (res.error || "Unknown error"));
+          showToast("Order failed: " + (res.error || "Unknown error"), "error");
         }
       })
       .catch(err => {
@@ -769,7 +934,7 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        alert("Network error creating order.");
+        showToast("Network error creating order", "error");
       });
     }
 
@@ -780,7 +945,7 @@
       document.getElementById('modalOrderNum').innerText = `#${order.orderNum}`;
       document.getElementById('modalGuestName').innerText = order.guestName;
       document.getElementById('modalDrinkName').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('modalPrice').innerText = `$${(order.price || 0).toFixed(2)}`;
+      document.getElementById('modalPrice').innerText = fmtPrice(order.price);
 
       modal.classList.remove('hidden');
     }
@@ -808,7 +973,7 @@
               <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
               ${isReserved ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>` : ''}
             </div>
-            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} ($${o.price.toFixed(2)})</p>
+            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})</p>
           </div>
           <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
             Confirm & Pay
@@ -823,6 +988,7 @@
       const order = state.orders.find(o => String(o.orderNum).trim() === targetNum);
 
       if (order) {
+        const prevStatus = order.status;
         order.status = "PENDING";
         renderAll();
 
@@ -830,6 +996,21 @@
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            order.status = prevStatus;
+            renderAll();
+            showToast("Payment confirmation failed: " + (res.error || "Unknown error"), "error");
+          } else {
+            showToast(`Order #${targetNum} confirmed & paid`, "success");
+          }
+        })
+        .catch(() => {
+          order.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
         });
         return true;
       }
@@ -859,13 +1040,13 @@
             triggerChime();
             stopQRScanner();
           } else {
-            alert(`Order #${scannedNum} not found in unpaid queue.`);
+            showToast(`Order #${scannedNum} not found in unpaid queue.`, "warning");
             isProcessingScan = false;
           }
         },
         () => {}
       ).catch(err => {
-        alert("Camera access failed or permission denied.");
+        showToast("Camera access failed or permission denied.", "error");
         stopQRScanner();
       });
     }
@@ -895,14 +1076,18 @@
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
 
-      grid.innerHTML = activeOrders.length === 0 ? `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>` : "";
+      if (activeOrders.length === 0) {
+        grid.innerHTML = `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>`;
+        return;
+      }
 
+      let html = "";
       activeOrders.forEach(o => {
         const timeAgo = getElapsedTimeStr(o.orderTime);
         const isReserved = (o.status || "").toUpperCase() === "RESERVED";
         const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
 
-        grid.innerHTML += `
+        html += `
           <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4">
             <div class="space-y-3">
               <div class="flex justify-between items-start">
@@ -938,17 +1123,33 @@
             </button>
           </div>`;
       });
+      grid.innerHTML = html;
     }
 
     function markOrderReady(orderNum) {
       const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
       if (o) {
+        const prevStatus = o.status;
         o.status = "READY";
         renderAll();
+        triggerChime();
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "markReady", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            o.status = prevStatus;
+            renderAll();
+            showToast(`Failed to mark #${orderNum} ready`, "error");
+          }
+        })
+        .catch(() => {
+          o.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
         });
       }
     }
@@ -958,16 +1159,17 @@
       const readyList = document.getElementById('pickupReadyList');
       if (!prepList || !readyList) return;
 
-      prepList.innerHTML = "";
-      readyList.innerHTML = "";
-
+      let prepHtml = "";
       state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
-        prepList.innerHTML += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${escapeHtml(o.orderNum)}</div>`;
+        prepHtml += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${escapeHtml(o.orderNum)}</div>`;
       });
+      prepList.innerHTML = prepHtml;
 
+      let readyHtml = "";
       state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
-        readyList.innerHTML += `<div class="bg-emerald-600 text-white p-3 rounded-xl font-black text-2xl animate-pulse shadow-md">#${escapeHtml(o.orderNum)}</div>`;
+        readyHtml += `<div class="bg-emerald-600 text-white p-3 rounded-xl font-black text-2xl animate-pulse shadow-md">#${escapeHtml(o.orderNum)}</div>`;
       });
+      readyList.innerHTML = readyHtml;
     }
 
     function renderHelper() {
@@ -975,10 +1177,14 @@
       if (!grid) return;
 
       const ready = state.orders.filter(o => (o.status || "").toUpperCase() === "READY");
-      grid.innerHTML = ready.length === 0 ? `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>` : "";
+      if (ready.length === 0) {
+        grid.innerHTML = `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>`;
+        return;
+      }
 
+      let html = "";
       ready.forEach(o => {
-        grid.innerHTML += `
+        html += `
           <div class="bg-white border border-emerald-300 p-4 rounded-2xl shadow-sm flex justify-between items-center">
             <div>
               <span class="text-2xl font-black text-emerald-600">#${escapeHtml(o.orderNum)}</span>
@@ -989,17 +1195,32 @@
             </button>
           </div>`;
       });
+      grid.innerHTML = html;
     }
 
     function clearOrder(orderNum) {
       const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
       if (o) {
+        const prevStatus = o.status;
         o.status = "CLEARED";
         renderAll();
         fetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            o.status = prevStatus;
+            renderAll();
+            showToast(`Failed to clear #${orderNum}`, "error");
+          }
+        })
+        .catch(() => {
+          o.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
         });
       }
     }
@@ -1016,9 +1237,9 @@
 
       const usersTbody = document.getElementById('adminUsersTableBody');
       if (usersTbody) {
-        usersTbody.innerHTML = "";
+        let html = "";
         state.users.forEach(u => {
-          usersTbody.innerHTML += `
+          html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
@@ -1030,18 +1251,19 @@
               </td>
             </tr>`;
         });
+        usersTbody.innerHTML = html;
       }
 
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
-        tbody.innerHTML = "";
+        let html = "";
         state.menu.forEach(item => {
           const isPaused = item.status?.toLowerCase() === "paused";
-          tbody.innerHTML += `
+          html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(item.tempOptions)}</td>
-              <td class="py-3 px-3 font-black text-amber-600">$${item.price.toFixed(2)}</td>
+              <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}</td>
               <td class="py-3 px-3">
                 <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
                   ${isPaused ? 'Paused' : 'Active'}
@@ -1060,16 +1282,17 @@
               </td>
             </tr>`;
         });
+        tbody.innerHTML = html;
       }
 
       const finLog = document.getElementById('adminFinancialLog');
       if (finLog) {
-        finLog.innerHTML = "";
         if (state.orders.length === 0) {
           finLog.innerHTML = `<p class="text-slate-400 text-center py-4 font-medium">No order log history available.</p>`;
           return;
         }
 
+        let html = "";
         [...state.orders].reverse().forEach(o => {
           const statusUpper = (o.status || "").toUpperCase();
           let statusBadgeColor = "text-amber-600 bg-amber-50 border-amber-200";
@@ -1079,7 +1302,7 @@
           if (statusUpper === "UNPAID") statusBadgeColor = "text-rose-700 bg-rose-50 border-rose-200";
           if (statusUpper === "RESERVED") statusBadgeColor = "text-purple-700 bg-purple-50 border-purple-200";
 
-          finLog.innerHTML += `
+          html += `
             <div class="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
               <div>
                 <div class="flex items-center space-x-2">
@@ -1094,13 +1317,14 @@
                 </span>
               </div>
               <div class="flex items-center space-x-3">
-                <span class="font-black text-emerald-600 text-sm">$${o.price.toFixed(2)}</span>
+                <span class="font-black text-emerald-600 text-sm">${fmtPrice(o.price)}</span>
                 <button onclick="deleteOrderSubmit('${o.orderNum}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
                   Delete
                 </button>
               </div>
             </div>`;
         });
+        finLog.innerHTML = html;
       }
     }
 
@@ -1113,7 +1337,12 @@
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveHotkeys", hotkeys: val })
       })
-      .then(() => alert("Remark Hotkeys Updated Successfully!"));
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast("Remark hotkeys saved", "success");
+        else showToast(res.error || "Failed to save hotkeys", "error");
+      })
+      .catch(() => showToast("Network error saving hotkeys", "error"));
     }
 
     function openAddUserModal() {
@@ -1131,7 +1360,7 @@
       const u = document.getElementById('newUsername').value.trim();
       const p = document.getElementById('newPassword').value.trim();
       const code = document.getElementById('newUserCode').value.trim() || "1";
-      if (!u || !p) return alert("Please enter username and password.");
+      if (!u || !p) return showToast("Please enter username and password.", "warning");
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
@@ -1142,40 +1371,71 @@
       .then(res => {
         if (res.success) {
           closeAddUserModal();
+          showToast(`User "${u}" added`, "success");
           fetchFromSheet();
         } else {
-          alert(res.error || "Failed to add user.");
+          showToast(res.error || "Failed to add user.", "error");
         }
-      });
+      })
+      .catch(() => showToast("Network error adding user", "error"));
     }
 
     function deleteUserSubmit(username) {
-      if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
-
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "deleteUser", username: username })
-      })
-      .then(() => fetchFromSheet());
+      showConfirm(`Delete user "${username}"? This cannot be undone.`).then(ok => {
+        if (!ok) return;
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteUser", username: username })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            showToast(`User "${username}" deleted`, "success");
+            fetchFromSheet();
+          } else {
+            showToast(res.error || "Failed to delete user", "error");
+          }
+        })
+        .catch(() => showToast("Network error deleting user", "error"));
+      });
     }
 
     function deleteOrderSubmit(orderNum) {
-      if (!confirm(`Are you sure you want to delete Order #${orderNum}? This cannot be undone.`)) return;
+      showConfirm(`Delete Order #${orderNum}? This cannot be undone.`).then(ok => {
+        if (!ok) return;
+        const removed = state.orders.filter(o => String(o.orderNum).trim() === String(orderNum).trim());
+        state.orders = state.orders.filter(o => String(o.orderNum).trim() !== String(orderNum).trim());
+        renderAll();
 
-      state.orders = state.orders.filter(o => String(o.orderNum).trim() !== String(orderNum).trim());
-      renderAll();
-
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            state.orders = state.orders.concat(removed);
+            renderAll();
+            showToast("Failed to delete order", "error");
+          } else {
+            showToast(`Order #${orderNum} deleted`, "success");
+          }
+        })
+        .catch(() => {
+          state.orders = state.orders.concat(removed);
+          renderAll();
+          showToast("Network error — order restored", "error");
+        });
       });
     }
 
     function togglePauseItem(itemName, newStatus) {
       const item = state.menu.find(i => i.name === itemName);
       if (item) {
+        const prevStatus = item.status;
+        const prevAvail = item.available;
         item.status = newStatus;
         item.available = newStatus.toLowerCase() === "active";
         renderAll();
@@ -1183,6 +1443,23 @@
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "toggleMenuItem", itemName: itemName, newStatus: newStatus })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            item.status = prevStatus;
+            item.available = prevAvail;
+            renderAll();
+            showToast(`Failed to update "${itemName}"`, "error");
+          } else {
+            showToast(`"${itemName}" ${newStatus === "Active" ? "activated" : "paused"}`, "success");
+          }
+        })
+        .catch(() => {
+          item.status = prevStatus;
+          item.available = prevAvail;
+          renderAll();
+          showToast("Network error — reverted", "error");
         });
       }
     }
@@ -1226,7 +1503,7 @@
       const tempOptions = document.getElementById('editItemTemp').value;
       const status = document.getElementById('editItemStatus').value;
 
-      if (!name) return alert("Please enter item name!");
+      if (!name) return showToast("Please enter item name!", "warning");
 
       const itemData = { originalName, name, price, tempOptions, status };
 
@@ -1250,27 +1527,62 @@
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
-      });
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) showToast(res.error || "Failed to save menu item", "error");
+        else showToast(`"${name}" saved`, "success");
+      })
+      .catch(() => showToast("Network error saving menu item", "error"));
     }
 
     function deleteMenuItem(itemName) {
-      if (!confirm(`Are you sure you want to delete "${itemName}"?`)) return;
+      showConfirm(`Delete menu item "${itemName}"?`).then(ok => {
+        if (!ok) return;
+        const removed = state.menu.filter(i => i.name === itemName);
+        state.menu = state.menu.filter(i => i.name !== itemName);
+        renderAll();
 
-      state.menu = state.menu.filter(i => i.name !== itemName);
-      renderAll();
-
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            state.menu = state.menu.concat(removed);
+            renderAll();
+            showToast("Failed to delete menu item", "error");
+          } else {
+            showToast(`"${itemName}" deleted`, "success");
+          }
+        })
+        .catch(() => {
+          state.menu = state.menu.concat(removed);
+          renderAll();
+          showToast("Network error — item restored", "error");
+        });
       });
     }
 
     function init() {
       checkAuth();
+      // Init sound icon state
+      const soundIcon = document.getElementById("soundIcon");
+      if (soundIcon) soundIcon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
       fetchFromSheet();
       setInterval(updateTimers, 1000);
       setInterval(smartCheckUpdates, 2000);
+      setInterval(updateClock, 1000);
+      updateClock();
+      // Keyboard shortcut: Enter to submit POS order when drink selected
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && state.selectedPosItem && !e.target.matches("input, textarea, select, button")) {
+          e.preventDefault();
+          submitPosOrder();
+        }
+      });
     }
 
     init();
