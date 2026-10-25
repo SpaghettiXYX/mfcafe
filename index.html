@@ -13,51 +13,75 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
+    body { font-family: 'Inter', sans-serif; }
+
+    /* ===== THEME VARIABLES ===== */
+    :root {
+      --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e2e8f0;
+      --border: #e2e8f0; --border-2: #cbd5e1;
+      --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1120; --surface: #1e293b; --surface-2: #172033; --surface-3: #283548;
+      --border: #283548; --border-2: #3b4a63;
+      --text: #f8fafc; --text-2: #e2e8f0; --text-3: #94a3b8; --text-4: #64748b;
+    }
+    body { background-color: var(--bg); color: var(--text); }
 
     /* ===== DARK THEME OVERRIDES ===== */
-    .bg-white { background-color: #1e293b !important; }
-    .bg-slate-50 { background-color: #172033 !important; }
-    .bg-slate-100 { background-color: #283548 !important; }
-    .bg-slate-200 { background-color: #334155 !important; }
-    .bg-slate-900 { background-color: #1e293b !important; }
-    .bg-slate-800 { background-color: #283548 !important; }
+    [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+    [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
+    [data-theme="dark"] .bg-slate-800 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-900 { background-color: var(--surface) !important; }
 
-    .border-slate-100 { border-color: #283548 !important; }
-    .border-slate-200 { border-color: #283548 !important; }
-    .border-slate-300 { border-color: #3b4a63 !important; }
+    [data-theme="dark"] .border-slate-100 { border-color: var(--border) !important; }
+    [data-theme="dark"] .border-slate-200 { border-color: var(--border) !important; }
+    [data-theme="dark"] .border-slate-300 { border-color: var(--border-2) !important; }
 
-    .text-slate-900 { color: #f8fafc !important; }
-    .text-slate-800 { color: #f1f5f9 !important; }
-    .text-slate-700 { color: #e2e8f0 !important; }
-    .text-slate-600 { color: #cbd5e1 !important; }
-    .text-slate-500 { color: #94a3b8 !important; }
-    .text-slate-400 { color: #64748b !important; }
+    [data-theme="dark"] .text-slate-900 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-800 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-700 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-600 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-500 { color: var(--text-3) !important; }
+    [data-theme="dark"] .text-slate-400 { color: var(--text-4) !important; }
 
-    .rounded-3xl { border-radius: 1rem !important; }
-    .rounded-2xl { border-radius: 0.875rem !important; }
-    .shadow-sm { box-shadow: none !important; }
-    .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
-    .shadow-lg { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important; }
-    .shadow-2xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.6) !important; }
+    [data-theme="dark"] .text-slate-950 { color: #0b1120 !important; } /* keep dark on amber */
+
+    [data-theme="dark"] .rounded-3xl { border-radius: 1rem !important; }
+    [data-theme="dark"] .rounded-2xl { border-radius: 0.875rem !important; }
+    [data-theme="dark"] .shadow-sm { box-shadow: none !important; }
+    [data-theme="dark"] .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+    [data-theme="dark"] .shadow-lg { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important; }
+    [data-theme="dark"] .shadow-2xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.6) !important; }
 
     /* Inputs & selects */
-    input, select, textarea { background-color: #0f172a !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-    input:focus, select:focus, textarea:focus { border-color: #f59e0b !important; }
-    input::placeholder { color: #475569 !important; }
+    [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+      background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important;
+    }
+    [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
+    [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
 
-    /* Keep QR code readable */
-    #qrcode, #qr-reader { background-color: #ffffff !important; }
-    #qrTicketView .bg-white { background-color: #1e293b !important; }
+    /* Fix hover states in dark mode */
+    [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .hover\:bg-slate-200:hover { background-color: var(--border-2) !important; }
+    [data-theme="dark"] .hover\:text-slate-900:hover { color: var(--text) !important; }
+
+    /* Keep QR code & ticket readable */
+    [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0b1120; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
     /* Toast slide animation */
     #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
+
+    /* Smooth theme transition */
+    *, *::before, *::after { transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -143,6 +167,9 @@
           <button onclick="toggleSound()" id="soundToggle" title="Toggle notification sound" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
             <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-600"></i>
           </button>
+          <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
+            <i id="themeIcon" class="fa-solid fa-moon text-slate-600"></i>
+          </button>
           <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center">
             <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
             <span id="lblUsername">Staff</span>
@@ -168,10 +195,15 @@
             <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
             <h3 class="font-extrabold text-amber-900 text-sm">Self-Order & Pre-Order Queue</h3>
           </div>
-          <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
-            <i class="fa-solid fa-qrcode text-amber-400"></i>
-            <span>Scan Customer QR</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <input type="text" id="payScanInput" placeholder="Scan order #"
+              class="w-32 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+              onkeydown="payScanKeydown(event)">
+            <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-camera text-amber-400"></i>
+              <span>Camera</span>
+            </button>
+          </div>
         </div>
         <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
       </div>
@@ -236,7 +268,8 @@
                   QR Tile <span class="text-amber-500">(optional — scan or type tile #)</span>
                 </label>
                 <div class="flex gap-2">
-                  <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+                  <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    onkeydown="if(event.key==='Enter')submitPosOrder()">
                   <button onclick="scanQRTileForOrder()" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Scan QR tile">
                     <i class="fa-solid fa-qrcode"></i>
                   </button>
@@ -272,7 +305,10 @@
 
     <!-- VIEW 3: PUBLIC PICKUP DISPLAY -->
     <section id="view-pickup" class="hidden space-y-6">
-      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm">
+      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm relative">
+        <button onclick="toggleFullscreen()" class="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-600 w-9 h-9 rounded-xl text-sm font-bold transition" title="Toggle fullscreen (for display screens)">
+          <i class="fa-solid fa-expand"></i>
+        </button>
         <h2 class="text-3xl font-black text-amber-500 tracking-wide">ORDER STATUS DISPLAY</h2>
         <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
       </div>
@@ -300,11 +336,21 @@
         <h2 class="font-black text-slate-800 text-lg flex items-center">
           <i class="fa-solid fa-square-check text-emerald-600 mr-2"></i> Clearing Pickup Screen
         </h2>
-        <button onclick="scanQRToClear()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-2 transition">
-          <i class="fa-solid fa-qrcode"></i>
-          <span>Scan QR Tile to Clear</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <input type="text" id="helperScanInput" placeholder="Scan QR tile or type order #"
+            class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+            onkeydown="helperScanKeydown(event)">
+          <button onclick="document.getElementById('helperScanInput').focus(); document.getElementById('helperScanInput').select();"
+            class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Focus scanner input">
+            <i class="fa-solid fa-keyboard"></i>
+          </button>
+          <button onclick="scanQRToClear()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-2 transition">
+            <i class="fa-solid fa-camera"></i>
+            <span>Camera Scan</span>
+          </button>
+        </div>
       </div>
+      <p class="text-xs text-slate-400 text-center">Just scan a QR tile to clear its order — no need to click anything.</p>
       <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
@@ -700,6 +746,44 @@
       showToast(soundEnabled ? "Sound notifications ON" : "Sound notifications OFF", soundEnabled ? "success" : "warning");
     }
 
+    // ===== THEME =====
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      const icon = document.getElementById("themeIcon");
+      if (icon) icon.className = theme === "dark" ? "fa-solid fa-sun text-amber-400" : "fa-solid fa-moon text-slate-600";
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem("mfcafe_theme");
+      if (saved === "light" || saved === "dark") {
+        applyTheme(saved);
+      } else {
+        // Auto: follow system
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        applyTheme(prefersDark ? "dark" : "light");
+        // Listen for system changes
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+          if (!localStorage.getItem("mfcafe_theme")) applyTheme(e.matches ? "dark" : "light");
+        });
+      }
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute("data-theme") || "light";
+      const next = cur === "dark" ? "light" : "dark";
+      localStorage.setItem("mfcafe_theme", next);
+      applyTheme(next);
+      showToast(`Theme: ${next === "dark" ? "Dark" : "Light"} mode`, "info");
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
     // ===== CLOCK =====
     function updateClock() {
       const el = document.getElementById("clockDisplay");
@@ -817,6 +901,12 @@
       
       if (viewName === 'money') initMoneyCounter();
       if (viewName === 'admin') fetchOrderHistory();
+      if (viewName === 'helper') {
+        setTimeout(() => {
+          const inp = document.getElementById('helperScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 100);
+      }
       renderAll();
     }
 
@@ -839,6 +929,10 @@
 
     function triggerChime() {
       if (!soundEnabled) return;
+      // Cooldown: prevent repeat chimes within 1.5s
+      const now = Date.now();
+      if (triggerChime._last && now - triggerChime._last < 1500) return;
+      triggerChime._last = now;
       const audioUrl = "chime.mp3"; 
       const audio = new Audio(audioUrl);
       audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
@@ -1260,14 +1354,47 @@
       .then(res => res.json())
       .then(res => {
         if (res.success) {
-          triggerChime();
           showToast(`Order #${res.orderNum} cleared via tile`, "success");
           fetchFromSheet();
         } else {
-          showToast(res.error || "Tile not found or order not ready", "warning");
+          // Fallback: try clearing by order number
+          const order = state.orders.find(o => String(o.orderNum).trim() === String(tileCode).trim() && o.status?.toUpperCase() === "READY");
+          if (order) {
+            updateOrderStatus(order.orderNum, "CLEARED");
+          } else {
+            showToast(res.error || "Tile not found or order not ready", "warning");
+          }
         }
       })
       .catch(() => showToast("Network error clearing order by tile", "error"));
+    }
+
+    // Handle scanner input on clearing screen — pipeline mode
+    function helperScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        clearOrderByTile(code);
+        // Refocus for next scan
+        setTimeout(() => input.focus(), 50);
+      }
+    }
+
+    // Handle scanner input for payment confirmation
+    function payScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        const success = confirmOrderPayment(code);
+        if (!success) showToast(`Order #${code} not found in unpaid queue.`, "warning");
+        setTimeout(() => input.focus(), 50);
+      }
     }
 
     function stopQRScanner() {
@@ -1891,53 +2018,61 @@
     }
 
     // ===== MONEY COUNTER =====
-    const MONEY_DENOMS = {
-      notes: [1000, 500, 100, 50, 20, 10],
-      coins: [5, 2, 1, 0.5, 0.2, 0.1]
-    };
+    const MONEY_DENOMS = [
+      { key: "1000", label: "$1000", value: 1000, type: "note" },
+      { key: "500",  label: "$500",  value: 500,  type: "note" },
+      { key: "100",  label: "$100",  value: 100,  type: "note" },
+      { key: "50",   label: "$50",   value: 50,   type: "note" },
+      { key: "20",   label: "$20",   value: 20,   type: "note" },
+      { key: "10",   label: "$10",   value: 10,   type: "note" },
+      { key: "5",    label: "$5",    value: 5,    type: "coin" },
+      { key: "2",    label: "$2",    value: 2,    type: "coin" },
+      { key: "1",    label: "$1",    value: 1,    type: "coin" },
+      { key: "0.5",  label: "50¢",   value: 0.5,  type: "coin" },
+      { key: "0.2",  label: "20¢",   value: 0.2,  type: "coin" },
+      { key: "0.1",  label: "10¢",   value: 0.1,  type: "coin" }
+    ];
 
     function initMoneyCounter() {
       const notesEl = document.getElementById('moneyNotes');
       const coinsEl = document.getElementById('moneyCoins');
       if (!notesEl || notesEl.children.length > 0) return;
 
-      notesEl.innerHTML = MONEY_DENOMS.notes.map(d => moneyRowHtml(d, 'note')).join('');
-      coinsEl.innerHTML = MONEY_DENOMS.coins.map(d => moneyRowHtml(d, 'coin')).join('');
+      notesEl.innerHTML = MONEY_DENOMS.filter(d => d.type === "note").map(d => moneyRowHtml(d)).join('');
+      coinsEl.innerHTML = MONEY_DENOMS.filter(d => d.type === "coin").map(d => moneyRowHtml(d)).join('');
     }
 
-    function moneyRowHtml(value, type) {
-      const label = value >= 1 ? `$${value}` : `${value * 10}¢`;
-      const color = type === 'note' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+    function moneyRowHtml(d) {
+      const color = d.type === 'note' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200';
       return `
         <div class="flex items-center justify-between gap-3">
-          <span class="w-16 h-10 ${color} border-2 rounded-lg font-black text-sm flex items-center justify-center">${label}</span>
+          <span class="w-16 h-10 ${color} border-2 rounded-lg font-black text-sm flex items-center justify-center">${d.label}</span>
           <div class="flex items-center gap-1">
-            <button onclick="moneyDelta('${type}', ${value}, -1)" class="w-8 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-600 transition">−</button>
-            <input type="number" min="0" value="0" id="money-${type}-${value}" oninput="updateMoneyTotal()" class="w-16 h-10 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-800 text-sm">
-            <button onclick="moneyDelta('${type}', ${value}, 1)" class="w-8 h-10 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-bold text-emerald-700 transition">+</button>
+            <button type="button" onclick="moneyDelta('${d.key}', -1)" class="w-8 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-600 transition">-</button>
+            <input type="number" min="0" value="0" id="money-${d.key}" oninput="updateMoneyTotal()" class="w-16 h-10 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-800 text-sm">
+            <button type="button" onclick="moneyDelta('${d.key}', 1)" class="w-8 h-10 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-bold text-emerald-700 transition">+</button>
           </div>
-          <span id="money-subtotal-${type}-${value}" class="w-20 text-right font-black text-slate-700 text-sm">$0.00</span>
+          <span id="money-subtotal-${d.key}" class="w-20 text-right font-black text-slate-700 text-sm">$0.00</span>
         </div>`;
     }
 
-    function moneyDelta(type, value, delta) {
-      const el = document.getElementById(`money-${type}-${value}`);
+    function moneyDelta(key, delta) {
+      const el = document.getElementById(`money-${key}`);
       if (!el) return;
-      el.value = Math.max(0, (parseInt(el.value) || 0) + delta);
+      const cur = parseInt(el.value, 10) || 0;
+      el.value = Math.max(0, cur + delta);
       updateMoneyTotal();
     }
 
     function updateMoneyTotal() {
       let total = 0;
-      Object.entries(MONEY_DENOMS).forEach(([type, denoms]) => {
-        denoms.forEach(d => {
-          const el = document.getElementById(`money-${type}-${d}`);
-          const count = el ? (parseInt(el.value) || 0) : 0;
-          const sub = count * d;
-          total += sub;
-          const subEl = document.getElementById(`money-subtotal-${type}-${d}`);
-          if (subEl) subEl.innerText = `$${sub.toFixed(2)}`;
-        });
+      MONEY_DENOMS.forEach(d => {
+        const el = document.getElementById(`money-${d.key}`);
+        const count = el ? (parseInt(el.value, 10) || 0) : 0;
+        const sub = count * d.value;
+        total += sub;
+        const subEl = document.getElementById(`money-subtotal-${d.key}`);
+        if (subEl) subEl.innerText = `$${sub.toFixed(2)}`;
       });
       const totalEl = document.getElementById('moneyTotal');
       if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
@@ -1949,6 +2084,7 @@
     }
 
     function init() {
+      initTheme();
       checkAuth();
       // Init sound icon state
       const soundIcon = document.getElementById("soundIcon");

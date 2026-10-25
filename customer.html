@@ -13,35 +13,56 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
+    body { font-family: 'Inter', sans-serif; }
 
-    /* ===== DARK THEME OVERRIDES ===== */
-    .bg-white { background-color: #1e293b !important; }
-    .bg-slate-50 { background-color: #172033 !important; }
-    .bg-slate-100 { background-color: #283548 !important; }
-    .bg-slate-200 { background-color: #334155 !important; }
+    :root {
+      --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e2e8f0;
+      --border: #e2e8f0; --border-2: #cbd5e1;
+      --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1120; --surface: #1e293b; --surface-2: #172033; --surface-3: #283548;
+      --border: #283548; --border-2: #3b4a63;
+      --text: #f8fafc; --text-2: #e2e8f0; --text-3: #94a3b8; --text-4: #64748b;
+    }
+    body { background-color: var(--bg); color: var(--text); }
 
-    .border-slate-200 { border-color: #283548 !important; }
-    .border-slate-300 { border-color: #3b4a63 !important; }
+    [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+    [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
 
-    .text-slate-900 { color: #f8fafc !important; }
-    .text-slate-800 { color: #f1f5f9 !important; }
-    .text-slate-700 { color: #e2e8f0 !important; }
-    .text-slate-600 { color: #cbd5e1 !important; }
-    .text-slate-500 { color: #94a3b8 !important; }
-    .text-slate-400 { color: #64748b !important; }
+    [data-theme="dark"] .border-slate-200 { border-color: var(--border) !important; }
+    [data-theme="dark"] .border-slate-300 { border-color: var(--border-2) !important; }
 
-    .rounded-3xl { border-radius: 1rem !important; }
-    .rounded-2xl { border-radius: 0.875rem !important; }
-    .shadow-sm { box-shadow: none !important; }
-    .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+    [data-theme="dark"] .text-slate-900 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-800 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-700 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-600 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-500 { color: var(--text-3) !important; }
+    [data-theme="dark"] .text-slate-400 { color: var(--text-4) !important; }
 
-    input, textarea { background-color: #0f172a !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-    input:focus, textarea:focus { border-color: #f59e0b !important; }
-    input::placeholder { color: #475569 !important; }
+    [data-theme="dark"] .rounded-3xl { border-radius: 1rem !important; }
+    [data-theme="dark"] .rounded-2xl { border-radius: 0.875rem !important; }
+    [data-theme="dark"] .shadow-sm { box-shadow: none !important; }
+    [data-theme="dark"] .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+
+    [data-theme="dark"] input, [data-theme="dark"] textarea { background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
+    [data-theme="dark"] input:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
+    [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
+
+    [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
 
     #qrcode { background-color: #ffffff !important; }
   </style>
+  <script>
+    (function(){
+      const s = localStorage.getItem("mfcafe_theme");
+      const dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    })();
+  </script>
 </head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
 
