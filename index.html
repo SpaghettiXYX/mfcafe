@@ -69,6 +69,12 @@
     [data-theme="dark"] .hover\:bg-slate-200:hover { background-color: var(--border-2) !important; }
     [data-theme="dark"] .hover\:text-slate-900:hover { color: var(--text) !important; }
 
+    /* QR tile cards — readable in both modes */
+    [data-theme="dark"] .bg-emerald-50 { background-color: #064e3b !important; }
+    [data-theme="dark"] .bg-rose-50 { background-color: #4c0519 !important; }
+    [data-theme="dark"] .border-emerald-300 { border-color: #065f46 !important; }
+    [data-theme="dark"] .border-rose-300 { border-color: #7f1d1d !important; }
+
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
 
@@ -1573,9 +1579,11 @@
     }
 
     function renderAdmin() {
-      const paidOrders = state.orders.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
+      // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
+      const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
+      const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
       const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
-      
+
       document.getElementById('adminRevenue').innerText = fmtPrice(rev);
       document.getElementById('adminTotalOrders').innerText = paidOrders.length;
       document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
