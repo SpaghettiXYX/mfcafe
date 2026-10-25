@@ -130,6 +130,9 @@
           <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
             <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
           </button>
+          <button onclick="switchView('money')" id="tab-money" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-money-bill-count mr-1"></i> Count Money
+          </button>
         </nav>
 
         <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
@@ -186,6 +189,8 @@
             </span>
           </div>
 
+          <div id="categoryTabs" class="flex flex-wrap gap-1.5"></div>
+
           <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         </div>
 
@@ -224,6 +229,19 @@
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Customization / Notes</label>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="posRemarkPillsContainer"></div>
                 <input type="text" id="posNotes" placeholder="Custom note..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">
+                  QR Tile <span class="text-amber-500">(optional — scan or type tile #)</span>
+                </label>
+                <div class="flex gap-2">
+                  <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+                  <button onclick="scanQRTileForOrder()" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Scan QR tile">
+                    <i class="fa-solid fa-qrcode"></i>
+                  </button>
+                </div>
+                <p id="posQRTileStatus" class="text-[10px] text-slate-400 mt-1">Leave empty for traditional order-number pickup</p>
               </div>
             </div>
           </div>
@@ -278,10 +296,14 @@
 
     <!-- VIEW 4: HELPER / CLEAR VIEW -->
     <section id="view-helper" class="hidden space-y-4">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <h2 class="font-black text-slate-800 text-lg flex items-center">
           <i class="fa-solid fa-square-check text-emerald-600 mr-2"></i> Clearing Pickup Screen
         </h2>
+        <button onclick="scanQRToClear()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-2 transition">
+          <i class="fa-solid fa-qrcode"></i>
+          <span>Scan QR Tile to Clear</span>
+        </button>
       </div>
       <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
@@ -315,6 +337,34 @@
         <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
           Save Remark Hotkeys
         </button>
+      </div>
+
+      <!-- Category Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-layer-group text-amber-500 mr-2"></i> Menu Categories
+        </h3>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Categories (Comma separated)</label>
+          <input type="text" id="adminCategoriesInput" placeholder="Hot Drinks, Cold Drinks, Snacks" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+        </div>
+        <button onclick="saveCategoriesSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+          Save Categories
+        </button>
+      </div>
+
+      <!-- QR Tile Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="font-black text-slate-800 text-lg">
+            <i class="fa-solid fa-qrcode text-amber-500 mr-2"></i> QR Tiles
+          </h3>
+          <div class="flex items-center gap-2">
+            <input type="text" id="newTileCode" placeholder="Tile # e.g. 31" class="w-28 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+            <button onclick="addQRTileSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Add</button>
+          </div>
+        </div>
+        <div id="qrTilesGrid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2"></div>
       </div>
 
       <!-- User Account Management -->
@@ -361,6 +411,7 @@
             <thead>
               <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
                 <th class="py-2.5 px-3">Item Name</th>
+                <th class="py-2.5 px-3">Category</th>
                 <th class="py-2.5 px-3">Temp Options</th>
                 <th class="py-2.5 px-3">Price</th>
                 <th class="py-2.5 px-3">Status</th>
@@ -474,6 +525,10 @@
             <option value="Paused">Paused / Hidden</option>
           </select>
         </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Category</label>
+          <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
+        </div>
       </div>
 
       <div class="flex space-x-2 pt-2">
@@ -486,6 +541,35 @@
       </div>
     </div>
   </div>
+
+    <!-- VIEW 6: MONEY COUNTING -->
+    <section id="view-money" class="hidden space-y-6">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h2 class="font-black text-slate-800 text-2xl tracking-tight flex items-center">
+          <i class="fa-solid fa-money-bill-count text-emerald-600 mr-2"></i> Money Counter
+        </h2>
+        <p class="text-xs font-semibold text-slate-400 mt-1">HKD denominations — enter counts, total updates automatically</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Banknotes</h3>
+          <div id="moneyNotes" class="space-y-3"></div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Coins</h3>
+          <div id="moneyCoins" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="bg-emerald-600 p-6 rounded-3xl border border-emerald-500 shadow-lg flex flex-col items-center justify-center space-y-2">
+        <p class="text-emerald-100 text-xs font-bold uppercase tracking-wider">Total Amount</p>
+        <p id="moneyTotal" class="text-5xl font-black text-white tracking-tight">$0.00</p>
+        <button onclick="resetMoneyCounter()" class="mt-2 bg-white/20 hover:bg-white/30 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Reset All
+        </button>
+      </div>
+    </section>
 
   <!-- CAMERA QR SCANNER MODAL -->
   <div id="qrScannerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -536,8 +620,13 @@
       menu: [],
       orders: [],
       users: [],
+      categories: [],
+      qrTiles: [],
       selectedPosItem: null,
       selectedPosTemp: "Cold",
+      selectedCategory: "All",
+      selectedQRTile: "",
+      orderHistory: [],
       currentUser: null,
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       serverVersion: null
@@ -546,6 +635,7 @@
     let html5QrcodeScanner = null;
     let isProcessingScan = false;
     let isModalAddMode = false;
+    let scanMode = "pay"; // "pay" | "bind" | "clear"
     let soundEnabled = localStorage.getItem("mfcafe_sound") !== "off";
 
     // ===== SAFE PRICE HELPER (prevents crash on undefined) =====
@@ -711,7 +801,7 @@
     }
 
     function switchView(viewName) {
-      ['cashier', 'kds', 'pickup', 'helper', 'admin'].forEach(v => {
+      ['cashier', 'kds', 'pickup', 'helper', 'admin', 'money'].forEach(v => {
         const viewEl = document.getElementById(`view-${v}`);
         if (viewEl) viewEl.classList.add('hidden');
         
@@ -725,7 +815,26 @@
       const activeTab = document.getElementById(`tab-${viewName}`);
       if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition";
       
+      if (viewName === 'money') initMoneyCounter();
+      if (viewName === 'admin') fetchOrderHistory();
       renderAll();
+    }
+
+    function fetchOrderHistory() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      fetch(`${APPS_SCRIPT_URL}?action=getOrderHistory&limit=200&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data.orders)) {
+            state.orderHistory = data.orders;
+            const revEl = document.getElementById('adminRevenue');
+            const cntEl = document.getElementById('adminTotalOrders');
+            if (revEl) revEl.innerText = fmtPrice(data.totalRevenue || 0);
+            if (cntEl) cntEl.innerText = data.totalCount || 0;
+            renderAdminFinancialLog();
+          }
+        })
+        .catch(() => {});
     }
 
     function triggerChime() {
@@ -794,6 +903,8 @@
           if (data.version) state.serverVersion = data.version;
           if (Array.isArray(data.menu)) state.menu = data.menu;
           if (Array.isArray(data.users)) state.users = data.users;
+          if (Array.isArray(data.categories)) state.categories = data.categories;
+          if (Array.isArray(data.qrTiles)) state.qrTiles = data.qrTiles;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
 
           if (Array.isArray(data.orders)) {
@@ -845,6 +956,7 @@
 
     function renderPosMenu() {
       const grid = document.getElementById('posMenuGrid');
+      const tabs = document.getElementById('categoryTabs');
       if (!grid) return;
       grid.innerHTML = "";
 
@@ -852,7 +964,20 @@
       const badge = document.getElementById('menuAvailableBadge');
       if (badge) badge.innerText = `${activeItems.length} items available`;
 
-      activeItems.forEach(item => {
+      // Render category tabs
+      if (tabs) {
+        const cats = ["All", ...state.categories];
+        let html = "";
+        cats.forEach(cat => {
+          const active = state.selectedCategory === cat;
+          html += `<button onclick="selectCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+        });
+        tabs.innerHTML = html;
+      }
+
+      const filtered = state.selectedCategory === "All" ? activeItems : activeItems.filter(i => (i.category || "Other") === state.selectedCategory);
+
+      filtered.forEach(item => {
         const isSelected = state.selectedPosItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `p-4 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
@@ -864,6 +989,11 @@
         `;
         grid.appendChild(btn);
       });
+    }
+
+    function selectCategory(cat) {
+      state.selectedCategory = cat;
+      renderPosMenu();
     }
 
     function selectPosMenuItem(item) {
@@ -926,10 +1056,12 @@
       const guestInput = document.getElementById('posGuestName');
       const cashierInput = document.getElementById('posCashierName');
       const notesInput = document.getElementById('posNotes');
+      const qrTileInput = document.getElementById('posQRTile');
 
       const guest = guestInput ? guestInput.value.trim() || "Guest" : "Guest";
       const cashier = cashierInput ? cashierInput.value.trim() || state.currentUser || "Staff" : "Staff";
       const notes = notesInput ? notesInput.value : "";
+      const qrTile = qrTileInput ? qrTileInput.value.trim() : "";
 
       const btnSubmit = document.getElementById('btnSubmitPos');
       if (btnSubmit) {
@@ -945,7 +1077,8 @@
         temp: state.selectedPosTemp,
         customization: notes,
         price: state.selectedPosItem.price,
-        status: "PENDING"
+        status: "PENDING",
+        qrTile: qrTile
       };
 
       fetch(APPS_SCRIPT_URL, {
@@ -966,6 +1099,7 @@
           state.selectedPosItem = null;
           document.getElementById('posSelectionDetails')?.classList.add('hidden');
           if (notesInput) notesInput.value = "";
+          if (qrTileInput) qrTileInput.value = "";
           document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
           
           fetchFromSheet();
@@ -1076,16 +1210,28 @@
         (decodedText) => {
           if (isProcessingScan) return;
           isProcessingScan = true;
+          const scanned = decodedText.trim().replace("#", "");
 
-          const scannedNum = decodedText.trim().replace("#", "");
-          const success = confirmOrderPayment(scannedNum);
-
-          if (success) {
-            triggerChime();
+          if (scanMode === "pay") {
+            const success = confirmOrderPayment(scanned);
+            if (success) { triggerChime(); stopQRScanner(); }
+            else { showToast(`Order #${scanned} not found in unpaid queue.`, "warning"); isProcessingScan = false; }
+          } else if (scanMode === "bind") {
+            const input = document.getElementById('posQRTile');
+            if (input) input.value = scanned;
+            const tile = state.qrTiles.find(t => t.code === scanned);
+            const statusEl = document.getElementById('posQRTileStatus');
+            if (tile && tile.status === "Available") {
+              if (statusEl) { statusEl.innerText = `Tile #${scanned} available ✓`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
+            } else if (tile) {
+              if (statusEl) { statusEl.innerText = `Tile #${scanned} is currently bound to order ${tile.boundOrder}`; statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold"; }
+            } else {
+              if (statusEl) { statusEl.innerText = `Tile #${scanned} not registered`; statusEl.className = "text-[10px] text-amber-500 mt-1 font-bold"; }
+            }
             stopQRScanner();
-          } else {
-            showToast(`Order #${scannedNum} not found in unpaid queue.`, "warning");
-            isProcessingScan = false;
+          } else if (scanMode === "clear") {
+            clearOrderByTile(scanned);
+            stopQRScanner();
           }
         },
         () => {}
@@ -1093,6 +1239,35 @@
         showToast("Camera access failed or permission denied.", "error");
         stopQRScanner();
       });
+    }
+
+    function scanQRTileForOrder() {
+      scanMode = "bind";
+      startQRScanner();
+    }
+
+    function scanQRToClear() {
+      scanMode = "clear";
+      startQRScanner();
+    }
+
+    function clearOrderByTile(tileCode) {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "clearOrderByTile", tileCode: String(tileCode) })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          triggerChime();
+          showToast(`Order #${res.orderNum} cleared via tile`, "success");
+          fetchFromSheet();
+        } else {
+          showToast(res.error || "Tile not found or order not ready", "warning");
+        }
+      })
+      .catch(() => showToast("Network error clearing order by tile", "error"));
     }
 
     function stopQRScanner() {
@@ -1153,6 +1328,7 @@
 
               <div>
                 <p class="font-extrabold text-slate-900 text-base leading-snug">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
+                ${o.qrTile ? `<span class="inline-block mt-1.5 text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">Tile #${escapeHtml(o.qrTile)}</span>` : ''}
               </div>
 
               ${o.customization ? `
@@ -1273,11 +1449,35 @@
       const paidOrders = state.orders.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
       const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
       
-      document.getElementById('adminRevenue').innerText = `$${rev.toFixed(2)}`;
+      document.getElementById('adminRevenue').innerText = fmtPrice(rev);
       document.getElementById('adminTotalOrders').innerText = paidOrders.length;
       document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
       document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
+
+      const catInput = document.getElementById('adminCategoriesInput');
+      if (catInput) catInput.value = state.categories.join(", ");
+
+      // QR Tiles grid
+      const tilesGrid = document.getElementById('qrTilesGrid');
+      if (tilesGrid) {
+        if (state.qrTiles.length === 0) {
+          tilesGrid.innerHTML = '<p class="col-span-full text-slate-400 text-center text-xs py-4">No tiles. Add a tile code above.</p>';
+        } else {
+          let html = "";
+          state.qrTiles.forEach(t => {
+            const bound = t.status === "Bound";
+            html += `
+              <div class="relative flex flex-col items-center p-2 rounded-xl border-2 ${bound ? 'border-rose-300 bg-rose-50' : 'border-emerald-300 bg-emerald-50'}">
+                <span class="font-black text-lg text-slate-800">#${escapeHtml(t.code)}</span>
+                <span class="text-[9px] font-bold ${bound ? 'text-rose-600' : 'text-emerald-600'}">${bound ? 'Bound' : 'Free'}</span>
+                ${t.boundOrder ? `<span class="text-[8px] text-slate-500">→${escapeHtml(t.boundOrder)}</span>` : ''}
+                <button onclick="deleteQRTileSubmit('${escapeHtml(t.code)}')" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full text-[10px] font-bold hover:bg-rose-600 transition">×</button>
+              </div>`;
+          });
+          tilesGrid.innerHTML = html;
+        }
+      }
 
       const usersTbody = document.getElementById('adminUsersTableBody');
       if (usersTbody) {
@@ -1306,6 +1506,7 @@
           html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
+              <td class="py-3 px-3"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(item.tempOptions)}</td>
               <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}</td>
               <td class="py-3 px-3">
@@ -1329,15 +1530,19 @@
         tbody.innerHTML = html;
       }
 
+      renderAdminFinancialLog();
+    }
+
+    function renderAdminFinancialLog() {
       const finLog = document.getElementById('adminFinancialLog');
       if (finLog) {
-        if (state.orders.length === 0) {
+        if (state.orderHistory.length === 0) {
           finLog.innerHTML = `<p class="text-slate-400 text-center py-4 font-medium">No order log history available.</p>`;
           return;
         }
 
         let html = "";
-        [...state.orders].reverse().forEach(o => {
+        [...state.orderHistory].reverse().forEach(o => {
           const statusUpper = (o.status || "").toUpperCase();
           let statusBadgeColor = "text-amber-600 bg-amber-50 border-amber-200";
           
@@ -1387,6 +1592,70 @@
         else showToast(res.error || "Failed to save hotkeys", "error");
       })
       .catch(() => showToast("Network error saving hotkeys", "error"));
+    }
+
+    function saveCategoriesSubmit() {
+      const val = document.getElementById('adminCategoriesInput').value.trim();
+      state.categories = val.split(",").map(s => s.trim()).filter(Boolean);
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveCategories", categories: val })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          showToast("Categories saved", "success");
+          renderAll();
+        } else {
+          showToast(res.error || "Failed to save categories", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving categories", "error"));
+    }
+
+    function addQRTileSubmit() {
+      const code = document.getElementById('newTileCode').value.trim();
+      if (!code) return showToast("Enter a tile code", "warning");
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "addQRTile", tileCode: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          document.getElementById('newTileCode').value = "";
+          showToast(`Tile #${code} added`, "success");
+          fetchFromSheet();
+        } else {
+          showToast(res.error || "Failed to add tile", "error");
+        }
+      })
+      .catch(() => showToast("Network error adding tile", "error"));
+    }
+
+    function deleteQRTileSubmit(code) {
+      showConfirm(`Delete QR tile #${code}?`).then(ok => {
+        if (!ok) return;
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteQRTile", tileCode: code })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            showToast(`Tile #${code} deleted`, "success");
+            fetchFromSheet();
+          } else {
+            showToast(res.error || "Failed to delete tile", "error");
+          }
+        })
+        .catch(() => showToast("Network error deleting tile", "error"));
+      });
     }
 
     function openAddUserModal() {
@@ -1508,6 +1777,13 @@
       }
     }
 
+    function populateCategorySelect(selected) {
+      const sel = document.getElementById('editItemCategory');
+      if (!sel) return;
+      sel.innerHTML = state.categories.map(c => `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+      if (sel.options.length === 0) sel.innerHTML = '<option value="Other">Other</option>';
+    }
+
     function openEditMenuModal(itemName) {
       const item = state.menu.find(i => i.name === itemName);
       if (!item) return;
@@ -1519,6 +1795,7 @@
       document.getElementById('editItemPrice').value = item.price;
       document.getElementById('editItemTemp').value = item.tempOptions;
       document.getElementById('editItemStatus').value = item.status || "Active";
+      populateCategorySelect(item.category || "Other");
 
       document.getElementById('menuModal').classList.remove('hidden');
     }
@@ -1532,6 +1809,7 @@
       document.getElementById('editItemPrice').value = "";
       document.getElementById('editItemTemp').value = "Hot & Cold";
       document.getElementById('editItemStatus').value = "Active";
+      populateCategorySelect("Other");
 
       document.getElementById('menuModal').classList.remove('hidden');
     }
@@ -1546,13 +1824,14 @@
       const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
       const tempOptions = document.getElementById('editItemTemp').value;
       const status = document.getElementById('editItemStatus').value;
+      const category = document.getElementById('editItemCategory').value || "Other";
 
       if (!name) return showToast("Please enter item name!", "warning");
 
-      const itemData = { originalName, name, price, tempOptions, status };
+      const itemData = { originalName, name, price, tempOptions, status, category };
 
       if (isModalAddMode) {
-        state.menu.push({ name, price, tempOptions, status, available: status === "Active" });
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category });
       } else {
         const item = state.menu.find(i => i.name === originalName);
         if (item) {
@@ -1560,6 +1839,7 @@
           item.price = price;
           item.tempOptions = tempOptions;
           item.status = status;
+          item.category = category;
           item.available = status === "Active";
         }
       }
@@ -1608,6 +1888,64 @@
           showToast("Network error — item restored", "error");
         });
       });
+    }
+
+    // ===== MONEY COUNTER =====
+    const MONEY_DENOMS = {
+      notes: [1000, 500, 100, 50, 20, 10],
+      coins: [5, 2, 1, 0.5, 0.2, 0.1]
+    };
+
+    function initMoneyCounter() {
+      const notesEl = document.getElementById('moneyNotes');
+      const coinsEl = document.getElementById('moneyCoins');
+      if (!notesEl || notesEl.children.length > 0) return;
+
+      notesEl.innerHTML = MONEY_DENOMS.notes.map(d => moneyRowHtml(d, 'note')).join('');
+      coinsEl.innerHTML = MONEY_DENOMS.coins.map(d => moneyRowHtml(d, 'coin')).join('');
+    }
+
+    function moneyRowHtml(value, type) {
+      const label = value >= 1 ? `$${value}` : `${value * 10}¢`;
+      const color = type === 'note' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+      return `
+        <div class="flex items-center justify-between gap-3">
+          <span class="w-16 h-10 ${color} border-2 rounded-lg font-black text-sm flex items-center justify-center">${label}</span>
+          <div class="flex items-center gap-1">
+            <button onclick="moneyDelta('${type}', ${value}, -1)" class="w-8 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-600 transition">−</button>
+            <input type="number" min="0" value="0" id="money-${type}-${value}" oninput="updateMoneyTotal()" class="w-16 h-10 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-800 text-sm">
+            <button onclick="moneyDelta('${type}', ${value}, 1)" class="w-8 h-10 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-bold text-emerald-700 transition">+</button>
+          </div>
+          <span id="money-subtotal-${type}-${value}" class="w-20 text-right font-black text-slate-700 text-sm">$0.00</span>
+        </div>`;
+    }
+
+    function moneyDelta(type, value, delta) {
+      const el = document.getElementById(`money-${type}-${value}`);
+      if (!el) return;
+      el.value = Math.max(0, (parseInt(el.value) || 0) + delta);
+      updateMoneyTotal();
+    }
+
+    function updateMoneyTotal() {
+      let total = 0;
+      Object.entries(MONEY_DENOMS).forEach(([type, denoms]) => {
+        denoms.forEach(d => {
+          const el = document.getElementById(`money-${type}-${d}`);
+          const count = el ? (parseInt(el.value) || 0) : 0;
+          const sub = count * d;
+          total += sub;
+          const subEl = document.getElementById(`money-subtotal-${type}-${d}`);
+          if (subEl) subEl.innerText = `$${sub.toFixed(2)}`;
+        });
+      });
+      const totalEl = document.getElementById('moneyTotal');
+      if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
+    }
+
+    function resetMoneyCounter() {
+      document.querySelectorAll('#moneyNotes input, #moneyCoins input').forEach(el => { el.value = 0; });
+      updateMoneyTotal();
     }
 
     function init() {

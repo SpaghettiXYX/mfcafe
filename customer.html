@@ -75,6 +75,7 @@
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
         <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">0 available</span>
       </div>
+      <div id="customerCategoryTabs" class="flex flex-wrap gap-1.5 mb-3"></div>
       <div class="grid grid-cols-2 gap-2.5" id="customerMenuList">
         <p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">Loading menu...</p>
       </div>
@@ -139,6 +140,8 @@
 
     let state = {
       menu: [],
+      categories: [],
+      selectedCategory: "All",
       selectedItem: null,
       selectedTemp: "Cold",
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot"
@@ -180,6 +183,7 @@
         .then(res => res.json())
         .then(data => {
           if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+          if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           renderMenu();
         })
@@ -192,6 +196,7 @@
           .then(res => res.json())
           .then(data => {
             if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+            if (data.categories) state.categories = data.categories;
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
             renderMenu();
           })
@@ -202,17 +207,29 @@
     function renderMenu() {
       const container = document.getElementById('customerMenuList');
       if (!container) return;
-      container.innerHTML = "";
+
+      // Render category tabs
+      const tabsEl = document.getElementById('customerCategoryTabs');
+      if (tabsEl) {
+        const cats = ["All", ...state.categories];
+        tabsEl.innerHTML = cats.map(cat => {
+          const active = state.selectedCategory === cat;
+          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+        }).join('');
+      }
+
+      const filtered = state.selectedCategory === "All" ? state.menu : state.menu.filter(i => (i.category || "Other") === state.selectedCategory);
 
       const badge = document.getElementById('mobileAvailableCount');
-      if (badge) badge.innerText = `${state.menu.length} available`;
+      if (badge) badge.innerText = `${filtered.length} available`;
 
-      if (state.menu.length === 0) {
+      if (filtered.length === 0) {
         container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
         return;
       }
 
-      state.menu.forEach(item => {
+      container.innerHTML = "";
+      filtered.forEach(item => {
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
@@ -224,6 +241,11 @@
         `;
         container.appendChild(btn);
       });
+    }
+
+    function selectCustomerCategory(cat) {
+      state.selectedCategory = cat;
+      renderMenu();
     }
 
     function selectItem(item) {
