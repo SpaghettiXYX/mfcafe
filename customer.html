@@ -13,7 +13,34 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+    body { font-family: 'Inter', sans-serif; background-color: #0b1120; color: #e2e8f0; }
+
+    /* ===== DARK THEME OVERRIDES ===== */
+    .bg-white { background-color: #1e293b !important; }
+    .bg-slate-50 { background-color: #172033 !important; }
+    .bg-slate-100 { background-color: #283548 !important; }
+    .bg-slate-200 { background-color: #334155 !important; }
+
+    .border-slate-200 { border-color: #283548 !important; }
+    .border-slate-300 { border-color: #3b4a63 !important; }
+
+    .text-slate-900 { color: #f8fafc !important; }
+    .text-slate-800 { color: #f1f5f9 !important; }
+    .text-slate-700 { color: #e2e8f0 !important; }
+    .text-slate-600 { color: #cbd5e1 !important; }
+    .text-slate-500 { color: #94a3b8 !important; }
+    .text-slate-400 { color: #64748b !important; }
+
+    .rounded-3xl { border-radius: 1rem !important; }
+    .rounded-2xl { border-radius: 0.875rem !important; }
+    .shadow-sm { box-shadow: none !important; }
+    .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+
+    input, textarea { background-color: #0f172a !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+    input:focus, textarea:focus { border-color: #f59e0b !important; }
+    input::placeholder { color: #475569 !important; }
+
+    #qrcode { background-color: #ffffff !important; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
@@ -48,6 +75,7 @@
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
         <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">0 available</span>
       </div>
+      <div id="customerCategoryTabs" class="flex flex-wrap gap-1.5 mb-3"></div>
       <div class="grid grid-cols-2 gap-2.5" id="customerMenuList">
         <p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">Loading menu...</p>
       </div>
@@ -103,16 +131,41 @@
     </button>
   </div>
 
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] space-y-2 pointer-events-none"></div>
+
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
 
     let state = {
       menu: [],
+      categories: [],
+      selectedCategory: "All",
       selectedItem: null,
       selectedTemp: "Cold",
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot"
     };
+
+    // ===== SAFE PRICE HELPER =====
+    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = "info", duration = 3000) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = { success: "bg-emerald-600", error: "bg-rose-600", warning: "bg-amber-500", info: "bg-slate-800" };
+      const icons = { success: "fa-circle-check", error: "fa-circle-xmark", warning: "fa-triangle-exclamation", info: "fa-circle-info" };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
 
     function escapeHtml(str) {
       return String(str || "")
@@ -130,20 +183,53 @@
         .then(res => res.json())
         .then(data => {
           if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+          if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           renderMenu();
-        });
+        })
+        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+
+      // Poll for menu updates every 15s (so paused items disappear)
+      setInterval(() => {
+        if (document.getElementById("orderView")?.classList.contains("hidden")) return; // skip if on QR ticket
+        fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+            if (data.categories) state.categories = data.categories;
+            if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+            renderMenu();
+          })
+          .catch(() => {});
+      }, 15000);
     }
 
     function renderMenu() {
       const container = document.getElementById('customerMenuList');
       if (!container) return;
-      container.innerHTML = "";
+
+      // Render category tabs
+      const tabsEl = document.getElementById('customerCategoryTabs');
+      if (tabsEl) {
+        const cats = ["All", ...state.categories];
+        tabsEl.innerHTML = cats.map(cat => {
+          const active = state.selectedCategory === cat;
+          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+        }).join('');
+      }
+
+      const filtered = state.selectedCategory === "All" ? state.menu : state.menu.filter(i => (i.category || "Other") === state.selectedCategory);
 
       const badge = document.getElementById('mobileAvailableCount');
-      if (badge) badge.innerText = `${state.menu.length} available`;
+      if (badge) badge.innerText = `${filtered.length} available`;
 
-      state.menu.forEach(item => {
+      if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      filtered.forEach(item => {
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
@@ -151,10 +237,15 @@
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$${item.price.toFixed(2)}</p>
+          <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
         `;
         container.appendChild(btn);
       });
+    }
+
+    function selectCustomerCategory(cat) {
+      state.selectedCategory = cat;
+      renderMenu();
     }
 
     function selectItem(item) {
@@ -162,8 +253,8 @@
       document.getElementById('itemOptions')?.classList.remove('hidden');
       
       document.getElementById('selectedItemName').innerText = item.name;
-      document.getElementById('selectedItemPrice').innerText = `$${item.price.toFixed(2)}`;
-      document.getElementById('submitBtnText').innerText = `Submit Pre-Order ($${item.price.toFixed(2)}) & Get QR`;
+      document.getElementById('selectedItemPrice').innerText = fmtPrice(item.price);
+      document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(item.price)}) & Get QR`;
 
       const tempContainer = document.getElementById('custTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -219,8 +310,8 @@
       const name = nameInput ? nameInput.value.trim() : "";
       const pickupTime = pickupInput ? pickupInput.value.trim() : "Scheduled";
 
-      if (!name) return alert("Please enter your name!");
-      if (!state.selectedItem) return alert("Please select a drink!");
+      if (!name) return showToast("Please enter your name!", "warning");
+      if (!state.selectedItem) return showToast("Please select a drink!", "warning");
 
       const btnSubmit = document.getElementById('btnSubmit');
       if (btnSubmit) {
@@ -257,7 +348,7 @@
         if (res.success && res.order) {
           showQRTicket(res.order);
         } else {
-          alert("Order creation failed.");
+          showToast(res.error || "Order creation failed.", "error");
         }
       })
       .catch(err => {
@@ -265,7 +356,7 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        alert("Network error.");
+        showToast("Network error. Please try again.", "error");
       });
     }
 
@@ -278,13 +369,14 @@
       document.getElementById('ticketGuest').innerText = order.guestName;
       document.getElementById('ticketPickup').innerText = order.pickupTime || "Scheduled";
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('ticketPrice').innerText = `$${(order.price || 0).toFixed(2)}`;
+      document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
 
       const qrcodeContainer = document.getElementById('qrcode');
       if (qrcodeContainer) {
         qrcodeContainer.innerHTML = "";
         new QRCode(qrcodeContainer, { text: String(order.orderNum), width: 160, height: 160 });
       }
+      showToast("Order submitted! Show this QR at pickup.", "success");
     }
 
     function resetCustomerForm() {
