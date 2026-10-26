@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MFCafe - QR Tile Generator</title>
@@ -54,7 +55,7 @@
     .sheet {
       width: 210mm;
       height: 297mm;
-      padding: 8mm;
+      padding: 10mm;
       box-sizing: border-box;
       background: #ffffff;
       margin: 0 auto 10mm;
@@ -62,15 +63,17 @@
     }
     .sheet-grid {
       display: grid;
-      grid-template-columns: repeat(2, 94mm);
-      grid-auto-rows: 136mm;
-      gap: 5mm 6mm;
+      width: 100%;
+      height: 100%;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 5mm;
     }
 
     /* ===== TILE ===== */
     .tile {
-      width: 94mm;
-      height: 136mm;
+      width: 100%;
+      height: 100%;
       box-sizing: border-box;
       background: #ffffff;
       color: var(--ink);
@@ -232,6 +235,7 @@
     /* ===== PRINT ===== */
     @page { size: A4 portrait; margin: 0; }
     @media print {
+      html, body { margin: 0 !important; padding: 0 !important; }
       body { background: #ffffff !important; }
       .no-print { display: none !important; }
       #preview { padding: 0 !important; }
@@ -271,12 +275,15 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <div class="md:col-span-2">
           <label for="tileInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Tile Number(s)</label>
-          <input id="tileInput" type="text" value="1-4" autocomplete="off" placeholder="e.g. 12 · 1-30 · 1,3,5,8-12" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+          <input id="tileInput" type="text" value="1-4" autocomplete="off"
+            placeholder="e.g. 12 · 1-30 · 1,3,5,8-12"
+            class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
           <p class="text-[11px] text-slate-400 font-medium mt-1.5">Single code, comma list, or numeric range. Max 60 tiles per batch.</p>
         </div>
         <div>
           <label for="styleSelect" class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Colour Style</label>
-          <select id="styleSelect" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+          <select id="styleSelect"
+            class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
             <option value="coffee">Coffee Colour (multi-colour)</option>
             <option value="espresso">Espresso (single tone)</option>
             <option value="mono">Black &amp; White (mono)</option>
@@ -493,6 +500,5 @@
 
     generate();
   </script>
-
-
-</body></html>
+</body>
+</html>
