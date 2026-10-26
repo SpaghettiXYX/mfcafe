@@ -55,7 +55,7 @@
     .sheet {
       width: 210mm;
       height: 297mm;
-      padding: 8mm;
+      padding: 10mm;
       box-sizing: border-box;
       background: #ffffff;
       margin: 0 auto 10mm;
@@ -63,15 +63,17 @@
     }
     .sheet-grid {
       display: grid;
-      grid-template-columns: repeat(2, 94mm);
-      grid-auto-rows: 136mm;
-      gap: 5mm 6mm;
+      width: 100%;
+      height: 100%;
+      grid-template-columns: repeat(2, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 5mm;
     }
 
     /* ===== TILE ===== */
     .tile {
-      width: 94mm;
-      height: 136mm;
+      width: 100%;
+      height: 100%;
       box-sizing: border-box;
       background: #ffffff;
       color: var(--ink);
@@ -233,6 +235,7 @@
     /* ===== PRINT ===== */
     @page { size: A4 portrait; margin: 0; }
     @media print {
+      html, body { margin: 0 !important; padding: 0 !important; }
       body { background: #ffffff !important; }
       .no-print { display: none !important; }
       #preview { padding: 0 !important; }
