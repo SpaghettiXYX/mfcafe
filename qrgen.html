@@ -53,20 +53,22 @@
       letter-spacing: 0.08em;
     }
     .sheet {
-      width: 190mm;
-      height: 277mm;
-      padding: 1.5mm;
+      width: 210mm;
+      height: 297mm;
+      padding: 13mm;
       box-sizing: border-box;
       background: #ffffff;
       margin: 0 auto 10mm;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .sheet-grid {
       display: grid;
       width: 100%;
       height: 100%;
-      grid-template-columns: repeat(2, 91.5mm);
-      grid-auto-rows: 135mm;
+      grid-template-columns: repeat(2, 90mm);
+      grid-auto-rows: 133.5mm;
       gap: 4mm;
       justify-content: center;
       align-content: center;
@@ -74,8 +76,8 @@
 
     /* ===== TILE ===== */
     .tile {
-      width: 91.5mm;
-      height: 135mm;
+      width: 90mm;
+      height: 133.5mm;
       box-sizing: border-box;
       background: #ffffff;
       color: var(--ink);
@@ -237,12 +239,14 @@
     /* ===== PRINT ===== */
     @page { size: A4 portrait; margin: 0; }
     @media print {
-      html, body { margin: 0 !important; padding: 0 !important; }
+      html, body, #preview { margin: 0 !important; padding: 0 !important; border: 0 !important; }
       body { background: #ffffff !important; }
       .no-print { display: none !important; }
-      #preview { padding: 0 !important; }
       .sheet {
+        width: 210mm !important;
+        height: 297mm !important;
         margin: 0 !important;
+        padding: 13mm !important;
         box-shadow: none !important;
         break-after: page;
         page-break-after: always;
@@ -369,7 +373,7 @@
 
     function numSizeMm(code) {
       const len = String(code).length;
-      if (len <= 2) return 25;
+      if (len <= 2) return 23;
       if (len === 3) return 20;
       if (len === 4) return 16;
       return 13;
