@@ -10,6 +10,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- HTML5 QR Code Camera Scanner Library -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -77,6 +78,18 @@
 
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
+
+    /* Tile QR print: hide everything else when printing the modal */
+    @media print {
+      body * { visibility: hidden; }
+      #tileQRPrintModal, #tileQRPrintModal * { visibility: visible; }
+      #tileQRPrintModal {
+        position: absolute; left: 0; top: 0; width: 100%; height: auto;
+        background: white; display: block !important; padding: 0;
+      }
+      #tileQRPrintModal button, #tileQRPrintModal .border-b { display: none; }
+      #tileQRPrintGrid { background: white; border: none; }
+    }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -400,6 +413,30 @@
         </div>
       </div>
 
+      <!-- Global Operation Settings -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-sliders text-amber-500 mr-2"></i> Global Operation Settings
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Cold Drink Extra ($)</label>
+            <div class="flex items-center gap-2">
+              <input type="number" step="0.5" id="adminColdExtraInput" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <button onclick="saveColdExtraSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Pause All Cold Drinks</span>
+            <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
+          </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Pre-Order Portal</span>
+            <button id="adminToggleReservationBtn" onclick="toggleReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Configurable Remark Hotkeys Manager -->
       <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
@@ -437,6 +474,9 @@
           <div class="flex items-center gap-2">
             <input type="text" id="newTileCode" placeholder="Tile # e.g. 31" class="w-28 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
             <button onclick="addQRTileSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Add</button>
+            <button onclick="openTileQRPrintModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl text-xs font-bold transition" title="Print QR labels for all tiles">
+              <i class="fa-solid fa-print"></i> Print QR
+            </button>
           </div>
         </div>
         <div id="qrTilesGrid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2"></div>
@@ -604,6 +644,10 @@
           <label class="block text-xs font-bold text-slate-500 mb-1">Category</label>
           <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
         </div>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+          <input type="checkbox" id="editItemColdPaused" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+          Pause cold option for this item (hot stays available)
+        </label>
       </div>
 
       <div class="flex space-x-2 pt-2">
@@ -661,6 +705,22 @@
     </div>
   </div>
 
+  <!-- TILE QR PRINT MODAL -->
+  <div id="tileQRPrintModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-extrabold text-slate-800 text-base"><i class="fa-solid fa-print text-amber-500 mr-2"></i>Print Tile QR Labels</h3>
+        <button onclick="closeTileQRPrintModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="text-xs text-slate-500">Print this page — each tile gets its own QR code. Use standard adhesive labels or cut manually.</p>
+      <div id="tileQRPrintGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200"></div>
+      <div class="flex gap-2">
+        <button onclick="window.print()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-print mr-1"></i> Print</button>
+        <button onclick="closeTileQRPrintModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
 
@@ -704,7 +764,10 @@
       orderHistory: [],
       currentUser: null,
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
-      serverVersion: null
+      serverVersion: null,
+      coldExtra: 2,
+      coldPaused: false,
+      reservationOpen: true
     };
 
     let html5QrcodeScanner = null;
@@ -1035,6 +1098,9 @@
           if (Array.isArray(data.categories)) state.categories = data.categories;
           if (Array.isArray(data.qrTiles)) state.qrTiles = data.qrTiles;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+          if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+          if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
 
           if (Array.isArray(data.orders)) {
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
@@ -1089,7 +1155,13 @@
       if (!grid) return;
       grid.innerHTML = "";
 
-      const activeItems = state.menu.filter(i => i.status?.toLowerCase() === "active");
+      const activeItems = state.menu.filter(i => {
+        if (i.available === false) return false;
+        const opts = i.tempOptions || "";
+        const onlyCold = opts.includes("Cold") && !opts.includes("Hot");
+        if (onlyCold && (state.coldPaused || i.coldPaused)) return false;
+        return true;
+      });
       const badge = document.getElementById('menuAvailableBadge');
       if (badge) badge.innerText = `${activeItems.length} items available`;
 
@@ -1125,35 +1197,45 @@
       renderPosMenu();
     }
 
+    function getPosItemPrice(item, temp) {
+      if (!item) return 0;
+      const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
+      return (Number(item.price) || 0) + coldExtra;
+    }
+
     function selectPosMenuItem(item) {
       state.selectedPosItem = item;
       document.getElementById('posSelectionDetails')?.classList.remove('hidden');
-      
+
+      const opts = item.tempOptions || "Hot & Cold";
+      const coldAllowed = opts.includes("Cold") && !state.coldPaused && !item.coldPaused;
+
+      // Default to hot if cold is paused, otherwise keep cold default
+      state.selectedPosTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
+
       document.getElementById('posSelectedItemName').innerText = item.name;
-      document.getElementById('posSelectedItemPrice').innerText = fmtPrice(item.price);
-      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(item.price)})`;
+      document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
+      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
 
-      const opts = item.tempOptions || "Hot & Cold";
       if (opts.includes("Cold") && opts.includes("Hot")) {
-        state.selectedPosTemp = "Cold";
         tempContainer.innerHTML = `
-          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" class="flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
+          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
           <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
         `;
       } else if (opts.includes("Hot")) {
-        state.selectedPosTemp = "Hot";
         tempContainer.innerHTML = `
           <button type="button" id="posBtnHot" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
         `;
       } else {
-        state.selectedPosTemp = "Cold";
         tempContainer.innerHTML = `
           <button type="button" id="posBtnCold" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
         `;
       }
+
+      setPosTemp(state.selectedPosTemp);
 
       const pillsContainer = document.getElementById('posRemarkPillsContainer');
       pillsContainer.innerHTML = "";
@@ -1173,6 +1255,10 @@
       const btnHot = document.getElementById('posBtnHot');
       if (btnCold) btnCold.className = t === 'Cold' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (state.selectedPosItem) {
+        document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
+        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
+      }
     }
 
     function addNotePill(text) {
@@ -1205,7 +1291,7 @@
         productName: state.selectedPosItem.name,
         temp: state.selectedPosTemp,
         customization: notes,
-        price: state.selectedPosItem.price,
+        price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
         status: "PENDING",
         qrTile: qrTile
       };
@@ -1637,6 +1723,25 @@
 
       document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
 
+      const coldExtraInput = document.getElementById('adminColdExtraInput');
+      if (coldExtraInput) coldExtraInput.value = state.coldExtra;
+
+      const coldPauseBtn = document.getElementById('adminToggleColdPauseBtn');
+      if (coldPauseBtn) {
+        coldPauseBtn.innerText = state.coldPaused ? "Paused" : "Active";
+        coldPauseBtn.className = state.coldPaused
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700";
+      }
+
+      const reservationBtn = document.getElementById('adminToggleReservationBtn');
+      if (reservationBtn) {
+        reservationBtn.innerText = state.reservationOpen ? "Open" : "Closed";
+        reservationBtn.className = state.reservationOpen
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
+      }
+
       const catInput = document.getElementById('adminCategoriesInput');
       if (catInput) catInput.value = state.categories.join(", ");
 
@@ -1685,6 +1790,7 @@
         let html = "";
         state.menu.forEach(item => {
           const isPaused = item.status?.toLowerCase() === "paused";
+          const coldPaused = item.coldPaused || (state.coldPaused && String(item.tempOptions).includes("Cold"));
           html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
@@ -1695,11 +1801,13 @@
                 <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
                   ${isPaused ? 'Paused' : 'Active'}
                 </span>
+                ${String(item.tempOptions).includes("Cold") ? `<span class="font-bold px-2 py-0.5 rounded-full text-[10px] ml-1 ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
               </td>
               <td class="py-3 px-3 text-right space-x-1">
                 <button onclick="togglePauseItem('${escapeHtml(item.name)}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
                   ${isPaused ? 'Unpause' : 'Pause'}
                 </button>
+                ${String(item.tempOptions).includes("Cold") ? `<button onclick="toggleItemColdPause('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${item.coldPaused ? 'bg-sky-50 text-sky-700 hover:bg-sky-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${item.coldPaused ? 'Unpause Cold' : 'Pause Cold'}</button>` : ''}
                 <button onclick="openEditMenuModal('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
                   Edit
                 </button>
@@ -1797,6 +1905,61 @@
       .catch(() => showToast("Network error saving categories", "error"));
     }
 
+    function saveColdExtraSubmit() {
+      const val = parseFloat(document.getElementById('adminColdExtraInput').value);
+      if (isNaN(val) || val < 0) return showToast("Invalid cold extra price", "warning");
+      state.coldExtra = val;
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveColdExtra", value: val })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          showToast(`Cold drink extra set to $${val.toFixed(2)}`, "success");
+          renderAll();
+        } else {
+          showToast(res.error || "Failed to save cold extra", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving cold extra", "error"));
+    }
+
+    function toggleColdPauseSubmit() {
+      const newPaused = !state.coldPaused;
+      state.coldPaused = newPaused;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleColdPause", paused: newPaused })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newPaused ? "All cold drinks paused" : "Cold drinks resumed", "success");
+        else showToast(res.error || "Failed to update cold pause", "error");
+      })
+      .catch(() => showToast("Network error updating cold pause", "error"));
+    }
+
+    function toggleReservationSubmit() {
+      const newOpen = !state.reservationOpen;
+      state.reservationOpen = newOpen;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleReservation", open: newOpen })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newOpen ? "Pre-order portal opened" : "Pre-order portal closed", "success");
+        else showToast(res.error || "Failed to update reservation switch", "error");
+      })
+      .catch(() => showToast("Network error updating reservation switch", "error"));
+    }
+
     function addQRTileSubmit() {
       const code = document.getElementById('newTileCode').value.trim();
       if (!code) return showToast("Enter a tile code", "warning");
@@ -1838,6 +2001,34 @@
         })
         .catch(() => showToast("Network error deleting tile", "error"));
       });
+    }
+
+    function openTileQRPrintModal() {
+      const grid = document.getElementById('tileQRPrintGrid');
+      if (!grid) return;
+      grid.innerHTML = "";
+      if (state.qrTiles.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-slate-400 text-xs text-center py-4">No tiles to print.</p>';
+      } else {
+        state.qrTiles.forEach(t => {
+          const wrapper = document.createElement('div');
+          wrapper.className = "flex flex-col items-center p-3 bg-white rounded-xl border border-slate-200";
+          const qrDiv = document.createElement('div');
+          qrDiv.className = "mb-2";
+          wrapper.appendChild(qrDiv);
+          const label = document.createElement('div');
+          label.className = "font-black text-slate-800 text-sm";
+          label.innerText = "Tile #" + t.code;
+          wrapper.appendChild(label);
+          grid.appendChild(wrapper);
+          new QRCode(qrDiv, { text: String(t.code), width: 96, height: 96 });
+        });
+      }
+      document.getElementById('tileQRPrintModal').classList.remove('hidden');
+    }
+
+    function closeTileQRPrintModal() {
+      document.getElementById('tileQRPrintModal').classList.add('hidden');
     }
 
     function openAddUserModal() {
@@ -1959,6 +2150,34 @@
       }
     }
 
+    function toggleItemColdPause(itemName) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (!item) return;
+      const newColdPaused = !item.coldPaused;
+      item.coldPaused = newColdPaused;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveMenuItem", item: { originalName: itemName, name: item.name, price: item.price, tempOptions: item.tempOptions, status: item.status, category: item.category, coldPaused: newColdPaused } })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          item.coldPaused = !newColdPaused;
+          renderAll();
+          showToast(`Failed to update cold pause for "${itemName}"`, "error");
+        } else {
+          showToast(`"${itemName}" cold option ${newColdPaused ? "paused" : "resumed"}`, "success");
+        }
+      })
+      .catch(() => {
+        item.coldPaused = !newColdPaused;
+        renderAll();
+        showToast("Network error — reverted", "error");
+      });
+    }
+
     function populateCategorySelect(selected) {
       const sel = document.getElementById('editItemCategory');
       if (!sel) return;
@@ -1978,6 +2197,7 @@
       document.getElementById('editItemTemp').value = item.tempOptions;
       document.getElementById('editItemStatus').value = item.status || "Active";
       populateCategorySelect(item.category || "Other");
+      document.getElementById('editItemColdPaused').checked = !!item.coldPaused;
 
       document.getElementById('menuModal').classList.remove('hidden');
     }
@@ -1991,6 +2211,7 @@
       document.getElementById('editItemPrice').value = "";
       document.getElementById('editItemTemp').value = "Hot & Cold";
       document.getElementById('editItemStatus').value = "Active";
+      document.getElementById('editItemColdPaused').checked = false;
       populateCategorySelect("Other");
 
       document.getElementById('menuModal').classList.remove('hidden');
@@ -2007,13 +2228,14 @@
       const tempOptions = document.getElementById('editItemTemp').value;
       const status = document.getElementById('editItemStatus').value;
       const category = document.getElementById('editItemCategory').value || "Other";
+      const coldPaused = document.getElementById('editItemColdPaused').checked;
 
       if (!name) return showToast("Please enter item name!", "warning");
 
-      const itemData = { originalName, name, price, tempOptions, status, category };
+      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused };
 
       if (isModalAddMode) {
-        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category });
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused });
       } else {
         const item = state.menu.find(i => i.name === originalName);
         if (item) {
@@ -2022,6 +2244,7 @@
           item.tempOptions = tempOptions;
           item.status = status;
           item.category = category;
+          item.coldPaused = coldPaused;
           item.available = status === "Active";
         }
       }

@@ -75,11 +75,14 @@ function ensureQRTilesSheet(ss) {
   return sheet;
 }
 
-// Ensure menu sheet has Category column (E)
+// Ensure menu sheet has Category (E) and ColdPaused (F) columns
 function ensureMenuSheetColumns(sheet) {
-  const headers = sheet.getRange(1, 1, 1, 5).getValues()[0];
+  const headers = sheet.getRange(1, 1, 1, 6).getValues()[0];
   if (!headers[4] || String(headers[4]).trim() === "") {
     sheet.getRange(1, 5).setValue("Category");
+  }
+  if (!headers[5] || String(headers[5]).trim() === "") {
+    sheet.getRange(1, 6).setValue("ColdPaused");
   }
 }
 
@@ -125,6 +128,41 @@ function saveHotkeys(hotkeysStr) {
   return { success: true };
 }
 
+// ==================== GLOBAL SETTINGS ====================
+function getColdExtra() {
+  const v = PropertiesService.getScriptProperties().getProperty("COLD_EXTRA");
+  return v ? Number(v) : 2;
+}
+
+function setColdExtra(value) {
+  const num = Number(value);
+  if (isNaN(num) || num < 0) return { success: false, error: "Invalid cold extra price" };
+  PropertiesService.getScriptProperties().setProperty("COLD_EXTRA", String(num));
+  bumpVersion();
+  return { success: true, coldExtra: num };
+}
+
+function getColdPaused() {
+  return PropertiesService.getScriptProperties().getProperty("COLD_PAUSED") === "true";
+}
+
+function setColdPaused(paused) {
+  PropertiesService.getScriptProperties().setProperty("COLD_PAUSED", paused ? "true" : "false");
+  bumpVersion();
+  return { success: true, coldPaused: paused };
+}
+
+function getReservationOpen() {
+  const v = PropertiesService.getScriptProperties().getProperty("RESERVATION_OPEN");
+  return v === null ? true : v === "true";
+}
+
+function setReservationOpen(open) {
+  PropertiesService.getScriptProperties().setProperty("RESERVATION_OPEN", open ? "true" : "false");
+  bumpVersion();
+  return { success: true, reservationOpen: open };
+}
+
 // ==================== SMART DATA FETCH ====================
 // getInitialData returns ACTIVE orders only (not CLEARED) for fast sync
 function getInitialData() {
@@ -142,7 +180,11 @@ function getInitialData() {
   const props = PropertiesService.getScriptProperties();
   let hotkeys = props.getProperty("REMARK_HOTKEYS") || "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot";
 
-  // Menu with category
+  const coldExtra = getColdExtra();
+  const coldPausedGlobal = getColdPaused();
+  const reservationOpen = getReservationOpen();
+
+  // Menu with category and cold pause
   const summarySheet = ss.getSheetByName("Financial & Menu Summary");
   let menu = [];
   if (summarySheet) {
@@ -152,13 +194,22 @@ function getInitialData() {
       const row = menuData[i];
       if (row[0]) {
         const status = String(row[3] || "Active").trim();
+        const tempOptions = String(row[1] || "Hot & Cold");
+        const itemColdPaused = String(row[5] || "").trim().toLowerCase() === "true";
+        // If global cold pause is on, items that are cold-only become effectively paused
+        let effectiveStatus = status;
+        if (coldPausedGlobal && tempOptions.trim() === "Cold") {
+          effectiveStatus = "Paused";
+        }
         menu.push({
           name: String(row[0]),
-          tempOptions: String(row[1] || "Hot & Cold"),
+          tempOptions: tempOptions,
           price: Number(row[2]) || 0,
           status: status,
-          available: status.toLowerCase() === "active",
-          category: String(row[4] || "Other").trim()
+          effectiveStatus: effectiveStatus,
+          available: effectiveStatus.toLowerCase() === "active",
+          category: String(row[4] || "Other").trim(),
+          coldPaused: itemColdPaused
         });
       }
     }
@@ -176,7 +227,7 @@ function getInitialData() {
         orders.push({
           orderNum: String(row[0]).trim(),
           orderTime: row[1] ? String(row[1]) : "",
-          pickupTime: row[2] ? String(row[2]) : "",
+          pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
           cashier: String(row[3] || ""),
           guestName: String(row[4] || "Guest"),
           productName: String(row[5] || ""),
@@ -209,7 +260,10 @@ function getInitialData() {
     remarkHotkeys: hotkeys,
     categories: getCategories(),
     qrTiles: tiles,
-    version: getVersion()
+    version: getVersion(),
+    coldExtra: coldExtra,
+    coldPaused: coldPausedGlobal,
+    reservationOpen: reservationOpen
   };
 }
 
@@ -231,7 +285,7 @@ function getOrderHistory(limit) {
       orders.push({
         orderNum: String(row[0]).trim(),
         orderTime: row[1] ? String(row[1]) : "",
-        pickupTime: row[2] ? String(row[2]) : "",
+        pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
         cashier: String(row[3] || ""),
         guestName: String(row[4] || "Guest"),
         productName: String(row[5] || ""),
@@ -289,7 +343,9 @@ function createOrderLocked(order) {
     const assignedOrderNum = calculateNextOrderNum(data, userCode);
 
     const orderTime = order.orderTime || new Date().toISOString();
-    const pickupTime = order.pickupTime || "";
+    let pickupTime = order.pickupTime || "";
+    // Force pickup time to be stored as plain text in the sheet
+    if (pickupTime && !String(pickupTime).startsWith("'")) pickupTime = "'" + pickupTime;
     const cashier = order.cashier || "Self-Order";
     const guestName = order.guestName || "Guest";
     const status = order.status || "PENDING";
@@ -341,10 +397,7 @@ function updateOrderStatus(orderNum, newStatus) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(orderNum).trim()) {
       sheet.getRange(i + 1, 10).setValue(newStatus);
-      const existingPickup = String(data[i][2] || "").trim();
-      if (newStatus === "READY" && !existingPickup) {
-        sheet.getRange(i + 1, 3).setValue(new Date().toISOString());
-      }
+      // Pickup time is user-specified text; do not auto-fill with ISO date
       // Free QR tile when order is cleared
       if (newStatus === "CLEARED") {
         const tile = data[i][10] ? String(data[i][10]).trim() : "";
@@ -425,6 +478,55 @@ function freeTile(tileCode) {
   return { success: false, error: "Tile not found" };
 }
 
+// ==================== WALLET PASS (WalletWallet) ====================
+function createWalletPass(order) {
+  const props = PropertiesService.getScriptProperties();
+  const apiKey = props.getProperty("WALLET_WALLET_API_KEY");
+  if (!apiKey) {
+    return { success: false, error: "Wallet API key not configured. Please set WALLET_WALLET_API_KEY in Script Properties." };
+  }
+
+  const payload = {
+    logoText: "MFCafe",
+    organizationName: "MFCafe",
+    barcodeValue: String(order.orderNum),
+    barcodeFormat: "Code128",
+    barcodeAltText: String(order.orderNum),
+    colorPreset: "orange",
+    expirationDays: 1,
+    primaryFields: [{ label: "ORDER", value: `#${order.orderNum}` }],
+    secondaryFields: [
+      { label: "GUEST", value: String(order.guestName || "Guest") },
+      { label: "DRINK", value: `${order.productName || ""} (${order.temp || ""})`.trim() },
+      { label: "PICKUP", value: String(order.pickupTime || "Scheduled") }
+    ],
+    backFields: [
+      { label: "Status", value: String(order.status || "RESERVED") },
+      { label: "Price", value: Number(order.price || 0).toFixed(2) }
+    ]
+  };
+
+  try {
+    const response = UrlFetchApp.fetch("https://api.walletwallet.dev/api/passes", {
+      method: "post",
+      contentType: "application/json",
+      headers: { Authorization: "Bearer " + apiKey },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+
+    const status = response.getResponseCode();
+    const body = response.getContentText();
+    if (status >= 200 && status < 300) {
+      const result = JSON.parse(body);
+      return { success: true, shareUrl: result.shareUrl, googleSaveUrl: result.googleSaveUrl, applePass: result.applePass, serialNumber: result.serialNumber };
+    }
+    return { success: false, error: "WalletWallet API error " + status + ": " + body };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
 function addQRTile(tileCode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ensureQRTilesSheet(ss);
@@ -479,6 +581,7 @@ function saveMenuItem(item) {
       sheet.getRange(i + 1, 3).setValue(item.price);
       sheet.getRange(i + 1, 4).setValue(item.status);
       sheet.getRange(i + 1, 5).setValue(item.category || "Other");
+      sheet.getRange(i + 1, 6).setValue(item.coldPaused ? "true" : "false");
       SpreadsheetApp.flush();
       bumpVersion();
       return { success: true };
@@ -490,7 +593,7 @@ function saveMenuItem(item) {
 function addMenuItem(item) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Financial & Menu Summary");
   ensureMenuSheetColumns(sheet);
-  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other"]);
+  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false"]);
   SpreadsheetApp.flush();
   bumpVersion();
   return { success: true };
@@ -540,6 +643,12 @@ function doPost(e) {
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));
     if (action === "saveCategories") return jsonResponse(saveCategories(data.categories));
+
+    if (action === "saveColdExtra") return jsonResponse(setColdExtra(data.value));
+    if (action === "toggleColdPause") return jsonResponse(setColdPaused(data.paused));
+    if (action === "toggleReservation") return jsonResponse(setReservationOpen(data.open));
+
+    if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
     if (action === "createOrder" || action === "createUnpaidOrder" || action === "createReservedOrder") {
       if (action === "createUnpaidOrder") data.order.status = "UNPAID";

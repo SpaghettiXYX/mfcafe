@@ -8,8 +8,8 @@
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- QRCode.js Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- JsBarcode for Code 128 ticket -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -54,7 +54,7 @@
     [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
     [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
 
-    #qrcode { background-color: #ffffff !important; }
+    #barcode { background-color: #ffffff !important; }
   </style>
   <script>
     (function(){
@@ -77,6 +77,14 @@
   </header>
 
   <!-- Form & Menu View -->
+  <div id="pausedOverlay" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
+    <div class="bg-rose-100 text-rose-700 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
+      <i class="fa-solid fa-pause mr-1"></i> Pre-Order Paused
+    </div>
+    <h2 class="text-2xl font-black text-slate-800">Too busy right now</h2>
+    <p class="text-sm text-slate-500">The pre-order portal is temporarily closed due to high volume. Please order at the counter.</p>
+  </div>
+
   <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
     <!-- Guest Info & Pickup Time -->
     <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
@@ -124,8 +132,8 @@
 
   <footer id="orderFooter" class="pt-3">
     <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
-      <i class="fa-solid fa-qrcode"></i>
-      <span id="submitBtnText">Submit Pre-Order & Get QR Code</span>
+      <i class="fa-solid fa-barcode"></i>
+      <span id="submitBtnText">Submit Pre-Order & Get Barcode</span>
     </button>
   </footer>
 
@@ -136,9 +144,11 @@
     </div>
 
     <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
-    <p class="text-xs text-slate-500 font-medium">Show this QR code to bar staff or cashier upon pickup</p>
+    <p class="text-xs text-slate-500 font-medium">Show this barcode to bar staff or cashier upon pickup</p>
 
-    <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400" id="qrcode"></div>
+    <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400 w-full flex justify-center" id="barcodeWrap">
+      <svg id="barcode"></svg>
+    </div>
 
     <div class="text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl w-full text-left space-y-1.5 border border-slate-200">
       <p><strong class="text-slate-400">Guest:</strong> <span id="ticketGuest" class="text-slate-800 font-bold">-</span></p>
@@ -146,6 +156,11 @@
       <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-slate-800 font-bold">-</span></p>
       <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
     </div>
+
+    <button onclick="addToWallet()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
+      <i class="fa-solid fa-wallet"></i>
+      <span>Add to Apple / Google Wallet</span>
+    </button>
 
     <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
       Order Another Drink
@@ -165,7 +180,11 @@
       selectedCategory: "All",
       selectedItem: null,
       selectedTemp: "Cold",
-      remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot"
+      remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
+      coldExtra: 2,
+      coldPaused: false,
+      reservationOpen: true,
+      currentOrder: null
     };
 
     // ===== SAFE PRICE HELPER =====
@@ -203,26 +222,41 @@
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
         .then(res => res.json())
         .then(data => {
-          if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+          if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+          if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+          if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+          if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          applyReservationState();
           renderMenu();
         })
         .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
 
       // Poll for menu updates every 15s (so paused items disappear)
       setInterval(() => {
-        if (document.getElementById("orderView")?.classList.contains("hidden")) return; // skip if on QR ticket
+        if (document.getElementById("qrTicketView") && !document.getElementById("qrTicketView").classList.contains("hidden")) return; // skip if on ticket
         fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
           .then(res => res.json())
           .then(data => {
-            if (data.menu) state.menu = data.menu.filter(i => i.status?.toLowerCase() === "active");
+            if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+            if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+            if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+            if (data.menu) state.menu = data.menu;
             if (data.categories) state.categories = data.categories;
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+            applyReservationState();
             renderMenu();
           })
           .catch(() => {});
       }, 15000);
+    }
+
+    function applyReservationState() {
+      const paused = !state.reservationOpen;
+      document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
+      document.getElementById('orderView').classList.toggle('hidden', paused);
+      document.getElementById('orderFooter').classList.toggle('hidden', paused);
     }
 
     function renderMenu() {
@@ -239,7 +273,15 @@
         }).join('');
       }
 
-      const filtered = state.selectedCategory === "All" ? state.menu : state.menu.filter(i => (i.category || "Other") === state.selectedCategory);
+      const availableItems = state.menu.filter(i => {
+        if (i.available === false) return false;
+        const opts = i.tempOptions || "";
+        const onlyCold = opts.includes("Cold") && !opts.includes("Hot");
+        if (onlyCold && (state.coldPaused || i.coldPaused)) return false;
+        return true;
+      });
+
+      const filtered = state.selectedCategory === "All" ? availableItems : availableItems.filter(i => (i.category || "Other") === state.selectedCategory);
 
       const badge = document.getElementById('mobileAvailableCount');
       if (badge) badge.innerText = `${filtered.length} available`;
@@ -269,35 +311,43 @@
       renderMenu();
     }
 
+    function getItemPrice(item, temp) {
+      if (!item) return 0;
+      const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
+      return (Number(item.price) || 0) + coldExtra;
+    }
+
     function selectItem(item) {
       state.selectedItem = item;
       document.getElementById('itemOptions')?.classList.remove('hidden');
-      
+
+      const opts = item.tempOptions || "Hot & Cold";
+      const coldAllowed = opts.includes("Cold") && !state.coldPaused && !item.coldPaused;
+      state.selectedTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
+
       document.getElementById('selectedItemName').innerText = item.name;
-      document.getElementById('selectedItemPrice').innerText = fmtPrice(item.price);
-      document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(item.price)}) & Get QR`;
+      document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(item, state.selectedTemp));
+      document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(getItemPrice(item, state.selectedTemp))}) & Get QR`;
 
       const tempContainer = document.getElementById('custTempBtnContainer');
       tempContainer.innerHTML = "";
 
-      const opts = item.tempOptions || "Hot & Cold";
       if (opts.includes("Cold") && opts.includes("Hot")) {
-        state.selectedTemp = "Cold";
         tempContainer.innerHTML = `
-          <button type="button" onclick="setTemp('Cold')" id="btnCold" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold 🧊</button>
+          <button type="button" onclick="setTemp('Cold')" id="btnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2.5 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
           <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
         `;
       } else if (opts.includes("Hot")) {
-        state.selectedTemp = "Hot";
         tempContainer.innerHTML = `
           <button type="button" id="btnHot" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
         `;
       } else {
-        state.selectedTemp = "Cold";
         tempContainer.innerHTML = `
           <button type="button" id="btnCold" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
         `;
       }
+
+      setTemp(state.selectedTemp);
 
       const pillsContainer = document.getElementById('custRemarkPillsContainer');
       pillsContainer.innerHTML = "";
@@ -317,6 +367,10 @@
       const btnHot = document.getElementById('btnHot');
       if (btnCold) btnCold.className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (btnHot) btnHot.className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (state.selectedItem) {
+        document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
+        document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) & Get QR`;
+      }
     }
 
     function addNotePill(text) {
@@ -351,7 +405,7 @@
         productName: state.selectedItem.name,
         temp: state.selectedTemp,
         customization: notes,
-        price: state.selectedItem.price,
+        price: getItemPrice(state.selectedItem, state.selectedTemp),
         status: "RESERVED"
       };
 
@@ -382,6 +436,7 @@
     }
 
     function showQRTicket(order) {
+      state.currentOrder = order;
       document.getElementById('orderView')?.classList.add('hidden');
       document.getElementById('orderFooter')?.classList.add('hidden');
       document.getElementById('qrTicketView')?.classList.remove('hidden');
@@ -392,12 +447,68 @@
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
       document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
 
-      const qrcodeContainer = document.getElementById('qrcode');
-      if (qrcodeContainer) {
-        qrcodeContainer.innerHTML = "";
-        new QRCode(qrcodeContainer, { text: String(order.orderNum), width: 160, height: 160 });
+      const barcodeEl = document.getElementById('barcode');
+      if (barcodeEl && typeof JsBarcode !== "undefined") {
+        JsBarcode("#barcode", String(order.orderNum), {
+          format: "CODE128",
+          width: 2,
+          height: 80,
+          displayValue: true,
+          fontSize: 16,
+          font: "Inter",
+          margin: 10
+        });
       }
-      showToast("Order submitted! Show this QR at pickup.", "success");
+      showToast("Order submitted! Show this barcode at pickup.", "success");
+    }
+
+    function addToWallet() {
+      const order = state.currentOrder;
+      if (!order) return showToast("No order to add", "warning");
+
+      const btn = document.querySelector('#qrTicketView button[onclick="addToWallet()"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Creating pass...</span>';
+      }
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "createWalletPass", order: order })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-wallet"></i><span>Add to Apple / Google Wallet</span>';
+        }
+        if (!res.success) {
+          showToast(res.error || "Wallet pass creation failed", "error");
+          return;
+        }
+        // iOS / Safari → download the .pkpass
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS && res.applePass) {
+          const link = document.createElement('a');
+          link.href = "data:application/vnd.apple.pkpass;base64," + res.applePass;
+          link.download = `MFCafe-${order.orderNum}.pkpass`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } else if (res.googleSaveUrl) {
+          window.open(res.googleSaveUrl, "_blank");
+        } else if (res.shareUrl) {
+          window.open(res.shareUrl, "_blank");
+        }
+      })
+      .catch(err => {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-wallet"></i><span>Add to Apple / Google Wallet</span>';
+        }
+        showToast("Network error creating wallet pass", "error");
+      });
     }
 
     function resetCustomerForm() {
@@ -405,8 +516,9 @@
       document.getElementById('orderView')?.classList.remove('hidden');
       document.getElementById('orderFooter')?.classList.remove('hidden');
       state.selectedItem = null;
+      state.currentOrder = null;
       document.getElementById('itemOptions')?.classList.add('hidden');
-      document.getElementById('submitBtnText').innerText = "Submit Pre-Order & Get QR Code";
+      document.getElementById('submitBtnText').innerText = "Submit Pre-Order & Get Barcode";
       init();
     }
 
