@@ -319,6 +319,29 @@
         <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
       </div>
 
+      <!-- Clearing Box on Pickup Screen -->
+      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-qrcode text-emerald-600 text-lg"></i>
+            <span class="font-black text-slate-800 text-sm">Quick Clear</span>
+            <span class="text-xs text-slate-400">Scan QR tile / order # to clear picked-up order</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="pickupScanInput" placeholder="Scan to clear..."
+              class="flex-1 md:w-56 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-800"
+              onkeydown="pickupScanKeydown(event)">
+            <button onclick="document.getElementById('pickupScanInput').focus(); document.getElementById('pickupScanInput').select();"
+              class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Focus scanner">
+              <i class="fa-solid fa-keyboard"></i>
+            </button>
+            <button onclick="scanQRToClear()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-camera"></i> Camera
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <h3 class="font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
@@ -913,6 +936,12 @@
           if (inp) { inp.focus(); inp.select(); }
         }, 100);
       }
+      if (viewName === 'pickup') {
+        setTimeout(() => {
+          const inp = document.getElementById('pickupScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 100);
+      }
       renderAll();
     }
 
@@ -1332,6 +1361,11 @@
           } else if (scanMode === "clear") {
             clearOrderByTile(scanned);
             stopQRScanner();
+            setTimeout(() => {
+              const activeView = ['pickup', 'helper'].find(v => !document.getElementById(`view-${v}`).classList.contains('hidden'));
+              const inp = document.getElementById(activeView === 'pickup' ? 'pickupScanInput' : 'helperScanInput');
+              if (inp) { inp.focus(); inp.select(); }
+            }, 200);
           }
         },
         () => {}
@@ -1399,6 +1433,19 @@
         input.value = "";
         const success = confirmOrderPayment(code);
         if (!success) showToast(`Order #${code} not found in unpaid queue.`, "warning");
+        setTimeout(() => input.focus(), 50);
+      }
+    }
+
+    // Handle scanner input on pickup display — pipeline clear without switching views
+    function pickupScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        clearOrderByTile(code);
         setTimeout(() => input.focus(), 50);
       }
     }
