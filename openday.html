@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLMCSS Cafe - Open Day Order</title>
+
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- JsBarcode for Code 128 ticket + downloadable receipt -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+
+    :root {
+      --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e2e8f0;
+      --border: #e2e8f0; --border-2: #cbd5e1;
+      --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1120; --surface: #1e293b; --surface-2: #172033; --surface-3: #283548;
+      --border: #283548; --border-2: #3b4a63;
+      --text: #f8fafc; --text-2: #e2e8f0; --text-3: #94a3b8; --text-4: #64748b;
+    }
+    body { background-color: var(--bg); color: var(--text); }
+
+    [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+    [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
+
+    [data-theme="dark"] .border-slate-200 { border-color: var(--border) !important; }
+    [data-theme="dark"] .border-slate-300 { border-color: var(--border-2) !important; }
+
+    [data-theme="dark"] .text-slate-900 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-800 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-700 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-600 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-500 { color: var(--text-3) !important; }
+    [data-theme="dark"] .text-slate-400 { color: var(--text-4) !important; }
+
+    [data-theme="dark"] .rounded-3xl { border-radius: 1rem !important; }
+    [data-theme="dark"] .rounded-2xl { border-radius: 0.875rem !important; }
+    [data-theme="dark"] .shadow-sm { box-shadow: none !important; }
+    [data-theme="dark"] .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+
+    [data-theme="dark"] input, [data-theme="dark"] textarea { background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
+    [data-theme="dark"] input:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
+    [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
+
+    [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
+
+    #barcode { background-color: #ffffff !important; }
+  </style>
+  <script>
+    (function(){
+      const s = localStorage.getItem("mfcafe_theme");
+      const dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    })();
+  </script>
+</head>
+<body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+
+  <!-- Header -->
+  <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
+    <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-700 px-3.5 py-1 rounded-full text-xs font-extrabold mb-2 border border-amber-300/60">
+      <i class="fa-solid fa-mug-hot text-amber-500"></i>
+      <span>MFCafe Open Day Portal</span>
+    </div>
+    <h1 class="text-2xl font-black text-slate-800">Open Day Self-Order</h1>
+    <p class="text-xs text-slate-500 mt-1 font-medium">Pick your drink, get a payment barcode, then pay at the 2/F Chill Zone cashier</p>
+  </header>
+
+  <!-- Paused Overlay -->
+  <div id="pausedOverlay" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
+    <div class="bg-rose-100 text-rose-700 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
+      <i class="fa-solid fa-pause mr-1"></i> Ordering Paused
+    </div>
+    <h2 class="text-2xl font-black text-slate-800">Too busy right now</h2>
+    <p class="text-sm text-slate-500">The Open Day order portal is temporarily closed due to high volume. Please order at the counter.</p>
+  </div>
+
+  <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
+    <!-- Guest Info -->
+    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Your Name</label>
+        <input type="text" id="custName" placeholder="e.g. Mr. Wong / Guest" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+      </div>
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time <span class="normal-case font-bold text-slate-400">(optional)</span></label>
+        <input type="text" id="custPickupTime" placeholder="e.g. 2:30 PM / Now" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+      </div>
+    </div>
+
+    <!-- Drink Selection Grid -->
+    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+      <div class="flex justify-between items-center mb-3">
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
+        <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">0 available</span>
+      </div>
+      <div id="customerCategoryTabs" class="flex flex-wrap gap-1.5 mb-3"></div>
+      <div class="grid grid-cols-2 gap-2.5" id="customerMenuList">
+        <p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">Loading menu...</p>
+      </div>
+    </div>
+
+    <!-- Drink Customization Configurator -->
+    <div id="itemOptions" class="bg-amber-500/5 p-4 rounded-3xl border border-amber-200/80 hidden space-y-3.5 shadow-sm">
+      <div class="flex justify-between items-center border-b border-amber-200/60 pb-2">
+        <span id="selectedItemName" class="font-black text-slate-800 text-sm">Drink Name</span>
+        <span id="selectedItemPrice" class="font-black text-amber-600 text-sm">$0.00</span>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-1">Temperature Option</label>
+        <div class="flex space-x-2" id="custTempBtnContainer"></div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-400 mb-1">Customization / Notes</label>
+        <div class="flex flex-wrap gap-1.5 mb-2" id="custRemarkPillsContainer"></div>
+        <input type="text" id="custNotes" placeholder="e.g. Less sugar, extra hot..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+      </div>
+    </div>
+  </main>
+
+  <footer id="orderFooter" class="pt-3">
+    <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
+      <i class="fa-solid fa-barcode"></i>
+      <span id="submitBtnText">Place Order (Pay at Cashier)</span>
+    </button>
+  </footer>
+
+  <!-- PAYMENT BARCODE TICKET VIEW -->
+  <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
+    <div class="bg-rose-100 text-rose-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
+      <i class="fa-solid fa-hourglass-half mr-1"></i> STATUS: UNPAID — PAY AT CASHIER
+    </div>
+
+    <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
+    <p class="text-xs text-slate-500 font-medium">Show this barcode to the 2/F Chill Zone cashier to pay</p>
+
+    <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400 w-full flex justify-center" id="barcodeWrap">
+      <svg id="barcode"></svg>
+    </div>
+
+    <div class="bg-rose-50 border-2 border-rose-300 text-rose-800 p-3.5 rounded-2xl w-full">
+      <p class="text-sm font-black leading-snug">
+        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+        Drinks will not be crafted unless paid at 2/F Chill Zone cashier.
+      </p>
+    </div>
+
+    <div class="text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl w-full text-left space-y-1.5 border border-slate-200">
+      <p><strong class="text-slate-400">Guest:</strong> <span id="ticketGuest" class="text-slate-800 font-bold">-</span></p>
+      <p><strong class="text-slate-400">Order Time:</strong> <span id="ticketOrderTime" class="text-slate-800 font-bold">-</span></p>
+      <p><strong class="text-slate-400">Pickup Time:</strong> <span id="ticketPickup" class="text-purple-700 font-black">-</span></p>
+      <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-slate-800 font-bold">-</span></p>
+      <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
+    </div>
+
+    <button onclick="downloadReceipt()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
+      <i class="fa-solid fa-download"></i>
+      <span>Download Barcode Receipt to Photos</span>
+    </button>
+
+    <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
+      Order Another Drink
+    </button>
+  </div>
+
+  <!-- RECEIPT PREVIEW MODAL -->
+  <div id="receiptModal" class="hidden fixed inset-0 z-[110] bg-black/75 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm max-h-[92vh] overflow-y-auto p-4 space-y-3 text-center">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-black text-slate-800">Your Receipt</p>
+        <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <img id="receiptImg" alt="Order receipt" class="w-full rounded-xl border border-slate-200 shadow-sm">
+      <p class="text-[11px] text-slate-500 font-medium leading-snug">
+        <i class="fa-brands fa-apple mr-1"></i> On iPhone / iPad: press and hold the image, then choose <strong>Save to Photos</strong>.<br>
+        <i class="fa-brands fa-android mr-1"></i> On Android: tap <strong>Download image</strong> below.
+      </p>
+      <a id="receiptDownloadLink" href="#" download="receipt.png" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">
+        <i class="fa-solid fa-download mr-1"></i> Download image
+      </a>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[120] space-y-2 pointer-events-none"></div>
+
+  <script>
+    // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
+
+    let state = {
+      menu: [],
+      categories: [],
+      selectedCategory: "All",
+      selectedItem: null,
+      selectedTemp: "Cold",
+      remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
+      coldExtra: 2,
+      coldPaused: false,
+      reservationOpen: true,
+      currentOrder: null
+    };
+
+    // ===== SAFE PRICE HELPER =====
+    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = "info", duration = 3000) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = { success: "bg-emerald-600", error: "bg-rose-600", warning: "bg-amber-500", info: "bg-slate-800" };
+      const icons = { success: "fa-circle-check", error: "fa-circle-xmark", warning: "fa-triangle-exclamation", info: "fa-circle-info" };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // ===== TIME FORMATTING =====
+    function formatOrderTime(raw) {
+      if (!raw) return "-";
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function init() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+
+      fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+        .then(res => res.json())
+        .then(data => {
+          if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+          if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+          if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+          if (data.menu) state.menu = data.menu;
+          if (data.categories) state.categories = data.categories;
+          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          applyReservationState();
+          renderMenu();
+        })
+        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+
+      // Poll for menu updates every 15s (so paused items disappear)
+      setInterval(() => {
+        if (document.getElementById("qrTicketView") && !document.getElementById("qrTicketView").classList.contains("hidden")) return;
+        fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+          .then(res => res.json())
+          .then(data => {
+            if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+            if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+            if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+            if (data.menu) state.menu = data.menu;
+            if (data.categories) state.categories = data.categories;
+            if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+            applyReservationState();
+            renderMenu();
+          })
+          .catch(() => {});
+      }, 15000);
+    }
+
+    function applyReservationState() {
+      const paused = !state.reservationOpen;
+      document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
+      document.getElementById('orderView').classList.toggle('hidden', paused);
+      document.getElementById('orderFooter').classList.toggle('hidden', paused);
+    }
+
+    function renderMenu() {
+      const container = document.getElementById('customerMenuList');
+      if (!container) return;
+
+      const tabsEl = document.getElementById('customerCategoryTabs');
+      if (tabsEl) {
+        const cats = ["All", ...state.categories];
+        tabsEl.innerHTML = cats.map(cat => {
+          const active = state.selectedCategory === cat;
+          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+        }).join('');
+      }
+
+      const availableItems = state.menu.filter(i => {
+        if (i.available === false) return false;
+        const opts = i.tempOptions || "";
+        const onlyCold = opts.includes("Cold") && !opts.includes("Hot");
+        if (onlyCold && (state.coldPaused || i.coldPaused)) return false;
+        return true;
+      });
+
+      const filtered = state.selectedCategory === "All" ? availableItems : availableItems.filter(i => (i.category || "Other") === state.selectedCategory);
+
+      const badge = document.getElementById('mobileAvailableCount');
+      if (badge) badge.innerText = `${filtered.length} available`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      filtered.forEach(item => {
+        const isSelected = state.selectedItem?.name === item.name;
+        const btn = document.createElement('button');
+        btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
+        btn.onclick = () => selectItem(item);
+        btn.innerHTML = `
+          <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
+          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
+          <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function selectCustomerCategory(cat) {
+      state.selectedCategory = cat;
+      renderMenu();
+    }
+
+    function getItemPrice(item, temp) {
+      if (!item) return 0;
+      const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
+      return (Number(item.price) || 0) + coldExtra;
+    }
+
+    function selectItem(item) {
+      state.selectedItem = item;
+      document.getElementById('itemOptions')?.classList.remove('hidden');
+
+      const opts = item.tempOptions || "Hot & Cold";
+      const coldAllowed = opts.includes("Cold") && !state.coldPaused && !item.coldPaused;
+      state.selectedTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
+
+      document.getElementById('selectedItemName').innerText = item.name;
+      document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(item, state.selectedTemp));
+      document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(item, state.selectedTemp))}) — Pay at Cashier`;
+
+      const tempContainer = document.getElementById('custTempBtnContainer');
+      tempContainer.innerHTML = "";
+
+      if (opts.includes("Cold") && opts.includes("Hot")) {
+        tempContainer.innerHTML = `
+          <button type="button" onclick="setTemp('Cold')" id="btnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2.5 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
+          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+        `;
+      } else if (opts.includes("Hot")) {
+        tempContainer.innerHTML = `
+          <button type="button" id="btnHot" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+        `;
+      } else {
+        tempContainer.innerHTML = `
+          <button type="button" id="btnCold" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+        `;
+      }
+
+      setTemp(state.selectedTemp);
+
+      const pillsContainer = document.getElementById('custRemarkPillsContainer');
+      pillsContainer.innerHTML = "";
+      const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
+      hotkeys.forEach(hk => {
+        pillsContainer.innerHTML += `
+          <button type="button" onclick="addNotePill('${escapeHtml(hk)}')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
+        `;
+      });
+
+      renderMenu();
+    }
+
+    function setTemp(temp) {
+      state.selectedTemp = temp;
+      const btnCold = document.getElementById('btnCold');
+      const btnHot = document.getElementById('btnHot');
+      if (btnCold) btnCold.className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (btnHot) btnHot.className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (state.selectedItem) {
+        document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
+        document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) — Pay at Cashier`;
+      }
+    }
+
+    function addNotePill(text) {
+      const field = document.getElementById('custNotes');
+      if (field) field.value = field.value ? `${field.value}, ${text}` : text;
+    }
+
+    function submitSelfOrder() {
+      const nameInput = document.getElementById('custName');
+      const pickupInput = document.getElementById('custPickupTime');
+
+      const name = nameInput ? nameInput.value.trim() : "";
+      const pickupTime = pickupInput ? pickupInput.value.trim() : "";
+
+      if (!name) return showToast("Please enter your name!", "warning");
+      if (!state.selectedItem) return showToast("Please select a drink!", "warning");
+
+      const btnSubmit = document.getElementById('btnSubmit');
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.classList.add('opacity-50');
+      }
+
+      const notesInput = document.getElementById('custNotes');
+      const notes = notesInput ? notesInput.value : "";
+
+      const orderPayload = {
+        orderTime: new Date().toISOString(),
+        pickupTime: pickupTime,
+        cashier: "Open Day / Self-Order",
+        guestName: name,
+        productName: state.selectedItem.name,
+        temp: state.selectedTemp,
+        customization: notes,
+        price: getItemPrice(state.selectedItem, state.selectedTemp),
+        status: "UNPAID"
+      };
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "createUnpaidOrder", order: orderPayload })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        if (res.success && res.order) {
+          showTicket(res.order);
+        } else {
+          showToast(res.error || "Order creation failed.", "error");
+        }
+      })
+      .catch(err => {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        showToast("Network error. Please try again.", "error");
+      });
+    }
+
+    function showTicket(order) {
+      state.currentOrder = order;
+      document.getElementById('orderView')?.classList.add('hidden');
+      document.getElementById('orderFooter')?.classList.add('hidden');
+      document.getElementById('qrTicketView')?.classList.remove('hidden');
+
+      document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
+      document.getElementById('ticketGuest').innerText = order.guestName;
+      document.getElementById('ticketOrderTime').innerText = formatOrderTime(order.orderTime);
+      document.getElementById('ticketPickup').innerText = order.pickupTime || "Not specified";
+      document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
+      document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
+
+      const barcodeEl = document.getElementById('barcode');
+      if (barcodeEl && typeof JsBarcode !== "undefined") {
+        JsBarcode("#barcode", String(order.orderNum), {
+          format: "CODE128",
+          width: 2,
+          height: 80,
+          displayValue: true,
+          fontSize: 16,
+          font: "Inter",
+          margin: 10
+        });
+      }
+      showToast("Order placed! Pay at the 2/F Chill Zone cashier.", "success", 4500);
+    }
+
+    // ===== DOWNLOADABLE RECEIPT (canvas, printer-slip style) =====
+    function buildReceiptCanvas(order) {
+      const W = 720;
+      const PAD = 48;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = 1150;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+
+      let y = 90;
+      ctx.font = 'bold 46px "Courier New", monospace';
+      ctx.fillText('BLMCSS CAFE', W / 2, y);
+
+      y += 40;
+      ctx.font = 'bold 26px "Courier New", monospace';
+      ctx.fillText('OPEN DAY - 2/F CHILL ZONE', W / 2, y);
+
+      y += 44;
+      ctx.font = '20px "Courier New", monospace';
+      ctx.fillText('*** ORDER RECEIPT ***', W / 2, y);
+
+      // dashed separator
+      y += 26;
+      ctx.save();
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(PAD, y);
+      ctx.lineTo(W - PAD, y);
+      ctx.stroke();
+      ctx.restore();
+
+      y += 62;
+      ctx.font = '22px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('ORDER NO.', PAD, y);
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 56px "Courier New", monospace';
+      ctx.fillText(`#${order.orderNum}`, W - PAD, y + 2);
+
+      y += 58;
+      ctx.font = '22px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('ORDER TIME', PAD, y);
+      ctx.font = 'bold 24px "Courier New", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(formatOrderTime(order.orderTime), W - PAD, y);
+
+      y += 46;
+      ctx.font = '22px "Courier New", monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('GUEST', PAD, y);
+      ctx.font = 'bold 24px "Courier New", monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(order.guestName || 'Guest'), W - PAD, y);
+
+      if (order.pickupTime) {
+        y += 46;
+        ctx.font = '22px "Courier New", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText('PICKUP TIME', PAD, y);
+        ctx.font = 'bold 24px "Courier New", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(order.pickupTime), W - PAD, y);
+      }
+
+      // dashed separator
+      y += 40;
+      ctx.save();
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(PAD, y);
+      ctx.lineTo(W - PAD, y);
+      ctx.stroke();
+      ctx.restore();
+
+      y += 54;
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 26px "Courier New", monospace';
+      ctx.fillText('ITEM', PAD, y);
+      ctx.textAlign = 'right';
+      ctx.fillText('AMOUNT', W - PAD, y);
+
+      y += 44;
+      ctx.textAlign = 'left';
+      ctx.font = '24px "Courier New", monospace';
+      ctx.fillText(`${order.productName} (${order.temp})`, PAD, y);
+      ctx.textAlign = 'right';
+      ctx.fillText(fmtPrice(order.price), W - PAD, y);
+
+      if (order.customization) {
+        y += 34;
+        ctx.textAlign = 'left';
+        ctx.font = '20px "Courier New", monospace';
+        const note = String(order.customization);
+        ctx.fillText(note.length > 48 ? note.slice(0, 48) + '...' : note, PAD, y);
+      }
+
+      // dashed separator
+      y += 34;
+      ctx.save();
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(PAD, y);
+      ctx.lineTo(W - PAD, y);
+      ctx.stroke();
+      ctx.restore();
+
+      y += 54;
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 28px "Courier New", monospace';
+      ctx.fillText('TOTAL', PAD, y);
+      ctx.textAlign = 'right';
+      ctx.font = 'bold 34px "Courier New", monospace';
+      ctx.fillText(fmtPrice(order.price), W - PAD, y);
+
+      y += 52;
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 22px "Courier New", monospace';
+      ctx.fillText('PAYMENT: UNPAID - PAY AT CASHIER', W / 2, y);
+
+      // Barcode
+      const barcodeCanvas = document.createElement('canvas');
+      if (typeof JsBarcode !== "undefined") {
+        JsBarcode(barcodeCanvas, String(order.orderNum), {
+          format: 'CODE128',
+          width: 3,
+          height: 130,
+          displayValue: true,
+          fontSize: 26,
+          font: '"Courier New", monospace',
+          margin: 6,
+          background: '#ffffff',
+          lineColor: '#000000'
+        });
+      }
+
+      y += 46;
+      const bcW = Math.min(barcodeCanvas.width, W - PAD * 2);
+      const bcH = Math.round(barcodeCanvas.height * (bcW / (barcodeCanvas.width || bcW)));
+      ctx.drawImage(barcodeCanvas, (W - bcW) / 2, y, bcW, bcH);
+
+      y += bcH + 46;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 22px "Courier New", monospace';
+      ctx.fillText('Drinks will not be crafted unless paid', W / 2, y);
+      ctx.fillText('at 2/F Chill Zone cashier.', W / 2, y + 32);
+
+      y += 74;
+      ctx.font = '18px "Courier New", monospace';
+      ctx.fillText('Thank you & enjoy Open Day!', W / 2, y);
+
+      return canvas;
+    }
+
+    function downloadReceipt() {
+      const order = state.currentOrder;
+      if (!order) return showToast("No order found.", "warning");
+      if (typeof JsBarcode === "undefined") return showToast("Receipt generator not loaded. Please refresh.", "error");
+
+      try {
+        const canvas = buildReceiptCanvas(order);
+        const dataUrl = canvas.toDataURL('image/png');
+
+        const img = document.getElementById('receiptImg');
+        if (img) img.src = dataUrl;
+
+        const link = document.getElementById('receiptDownloadLink');
+        if (link) {
+          link.href = dataUrl;
+          link.download = `OpenDay-Order-${order.orderNum}.png`;
+        }
+
+        document.getElementById('receiptModal')?.classList.remove('hidden');
+      } catch (err) {
+        showToast("Could not create the receipt image on this device.", "error");
+      }
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receiptModal')?.classList.add('hidden');
+    }
+
+    function resetCustomerForm() {
+      closeReceiptModal();
+      document.getElementById('qrTicketView')?.classList.add('hidden');
+      document.getElementById('orderView')?.classList.remove('hidden');
+      document.getElementById('orderFooter')?.classList.remove('hidden');
+      state.selectedItem = null;
+      state.currentOrder = null;
+      document.getElementById('itemOptions')?.classList.add('hidden');
+      document.getElementById('custNotes').value = "";
+      document.getElementById('custPickupTime').value = "";
+      document.getElementById('submitBtnText').innerText = "Place Order (Pay at Cashier)";
+      init();
+    }
+
+    init();
+  </script>
+
+
+</body></html>

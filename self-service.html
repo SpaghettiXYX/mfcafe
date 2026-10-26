@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLMCSS Cafe - Self-Service Order Check</title>
+
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Camera scanner library (jsDelivr primary, unpkg fallback) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+
+    :root {
+      --bg: #f1f5f9; --surface: #ffffff; --surface-2: #f8fafc; --surface-3: #e2e8f0;
+      --border: #e2e8f0; --border-2: #cbd5e1;
+      --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+    }
+    [data-theme="dark"] {
+      --bg: #0b1120; --surface: #1e293b; --surface-2: #172033; --surface-3: #283548;
+      --border: #283548; --border-2: #3b4a63;
+      --text: #f8fafc; --text-2: #e2e8f0; --text-3: #94a3b8; --text-4: #64748b;
+    }
+    body { background-color: var(--bg); color: var(--text); }
+
+    [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
+    [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
+    [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
+
+    [data-theme="dark"] .border-slate-200 { border-color: var(--border) !important; }
+    [data-theme="dark"] .border-slate-300 { border-color: var(--border-2) !important; }
+
+    [data-theme="dark"] .text-slate-900 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-800 { color: var(--text) !important; }
+    [data-theme="dark"] .text-slate-700 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-600 { color: var(--text-2) !important; }
+    [data-theme="dark"] .text-slate-500 { color: var(--text-3) !important; }
+    [data-theme="dark"] .text-slate-400 { color: var(--text-4) !important; }
+
+    [data-theme="dark"] .shadow-sm { box-shadow: none !important; }
+    [data-theme="dark"] .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+    [data-theme="dark"] .shadow-xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.65) !important; }
+
+    [data-theme="dark"] input { background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
+    [data-theme="dark"] input:focus { border-color: #f59e0b !important; }
+    [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
+
+    /* html5-qrcode video sizing */
+    #ssReader video { border-radius: 1rem; width: 100% !important; height: auto !important; }
+    #ssReader img { display: none; }
+
+    @keyframes ssPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+    .ss-live-dot { animation: ssPulse 1.6s ease-in-out infinite; }
+  </style>
+  <script>
+    (function(){
+      const s = localStorage.getItem("mfcafe_theme");
+      const dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    })();
+  </script>
+</head>
+<body class="min-h-screen">
+
+  <div class="max-w-3xl mx-auto px-4 py-6 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="flex items-center justify-between bg-white rounded-3xl border border-slate-200 shadow-sm px-5 py-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center text-xl shadow-sm">
+          <i class="fa-solid fa-mug-hot"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-black text-slate-800 leading-tight">BLMCSS CAFE</h1>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Self-Service Order Check</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p id="liveClock" class="text-sm font-black text-slate-700">--:--</p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">2/F Chill Zone</p>
+      </div>
+    </header>
+
+    <!-- Home / Scan View -->
+    <main id="homeView" class="flex-1 flex flex-col justify-center py-6 space-y-5">
+      <div class="text-center space-y-2">
+        <h2 class="text-3xl font-black text-slate-800">Check your order</h2>
+        <p class="text-sm text-slate-500 font-medium">Scan your drink barcode or the QR code on your table tile</p>
+      </div>
+
+      <!-- Camera Scanner -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Camera Scanner</span>
+          <span id="cameraStatus" class="text-[10px] font-bold text-slate-400">Camera off</span>
+        </div>
+
+        <div id="ssReaderWrap" class="relative rounded-2xl bg-slate-900 overflow-hidden" style="min-height: 260px;">
+          <div id="cameraPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 space-y-3">
+            <div class="w-16 h-16 rounded-full bg-white/10 text-amber-400 flex items-center justify-center text-3xl">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <p class="text-white/80 text-sm font-bold">Camera is off</p>
+            <p class="text-white/50 text-[11px] font-medium">Tap the button below to scan with camera</p>
+          </div>
+          <div id="ssReader" class="hidden"></div>
+        </div>
+
+        <button onclick="toggleCamera()" id="cameraBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-camera"></i>
+          <span id="cameraBtnText">Start Camera</span>
+        </button>
+      </div>
+
+      <!-- Scanner gun / manual -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Scanner Gun / Manual</span>
+          <span class="text-[10px] font-bold text-slate-400">Type &amp; press Enter</span>
+        </div>
+        <div class="flex gap-2">
+          <input id="ssCodeInput" type="text" autocomplete="off" autofocus="" placeholder="Order no. / barcode / tile QR" class="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-base font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+          <button onclick="manualLookup()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-5 py-3 rounded-2xl text-sm shadow-sm transition">
+            Check
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 font-medium">Scanner gun works automatically — scan the code and it will check instantly.</p>
+      </div>
+
+      <p id="homeError" class="hidden text-center text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3"></p>
+    </main>
+
+    <footer class="text-center text-[11px] font-medium text-slate-400 py-3">
+      Need help? Please ask our staff at the counter.
+    </footer>
+  </div>
+
+  <!-- RESULT OVERLAY -->
+  <div id="resultOverlay" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="max-w-2xl mx-auto my-4 bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+
+      <!-- Result header -->
+      <div id="resultHeader" class="px-6 py-5 text-white">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-[11px] font-black uppercase tracking-widest opacity-80">Order</p>
+            <h2 id="rsOrderNum" class="text-4xl font-black leading-none mt-1">#----</h2>
+          </div>
+          <div class="text-right">
+            <p class="text-[11px] font-black uppercase tracking-widest opacity-80">Tile</p>
+            <p id="rsTile" class="text-3xl font-black leading-none mt-1">-</p>
+          </div>
+        </div>
+        <div class="mt-4 inline-flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-full">
+          <i id="rsStatusIcon" class="fa-solid fa-hourglass-half"></i>
+          <span id="rsStatusLabel" class="text-xs font-extrabold uppercase tracking-wider">STATUS</span>
+        </div>
+        <p id="rsStatusDesc" class="text-sm font-semibold mt-3 leading-snug opacity-95"></p>
+      </div>
+
+      <!-- Progress stepper -->
+      <div id="stepperWrap" class="px-6 py-4 border-b border-slate-200">
+        <div class="flex items-center justify-between gap-1">
+          <div class="flex-1 flex flex-col items-center gap-1.5" data-step="0">
+            <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">1</div>
+            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">In Queue</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1.5" data-step="1">
+            <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">2</div>
+            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Crafting</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1.5" data-step="2">
+            <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">3</div>
+            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Ready</span>
+          </div>
+          <div class="flex-1 flex flex-col items-center gap-1.5" data-step="3">
+            <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">4</div>
+            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Collected</span>
+          </div>
+        </div>
+        <p id="stepperNote" class="hidden text-center text-[11px] font-bold text-rose-600 mt-2">Awaiting payment at cashier</p>
+      </div>
+
+      <!-- Order details -->
+      <div class="px-6 py-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <p class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Order Details</p>
+          <span id="rsCategory" class="text-[10px] font-black px-2.5 py-1 rounded-full text-white" style="background-color:#64748b;">Category</span>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5">
+          <p id="rsItem" class="text-xl font-black text-slate-900 leading-snug">-</p>
+          <p id="rsNotes" class="text-xs font-semibold text-amber-700">-</p>
+          <p id="rsPrice" class="text-lg font-black text-amber-600">$0.00</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Order Type</p>
+            <p id="rsOrderType" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Order Status</p>
+            <p id="rsOrderStatus" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Order Time</p>
+            <p id="rsOrderTime" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Pickup Time</p>
+            <p id="rsPickupTime" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Guest</p>
+            <p id="rsGuest" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Tile No.</p>
+            <p id="rsTileDetail" class="font-black text-slate-800 mt-0.5">-</p>
+          </div>
+        </div>
+
+        <p id="rsInactiveNote" class="hidden text-center text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3">
+          This order is no longer active. It may have been collected or closed.
+        </p>
+
+        <!-- Auto-refresh / reset -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-[11px] font-bold">
+            <span class="flex items-center gap-1.5 text-emerald-600">
+              <i class="fa-solid fa-rotate ss-live-dot"></i>
+              Auto-updating every 5s
+            </span>
+            <span id="rsRefreshStamp" class="text-slate-400">Updated just now</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+            <div id="resetBar" class="h-full bg-amber-500 transition-all duration-1000 ease-linear" style="width:100%"></div>
+          </div>
+          <p id="resetText" class="text-center text-[11px] font-bold text-slate-400">Returns to scan screen in 45s</p>
+        </div>
+
+        <button onclick="resetToHome()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-camera"></i>
+          <span>Check Another Order</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[120] space-y-2 pointer-events-none"></div>
+
+  <script>
+    // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxwhFZlOXzvOzdyjou8XfRLm9OpQM7w5TKd2ylzw_iJ-6QIZhhyMUIhKuRnzfqa-uCj/exec";
+
+    const RESULT_IDLE_SECONDS = 45;
+    const REFRESH_MS = 5000;
+
+    let html5QrcodeScanner = null;
+    let cameraRunning = false;
+    let scannerStarting = false;
+    let autoRestartCamera = false;
+    let cameraEverStarted = false;
+    let isProcessing = false;
+
+    let resultVisible = false;
+    let currentCode = "";
+    let currentOrder = null;
+    let categoryColors = {};
+    let lastResultState = "";
+    let refreshTimer = null;
+    let countdownTimer = null;
+    let secondsLeft = RESULT_IDLE_SECONDS;
+
+    function escapeHtml(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    function showToast(message, type = "info", duration = 3500) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = { success: "bg-emerald-600", error: "bg-rose-600", warning: "bg-amber-500", info: "bg-slate-800" };
+      const icons = { success: "fa-circle-check", error: "fa-circle-xmark", warning: "fa-triangle-exclamation", info: "fa-circle-info" };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-3 rounded-2xl shadow-lg text-xs font-bold flex items-center gap-2 pointer-events-auto max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(-10px)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    function formatOrderTime(raw) {
+      if (!raw) return "-";
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      const pad = n => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ===== LIVE CLOCK =====
+    function tickClock() {
+      const el = document.getElementById('liveClock');
+      if (!el) return;
+      const d = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      el.innerText = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // ===== CAMERA =====
+    function setCameraUi(running) {
+      const btnText = document.getElementById('cameraBtnText');
+      const status = document.getElementById('cameraStatus');
+      const placeholder = document.getElementById('cameraPlaceholder');
+      if (btnText) btnText.innerText = running ? "Stop Camera" : "Start Camera";
+      if (status) {
+        status.innerText = running ? "Camera live" : "Camera off";
+        status.className = running ? "text-[10px] font-bold text-emerald-600" : "text-[10px] font-bold text-slate-400";
+      }
+      if (placeholder) placeholder.classList.toggle('hidden', running);
+    }
+
+    function toggleCamera() {
+      if (cameraRunning) { autoRestartCamera = false; stopCamera(); }
+      else { autoRestartCamera = true; startCamera(); }
+    }
+
+    function startCamera() {
+      if (scannerStarting || cameraRunning) return;
+      if (typeof Html5Qrcode === "undefined") {
+        showToast("Scanner library not loaded. Check the internet, or use the scanner gun / manual input.", "error", 6000);
+        return;
+      }
+
+      // Browsers only allow camera access on HTTPS or localhost
+      if (!window.isSecureContext) {
+        showToast("Camera needs a secure (HTTPS) connection. Open this page via https:// or localhost, or use the scanner gun.", "error", 8000);
+        return;
+      }
+
+      const readerEl = document.getElementById('ssReader');
+      if (!readerEl) return;
+      readerEl.classList.remove('hidden');
+      scannerStarting = true;
+      setCameraUi(false);
+      document.getElementById('cameraStatus').innerText = "Starting…";
+
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("ssReader", { verbose: false });
+      }
+
+      const startExisting = (cameraRunning && html5QrcodeScanner.isScanning)
+        ? html5QrcodeScanner.stop().catch(() => {})
+        : Promise.resolve();
+
+      startExisting.then(() => {
+        setTimeout(() => {
+          const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.PDF_417
+          ] : undefined;
+
+          const config = {
+            fps: 12,
+            qrbox: (viewWidth, viewHeight) => {
+              const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+          };
+          if (formats) config.formatsToSupport = formats;
+
+          html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            config,
+            onCameraDecoded,
+            () => {}
+          ).then(() => {
+            cameraRunning = true;
+            cameraEverStarted = true;
+            scannerStarting = false;
+            setCameraUi(true);
+          }).catch(err => {
+            cameraRunning = false;
+            scannerStarting = false;
+            setCameraUi(false);
+            const msg = (err && err.message) ? err.message : String(err);
+            showToast("Camera failed: " + msg + " — allow camera permission, or use the scanner gun.", "error", 7000);
+          });
+        }, 250);
+      });
+    }
+
+    function stopCamera() {
+      if (!html5QrcodeScanner || !html5QrcodeScanner.isScanning) {
+        cameraRunning = false;
+        setCameraUi(false);
+        return Promise.resolve();
+      }
+      return html5QrcodeScanner.stop().then(() => {
+        cameraRunning = false;
+        setCameraUi(false);
+      }).catch(() => {
+        cameraRunning = false;
+        setCameraUi(false);
+      });
+    }
+
+    function onCameraDecoded(decodedText) {
+      if (isProcessing) return;
+      const code = String(decodedText || "").trim();
+      if (!code) return;
+      isProcessing = true;
+      stopCamera().then(() => {
+        lookupOrder(code, false);
+      });
+    }
+
+    // ===== LOOKUP =====
+    function manualLookup() {
+      if (isProcessing) return;
+      const input = document.getElementById('ssCodeInput');
+      if (!input) return;
+      const code = input.value.trim();
+      if (!code) {
+        showToast("Please enter or scan an order number.", "warning");
+        input.focus();
+        return;
+      }
+      input.value = "";
+      stopCamera().then(() => lookupOrder(code, false));
+    }
+
+    function lookupOrder(code, isRefresh) {
+      const clean = String(code || "").trim().replace(/^#/, "");
+      if (!clean) return;
+
+      if (!isRefresh) hideHomeError();
+      if (!isRefresh && !resultVisible) {
+        isProcessing = true;
+        showToast("Checking order…", "info", 1200);
+      }
+
+      fetch(`${APPS_SCRIPT_URL}?action=lookupOrder&code=${encodeURIComponent(clean)}&_t=${Date.now()}`)
+        .then(res => res.json())
+        .then(res => {
+          isProcessing = false;
+          if (res && res.success && res.order) {
+            currentCode = clean;
+            currentOrder = res.order;
+            categoryColors = res.categoryColors || categoryColors;
+            lastResultState = "";
+            // Auto-refresh must not restart the kiosk idle countdown
+            if (isRefresh && resultVisible) renderResult(res.order);
+            else showResult(res.order);
+          } else {
+            if (isRefresh && resultVisible) {
+              markInactive();
+            } else {
+              const errEl = document.getElementById('homeError');
+              let msg = "Order not found. Please check the barcode, or ask our staff.";
+              if (res && res.tileStatus) {
+                const st = String(res.tileStatus).toLowerCase();
+                if (st === "available") msg = `Tile #${clean} is available — no order is bound to it yet.`;
+                else msg = `Tile #${clean} is ${res.tileStatus}, but no matching order was found.`;
+              }
+              if (errEl) { errEl.innerText = msg; errEl.classList.remove('hidden'); }
+              showToast(msg, "warning", 5000);
+              restartCameraIfNeeded();
+            }
+          }
+        })
+        .catch(() => {
+          isProcessing = false;
+          if (isRefresh && resultVisible) {
+            showToast("Could not refresh order status.", "warning");
+          } else {
+            const errEl = document.getElementById('homeError');
+            if (errEl) { errEl.innerText = "Network error. Please try again."; errEl.classList.remove('hidden'); }
+            showToast("Network error. Please try again.", "error");
+            restartCameraIfNeeded();
+          }
+        });
+    }
+
+    function restartCameraIfNeeded() {
+      if (autoRestartCamera && !resultVisible) {
+        setTimeout(() => { if (!cameraRunning && !scannerStarting) startCamera(); }, 1500);
+      }
+    }
+
+    function hideHomeError() {
+      document.getElementById('homeError')?.classList.add('hidden');
+    }
+
+    // ===== STATUS CONFIG =====
+    function getStatusMeta(status, inactive) {
+      const s = String(status || "").toUpperCase();
+      if (inactive) {
+        return {
+          key: "INACTIVE", label: "No Longer Active", icon: "fa-circle-check",
+          header: "bg-slate-700",
+          desc: "This order is no longer active. It may have been collected or closed.",
+          step: -1
+        };
+      }
+      const map = {
+        UNPAID: {
+          key: "UNPAID", label: "Payment Pending", icon: "fa-hourglass-half",
+          header: "bg-rose-600",
+          desc: "This order is not in the kitchen yet. Please pay at the 2/F Chill Zone cashier.",
+          step: -1
+        },
+        RESERVED: {
+          key: "RESERVED", label: "Pre-Order Received", icon: "fa-clock",
+          header: "bg-purple-700",
+          desc: "This is a pre-order. It will be crafted after payment at the cashier.",
+          step: -1
+        },
+        PENDING: {
+          key: "PENDING", label: "In Queue", icon: "fa-list-check",
+          header: "bg-amber-600",
+          desc: "Payment confirmed. Your drink is waiting for the kitchen to start.",
+          step: 0
+        },
+        ASSIGNED: {
+          key: "ASSIGNED", label: "Crafting Now", icon: "fa-mug-hot",
+          header: "bg-sky-600",
+          desc: "Our barista is making your drink right now.",
+          step: 1
+        },
+        READY: {
+          key: "READY", label: "Ready for Pickup", icon: "fa-bell",
+          header: "bg-emerald-600",
+          desc: "Your drink is ready! Please collect it at the Pick Up counter.",
+          step: 2
+        },
+        CLEARED: {
+          key: "CLEARED", label: "Collected", icon: "fa-circle-check",
+          header: "bg-slate-700",
+          desc: "This order has been collected. Thank you!",
+          step: 3
+        }
+      };
+      return map[s] || {
+        key: s || "UNKNOWN", label: s || "Unknown", icon: "fa-circle-question",
+        header: "bg-slate-700",
+        desc: "Status unavailable. Please ask our staff.",
+        step: -1
+      };
+    }
+
+    function renderResult(order) {
+      const meta = getStatusMeta(order.status, false);
+
+      const header = document.getElementById('resultHeader');
+      header.className = `px-6 py-5 text-white ${meta.header}`;
+
+      document.getElementById('rsOrderNum').innerText = `#${order.orderNum}`;
+      const tile = resolveTile(order);
+      document.getElementById('rsTile').innerText = tile ? `#${tile}` : "-";
+      document.getElementById('rsTileDetail').innerText = tile ? `Tile #${tile}` : "No tile assigned";
+
+      document.getElementById('rsStatusIcon').className = `fa-solid ${meta.icon}`;
+      document.getElementById('rsStatusLabel').innerText = meta.label;
+      document.getElementById('rsStatusDesc').innerText = meta.desc;
+
+      const stepperWrap = document.getElementById('stepperWrap');
+      const stepperNote = document.getElementById('stepperNote');
+      if (meta.step >= 0) {
+        stepperWrap.classList.remove('hidden');
+        stepperNote.classList.add('hidden');
+        document.querySelectorAll('#stepperWrap [data-step]').forEach(el => {
+          const step = parseInt(el.getAttribute('data-step'), 10);
+          const dot = el.querySelector('.step-dot');
+          if (!dot) return;
+          const done = step < meta.step;
+          const active = step === meta.step;
+          if (done || active) {
+            dot.className = `step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black ${active ? 'bg-amber-500 border-amber-500 text-slate-950' : 'bg-emerald-500 border-emerald-500 text-white'}`;
+          } else {
+            dot.className = `step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black border-slate-300 text-slate-400 bg-white`;
+          }
+        });
+      } else {
+        // Awaiting payment: hide step dots, show a simple note
+        document.querySelectorAll('#stepperWrap [data-step] .step-dot').forEach(dot => {
+          dot.className = `step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black border-slate-300 text-slate-400 bg-white`;
+        });
+        stepperNote.classList.remove('hidden');
+        stepperNote.innerText = (meta.key === "RESERVED")
+          ? "Pre-order — awaiting payment at cashier"
+          : "Awaiting payment at cashier";
+      }
+
+      const category = order.category || "Other";
+      const catEl = document.getElementById('rsCategory');
+      catEl.innerText = category;
+      catEl.style.backgroundColor = categoryColors[category] || "#64748b";
+
+      document.getElementById('rsItem').innerText = `${order.productName} (${order.temp})`;
+      const notesEl = document.getElementById('rsNotes');
+      if (order.customization) { notesEl.innerText = order.customization; notesEl.classList.remove('hidden'); }
+      else { notesEl.classList.add('hidden'); }
+      document.getElementById('rsPrice').innerText = fmtPrice(order.price);
+
+      const isPreorder = ["RESERVED", "UNPAID"].includes(String(order.status).toUpperCase());
+      document.getElementById('rsOrderType').innerText = isPreorder ? "Pre-Order" : "Walk-in / Paid";
+      document.getElementById('rsOrderStatus').innerText = meta.label;
+      document.getElementById('rsOrderTime').innerText = formatOrderTime(order.orderTime);
+      document.getElementById('rsPickupTime').innerText = order.pickupTime || "-";
+      document.getElementById('rsGuest').innerText = order.guestName || "Guest";
+      document.getElementById('rsTileDetail').innerText = tile ? `Tile #${tile}` : "No tile assigned";
+
+      document.getElementById('rsInactiveNote').classList.add('hidden');
+      document.getElementById('rsRefreshStamp').innerText = "Updated just now";
+    }
+
+    function resolveTile(order) {
+      if (order.qrTile) return String(order.qrTile);
+      // If the scanned code is not the order number, it was likely the tile code
+      if (currentCode && String(currentCode) !== String(order.orderNum)) return String(currentCode);
+      return "";
+    }
+
+    function showResult(order) {
+      const overlay = document.getElementById('resultOverlay');
+      resultVisible = true;
+      overlay.classList.remove('hidden');
+      renderResult(order);
+
+      // Disable manual input while result is shown (scanner gun should not act here)
+      const input = document.getElementById('ssCodeInput');
+      if (input) input.disabled = true;
+
+      startResultTimers();
+    }
+
+    function markInactive() {
+      const overlay = document.getElementById('resultOverlay');
+      if (!overlay || overlay.classList.contains('hidden')) return;
+      const meta = getStatusMeta(currentOrder ? currentOrder.status : "", true);
+
+      const header = document.getElementById('resultHeader');
+      header.className = `px-6 py-5 text-white ${meta.header}`;
+      document.getElementById('rsStatusIcon').className = `fa-solid ${meta.icon}`;
+      document.getElementById('rsStatusLabel').innerText = meta.label;
+      document.getElementById('rsStatusDesc').innerText = meta.desc;
+      document.getElementById('rsOrderStatus').innerText = meta.label;
+
+      document.querySelectorAll('#stepperWrap [data-step] .step-dot').forEach(dot => {
+        const step = parseInt(dot.parentElement.getAttribute('data-step'), 10);
+        const filled = step <= 3;
+        dot.className = `step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black ${filled ? 'bg-slate-400 border-slate-400 text-white' : 'border-slate-300 text-slate-400 bg-white'}`;
+      });
+      document.getElementById('stepperNote').classList.add('hidden');
+      document.getElementById('rsInactiveNote').classList.remove('hidden');
+      document.getElementById('rsRefreshStamp').innerText = "Order closed";
+    }
+
+    // ===== TIMERS (auto refresh + kiosk auto reset) =====
+    function startResultTimers() {
+      clearInterval(refreshTimer);
+      clearInterval(countdownTimer);
+      secondsLeft = RESULT_IDLE_SECONDS;
+      updateCountdownUi();
+
+      refreshTimer = setInterval(() => {
+        if (!resultVisible || !currentCode) return;
+        lookupOrder(currentCode, true);
+      }, REFRESH_MS);
+
+      countdownTimer = setInterval(() => {
+        if (!resultVisible) return;
+        secondsLeft -= 1;
+        updateCountdownUi();
+        if (secondsLeft <= 0) resetToHome(true);
+      }, 1000);
+    }
+
+    function updateCountdownUi() {
+      const bar = document.getElementById('resetBar');
+      const text = document.getElementById('resetText');
+      const pct = Math.max(0, Math.min(100, (secondsLeft / RESULT_IDLE_SECONDS) * 100));
+      if (bar) bar.style.width = `${pct}%`;
+      if (text) text.innerText = `Returns to scan screen in ${secondsLeft}s`;
+    }
+
+    function bumpIdleTimer() {
+      if (!resultVisible) return;
+      secondsLeft = RESULT_IDLE_SECONDS;
+      updateCountdownUi();
+    }
+
+    function resetToHome(auto) {
+      resultVisible = false;
+      currentCode = "";
+      currentOrder = null;
+      clearInterval(refreshTimer);
+      clearInterval(countdownTimer);
+      refreshTimer = null;
+      countdownTimer = null;
+
+      document.getElementById('resultOverlay')?.classList.add('hidden');
+      document.getElementById('rsInactiveNote')?.classList.add('hidden');
+      hideHomeError();
+
+      const input = document.getElementById('ssCodeInput');
+      if (input) {
+        input.disabled = false;
+        input.value = "";
+        setTimeout(() => input.focus(), 150);
+      }
+
+      isProcessing = false;
+      if (cameraEverStarted && autoRestartCamera) restartCameraIfNeeded();
+
+      if (auto === true) showToast("Ready for the next guest.", "info", 2000);
+    }
+
+    // ===== INIT =====
+    function init() {
+      tickClock();
+      setInterval(tickClock, 15000);
+
+      const input = document.getElementById('ssCodeInput');
+      if (input) {
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            manualLookup();
+          }
+        });
+      }
+
+      // Any interaction inside the result overlay keeps it on screen longer
+      const overlay = document.getElementById('resultOverlay');
+      if (overlay) {
+        ['pointerdown', 'touchstart', 'keydown'].forEach(evt => {
+          overlay.addEventListener(evt, bumpIdleTimer, { passive: true });
+        });
+      }
+    }
+
+    init();
+  </script>
+
+
+</body></html>
