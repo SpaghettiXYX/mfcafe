@@ -8,8 +8,9 @@
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- HTML5 QR Code Camera Scanner Library -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- Camera scanner library (jsDelivr primary, unpkg fallback for blocked networks) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
+    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -75,6 +76,22 @@
     [data-theme="dark"] .bg-rose-50 { background-color: #4c0519 !important; }
     [data-theme="dark"] .border-emerald-300 { border-color: #065f46 !important; }
     [data-theme="dark"] .border-rose-300 { border-color: #7f1d1d !important; }
+
+    /* KDS marquee alert for unassigned incoming orders */
+    @keyframes kds-marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .kds-marquee-track {
+      display: inline-flex; white-space: nowrap; will-change: transform;
+      animation: kds-marquee-scroll 22s linear infinite;
+    }
+    @keyframes kds-new-flash {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.45); }
+    }
+    .kds-unassigned { animation: kds-new-flash 1.6s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .kds-marquee-track { animation: none; }
+      .kds-unassigned { animation: none; }
+    }
 
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
@@ -319,6 +336,18 @@
         </span>
       </div>
 
+      <!-- Unassigned order marquee -->
+      <div id="kdsMarqueeWrap" class="hidden bg-slate-900 rounded-2xl overflow-hidden shadow-sm border border-slate-700">
+        <div class="flex items-center">
+          <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-3 py-3 uppercase tracking-wider flex-shrink-0">
+            <i class="fa-solid fa-bell animate-bounce mr-1"></i> New
+          </span>
+          <div class="overflow-hidden flex-1 py-3">
+            <div id="kdsMarqueeTrack" class="kds-marquee-track text-white text-sm font-bold"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="kdsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </section>
 
@@ -463,6 +492,11 @@
         <button onclick="saveCategoriesSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
           Save Categories
         </button>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-2">KDS Category Colours</label>
+          <div id="adminCategoryColorsList" class="flex flex-wrap gap-3"></div>
+          <p class="text-[10px] text-slate-400 mt-2">Colours are used on the KDS order cards so each department can spot its own drinks.</p>
+        </div>
       </div>
 
       <!-- QR Tile Manager -->
@@ -767,7 +801,8 @@
       serverVersion: null,
       coldExtra: 2,
       coldPaused: false,
-      reservationOpen: true
+      reservationOpen: true,
+      categoryColors: {}
     };
 
     let html5QrcodeScanner = null;
@@ -1101,6 +1136,7 @@
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
           if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+          if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
 
           if (Array.isArray(data.orders)) {
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
@@ -1410,65 +1446,122 @@
       return false;
     }
 
-    function startQRScanner() {
-      const modal = document.getElementById('qrScannerModal');
-      if (modal) modal.classList.remove('hidden');
-      isProcessingScan = false;
+    let scannerStarting = false;
 
-      if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+    // mode: "pay" | "bind" | "clear"
+    function startScan(mode) {
+      scanMode = mode;
+      startQRScanner();
+    }
+
+    function handleScanResult(decodedText) {
+      if (isProcessingScan) return;
+      isProcessingScan = true;
+      const scanned = String(decodedText || "").trim().replace(/^#/, "");
+
+      if (scanMode === "pay") {
+        const success = confirmOrderPayment(scanned);
+        if (success) { triggerChime(); stopQRScanner(); }
+        else { showToast(`Order #${scanned} not found in unpaid queue.`, "warning"); isProcessingScan = false; }
+      } else if (scanMode === "bind") {
+        const input = document.getElementById('posQRTile');
+        if (input) input.value = scanned;
+        const tile = state.qrTiles.find(t => String(t.code) === scanned);
+        const statusEl = document.getElementById('posQRTileStatus');
+        if (tile && tile.status === "Available") {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} available ✓`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
+        } else if (tile) {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} is currently bound to order ${tile.boundOrder}`; statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold"; }
+        } else {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} not registered`; statusEl.className = "text-[10px] text-amber-500 mt-1 font-bold"; }
+        }
+        stopQRScanner();
+      } else if (scanMode === "clear") {
+        clearOrderByTile(scanned);
+        stopQRScanner();
+        setTimeout(() => {
+          const activeView = ['pickup', 'helper'].find(v => !document.getElementById(`view-${v}`).classList.contains('hidden'));
+          if (!activeView) return;
+          const inp = document.getElementById(activeView === 'pickup' ? 'pickupScanInput' : 'helperScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 200);
+      }
+    }
+
+    function startQRScanner() {
+      if (scannerStarting) return;
+
+      if (typeof Html5Qrcode === "undefined") {
+        showToast("Scanner library not loaded. Check the internet connection, or use the scanner gun / manual input.", "error", 6000);
+        return;
       }
 
-      html5QrcodeScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 200, height: 200 } },
-        (decodedText) => {
-          if (isProcessingScan) return;
-          isProcessingScan = true;
-          const scanned = decodedText.trim().replace("#", "");
+      // Browsers only allow camera access on HTTPS or localhost
+      if (!window.isSecureContext) {
+        showToast("Camera needs a secure (HTTPS) connection. Open this page via https:// or localhost, or use the scanner gun.", "error", 8000);
+        return;
+      }
 
-          if (scanMode === "pay") {
-            const success = confirmOrderPayment(scanned);
-            if (success) { triggerChime(); stopQRScanner(); }
-            else { showToast(`Order #${scanned} not found in unpaid queue.`, "warning"); isProcessingScan = false; }
-          } else if (scanMode === "bind") {
-            const input = document.getElementById('posQRTile');
-            if (input) input.value = scanned;
-            const tile = state.qrTiles.find(t => t.code === scanned);
-            const statusEl = document.getElementById('posQRTileStatus');
-            if (tile && tile.status === "Available") {
-              if (statusEl) { statusEl.innerText = `Tile #${scanned} available ✓`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
-            } else if (tile) {
-              if (statusEl) { statusEl.innerText = `Tile #${scanned} is currently bound to order ${tile.boundOrder}`; statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold"; }
-            } else {
-              if (statusEl) { statusEl.innerText = `Tile #${scanned} not registered`; statusEl.className = "text-[10px] text-amber-500 mt-1 font-bold"; }
-            }
+      const modal = document.getElementById('qrScannerModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      isProcessingScan = false;
+      scannerStarting = true;
+
+      const stopExisting = (html5QrcodeScanner && html5QrcodeScanner.isScanning)
+        ? html5QrcodeScanner.stop().catch(() => {})
+        : Promise.resolve();
+
+      stopExisting.then(() => {
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
+        }
+
+        // Let the modal paint before the camera viewport is measured
+        setTimeout(() => {
+          const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.PDF_417
+          ] : undefined;
+
+          const config = {
+            fps: 12,
+            qrbox: (viewWidth, viewHeight) => {
+              const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+          };
+          if (formats) config.formatsToSupport = formats;
+
+          html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            config,
+            handleScanResult,
+            () => {}
+          ).then(() => {
+            scannerStarting = false;
+          }).catch(err => {
+            scannerStarting = false;
+            const msg = (err && err.message) ? err.message : String(err);
+            showToast("Camera failed: " + msg + " — allow camera permission or use the scanner gun.", "error", 6000);
             stopQRScanner();
-          } else if (scanMode === "clear") {
-            clearOrderByTile(scanned);
-            stopQRScanner();
-            setTimeout(() => {
-              const activeView = ['pickup', 'helper'].find(v => !document.getElementById(`view-${v}`).classList.contains('hidden'));
-              const inp = document.getElementById(activeView === 'pickup' ? 'pickupScanInput' : 'helperScanInput');
-              if (inp) { inp.focus(); inp.select(); }
-            }, 200);
-          }
-        },
-        () => {}
-      ).catch(err => {
-        showToast("Camera access failed or permission denied.", "error");
-        stopQRScanner();
+          });
+        }, 250);
       });
     }
 
     function scanQRTileForOrder() {
-      scanMode = "bind";
-      startQRScanner();
+      startScan("bind");
     }
 
     function scanQRToClear() {
-      scanMode = "clear";
-      startQRScanner();
+      startScan("clear");
     }
 
     function clearOrderByTile(tileCode) {
@@ -1552,14 +1645,44 @@
       }
     }
 
+    function getOrderCategory(order) {
+      const item = state.menu.find(m => String(m.name).trim() === String(order.productName || "").trim());
+      return item ? (item.category || "Other") : "Other";
+    }
+
+    function getCategoryColor(category) {
+      return state.categoryColors[category] || "#64748b";
+    }
+
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
 
-      const activeOrders = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase()));
-      
+      const activeOrders = state.orders
+        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
+        .sort((a, b) => String(a.orderTime).localeCompare(String(b.orderTime)));
+
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+
+      // ---- Marquee: every order not yet assigned by the head chef ----
+      const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
+      const marqueeWrap = document.getElementById('kdsMarqueeWrap');
+      const marqueeTrack = document.getElementById('kdsMarqueeTrack');
+      if (marqueeWrap && marqueeTrack) {
+        if (unassigned.length === 0) {
+          marqueeWrap.classList.add('hidden');
+          marqueeTrack.innerHTML = "";
+        } else {
+          const line = unassigned.map(o => {
+            const cat = getOrderCategory(o);
+            return `#${o.orderNum} ${o.productName} (${o.temp}) · ${cat}${o.qrTile ? ` · Tile ${o.qrTile}` : ""}`;
+          }).join("   •   ");
+          // Duplicate content so the scroll loops seamlessly
+          marqueeTrack.innerHTML = `<span class="pr-8">${escapeHtml(line)}</span><span class="pr-8">${escapeHtml(line)}</span>`;
+          marqueeWrap.classList.remove('hidden');
+        }
+      }
 
       if (activeOrders.length === 0) {
         grid.innerHTML = `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>`;
@@ -1568,21 +1691,30 @@
 
       let html = "";
       activeOrders.forEach(o => {
+        const status = (o.status || "").toUpperCase();
         const timeAgo = getElapsedTimeStr(o.orderTime);
-        const isReserved = (o.status || "").toUpperCase() === "RESERVED";
+        const isReserved = status === "RESERVED";
+        const isAssigned = status === "ASSIGNED";
         const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
+        const category = getOrderCategory(o);
+        const color = getCategoryColor(category);
 
         html += `
-          <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4">
+          <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-left: 6px solid ${color};">
             <div class="space-y-3">
-              <div class="flex justify-between items-start">
+              <div class="flex justify-between items-start gap-2">
                 <div>
                   <h3 class="text-2xl font-black text-slate-900 tracking-tight">#${escapeHtml(o.orderNum)}</h3>
                   <p class="text-xs text-slate-400 font-semibold mt-0.5">Guest: ${escapeHtml(o.guestName)}</p>
                 </div>
-                <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
-                  ${timeAgo}
-                </span>
+                <div class="flex flex-col items-end gap-1.5">
+                  <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
+                    ${timeAgo}
+                  </span>
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background-color: ${color};">
+                    ${escapeHtml(category)}
+                  </span>
+                </div>
               </div>
 
               ${isReserved || o.pickupTime ? `
@@ -1604,12 +1736,54 @@
               ` : ''}
             </div>
 
-            <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
-              Call Drink Ready (#${escapeHtml(o.orderNum)})
-            </button>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer">
+                <input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignOrder('${escapeHtml(o.orderNum)}', this.checked)" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+                <span class="text-xs font-bold ${isAssigned ? 'text-emerald-700' : 'text-slate-600'}">
+                  ${isAssigned ? 'Assigned to department' : 'Assigned — click to stop alert'}
+                </span>
+              </label>
+              <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
+                Call Drink Ready (#${escapeHtml(o.orderNum)})
+              </button>
+            </div>
           </div>`;
       });
       grid.innerHTML = html;
+    }
+
+    function assignOrder(orderNum, isChecked) {
+      const targetNum = String(orderNum).trim().replace("#", "");
+      const o = state.orders.find(item => String(item.orderNum).trim() === targetNum);
+      if (!o) return;
+
+      const prevStatus = o.status;
+      o.status = isChecked ? "ASSIGNED" : "PENDING";
+      renderAll();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: isChecked ? "assignOrder" : "confirmPayment",
+          orderNum: targetNum
+        })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          o.status = prevStatus;
+          renderAll();
+          showToast(res.error || "Failed to update assignment", "error");
+        } else {
+          showToast(isChecked ? `#${targetNum} assigned — alert cleared` : `#${targetNum} unassigned`, "success");
+        }
+      })
+      .catch(() => {
+        o.status = prevStatus;
+        renderAll();
+        showToast("Network error — reverted", "error");
+      });
     }
 
     function markOrderReady(orderNum) {
@@ -1744,6 +1918,19 @@
 
       const catInput = document.getElementById('adminCategoriesInput');
       if (catInput) catInput.value = state.categories.join(", ");
+
+      const colorsList = document.getElementById('adminCategoryColorsList');
+      if (colorsList) {
+        colorsList.innerHTML = state.categories.length === 0
+          ? '<p class="text-xs text-slate-400">Save categories first.</p>'
+          : state.categories.map(cat => {
+              const color = state.categoryColors[cat] || "#64748b";
+              return `<label class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl cursor-pointer">
+                <input type="color" value="${color}" onchange="saveCategoryColorSubmit('${escapeHtml(cat)}', this.value)" class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0">
+                <span class="text-xs font-bold text-slate-700">${escapeHtml(cat)}</span>
+              </label>`;
+            }).join('');
+      }
 
       // QR Tiles grid
       const tilesGrid = document.getElementById('qrTilesGrid');
@@ -1903,6 +2090,22 @@
         }
       })
       .catch(() => showToast("Network error saving categories", "error"));
+    }
+
+    function saveCategoryColorSubmit(category, color) {
+      state.categoryColors[category] = color;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveCategoryColor", category: category, color: color })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(`Colour for "${category}" saved`, "success");
+        else showToast(res.error || "Failed to save colour", "error");
+      })
+      .catch(() => showToast("Network error saving colour", "error"));
     }
 
     function saveColdExtraSubmit() {

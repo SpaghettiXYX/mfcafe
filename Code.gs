@@ -38,6 +38,25 @@ function saveCategories(catsStr) {
   return { success: true, categories: catsStr.split(",").map(s => s.trim()).filter(Boolean) };
 }
 
+// Category colors: stored as JSON { "Hot Drinks": "#f97316", ... }
+function getCategoryColors() {
+  const raw = PropertiesService.getScriptProperties().getProperty("MENU_CATEGORY_COLORS");
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch (e) { return {}; }
+}
+
+function saveCategoryColor(category, color) {
+  const name = String(category || "").trim();
+  if (!name) return { success: false, error: "Category name is required" };
+  const hex = String(color || "").trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return { success: false, error: "Invalid color (expected #RRGGBB)" };
+  const colors = getCategoryColors();
+  colors[name] = hex;
+  PropertiesService.getScriptProperties().setProperty("MENU_CATEGORY_COLORS", JSON.stringify(colors));
+  bumpVersion();
+  return { success: true, categoryColors: colors };
+}
+
 // ==================== SHEET HELPERS ====================
 function ensureUsersSheet(ss) {
   let usersSheet = ss.getSheetByName("Users");
@@ -223,7 +242,7 @@ function getInitialData() {
     for (let i = 1; i < ordersData.length; i++) {
       const row = ordersData[i];
       const status = String(row[9] || "").trim().toUpperCase();
-      if (["UNPAID", "PENDING", "READY", "RESERVED"].includes(status)) {
+      if (["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"].includes(status)) {
         orders.push({
           orderNum: String(row[0]).trim(),
           orderTime: row[1] ? String(row[1]) : "",
@@ -263,7 +282,8 @@ function getInitialData() {
     version: getVersion(),
     coldExtra: coldExtra,
     coldPaused: coldPausedGlobal,
-    reservationOpen: reservationOpen
+    reservationOpen: reservationOpen,
+    categoryColors: getCategoryColors()
   };
 }
 
@@ -281,7 +301,7 @@ function getOrderHistory(limit) {
   for (let i = data.length - 1; i >= 1 && orders.length < max; i--) {
     const row = data[i];
     const status = String(row[9] || "").trim().toUpperCase();
-    if (["UNPAID", "PENDING", "READY", "CLEARED", "RESERVED"].includes(status)) {
+    if (["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"].includes(status)) {
       orders.push({
         orderNum: String(row[0]).trim(),
         orderTime: row[1] ? String(row[1]) : "",
@@ -613,6 +633,99 @@ function deleteMenuItem(itemName) {
   return { success: false, error: "Item not found" };
 }
 
+// ==================== SELF-SERVICE ORDER LOOKUP ====================
+// Resolves a scanned code (order number OR bound tile QR) into its current order
+function lookupOrder(rawCode) {
+  const code = String(rawCode || "").trim().replace(/^#/, "");
+  if (!code) return { success: false, error: "Empty code" };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ordersSheet = ss.getSheetByName("Orders Log");
+  if (!ordersSheet) return { success: false, error: "Orders sheet missing" };
+
+  const data = ordersSheet.getDataRange().getValues();
+  const ACTIVE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+  let foundIndex = -1;
+
+  // 1) Match by order number (prefer newest active order)
+  for (let i = data.length - 1; i >= 1; i--) {
+    const num = String(data[i][0]).trim();
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    if (num === code && ACTIVE.includes(status)) {
+      foundIndex = i;
+      break;
+    }
+  }
+  // 2) Fallback: exact newest order number, even if cleared
+  if (foundIndex === -1) {
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]).trim() === code) { foundIndex = i; break; }
+    }
+  }
+
+  // 3) Match by QR tile binding
+  let tileStatus = "";
+  if (foundIndex === -1) {
+    const tilesSheet = ss.getSheetByName("QR Tiles");
+    if (tilesSheet) {
+      const tilesData = tilesSheet.getDataRange().getValues();
+      let boundOrder = "";
+      for (let i = 1; i < tilesData.length; i++) {
+        if (String(tilesData[i][0]).trim() === code) {
+          tileStatus = String(tilesData[i][1] || "").trim();
+          boundOrder = String(tilesData[i][2] || "").trim();
+          break;
+        }
+      }
+      if (boundOrder) {
+        for (let i = data.length - 1; i >= 1; i--) {
+          if (String(data[i][0]).trim() === boundOrder) { foundIndex = i; break; }
+        }
+      }
+    }
+  }
+
+  if (foundIndex === -1) {
+    return { success: false, error: "Order not found", scannedCode: code, tileStatus: tileStatus };
+  }
+
+  const row = data[foundIndex];
+  const productName = String(row[5] || "");
+  // Derive category from menu sheet so the UI can colour-code it
+  let category = "Other";
+  try {
+    const menuSheet = ss.getSheetByName("Financial & Menu Summary");
+    if (menuSheet) {
+      const menuData = menuSheet.getDataRange().getValues();
+      for (let i = 1; i < menuData.length; i++) {
+        if (String(menuData[i][0]).trim() === productName.trim()) {
+          category = String(menuData[i][4] || "Other").trim() || "Other";
+          break;
+        }
+      }
+    }
+  } catch (e) {}
+
+  return {
+    success: true,
+    order: {
+      orderNum: String(row[0]).trim(),
+      orderTime: row[1] ? String(row[1]) : "",
+      pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
+      cashier: String(row[3] || ""),
+      guestName: String(row[4] || "Guest"),
+      productName: productName,
+      temp: String(row[6] || ""),
+      customization: String(row[7] || "").replace(/^'/, "").trim(),
+      price: Number(row[8]) || 0,
+      status: String(row[9] || "").trim().toUpperCase(),
+      qrTile: row[10] ? String(row[10]).trim() : "",
+      category: category
+    },
+    categoryColors: getCategoryColors()
+  };
+}
+
 // ==================== HTTP ROUTING ====================
 function doGet(e) {
   const action = e ? e.parameter.action : null;
@@ -625,7 +738,10 @@ function doGet(e) {
     return jsonResponse(getOrderHistory(limit));
   }
   if (action === "getCategories") {
-    return jsonResponse({ categories: getCategories() });
+    return jsonResponse({ categories: getCategories(), categoryColors: getCategoryColors() });
+  }
+  if (action === "lookupOrder") {
+    return jsonResponse(lookupOrder(e.parameter.code));
   }
 
   return jsonResponse(getInitialData());
@@ -643,6 +759,7 @@ function doPost(e) {
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));
     if (action === "saveCategories") return jsonResponse(saveCategories(data.categories));
+    if (action === "saveCategoryColor") return jsonResponse(saveCategoryColor(data.category, data.color));
 
     if (action === "saveColdExtra") return jsonResponse(setColdExtra(data.value));
     if (action === "toggleColdPause") return jsonResponse(setColdPaused(data.paused));
@@ -656,6 +773,7 @@ function doPost(e) {
       return jsonResponse(createOrderLocked(data.order));
     }
     if (action === "confirmPayment") return jsonResponse(updateOrderStatus(data.orderNum, "PENDING"));
+    if (action === "assignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "ASSIGNED"));
     if (action === "markReady") return jsonResponse(updateOrderStatus(data.orderNum, "READY"));
     if (action === "clearOrder") return jsonResponse(updateOrderStatus(data.orderNum, "CLEARED"));
     if (action === "clearOrderByTile") return jsonResponse(clearOrderByTile(data.tileCode));
