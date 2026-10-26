@@ -53,20 +53,22 @@
       letter-spacing: 0.08em;
     }
     .sheet {
-      width: 190mm;
-      height: 277mm;
-      padding: 1.5mm;
+      width: 188mm;
+      height: 275mm;
+      padding: 15mm 8mm 8mm;
       box-sizing: border-box;
       background: #ffffff;
       margin: 0 auto 10mm;
       box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .sheet-grid {
       display: grid;
       width: 100%;
       height: 100%;
-      grid-template-columns: repeat(2, 91.5mm);
-      grid-auto-rows: 135mm;
+      grid-template-columns: repeat(2, 84mm);
+      grid-auto-rows: 125mm;
       gap: 4mm;
       justify-content: center;
       align-content: center;
@@ -74,8 +76,8 @@
 
     /* ===== TILE ===== */
     .tile {
-      width: 91.5mm;
-      height: 135mm;
+      width: 84mm;
+      height: 125mm;
       box-sizing: border-box;
       background: #ffffff;
       color: var(--ink);
@@ -157,14 +159,14 @@
     .qr-frame {
       position: relative;
       background: #ffffff;
-      padding: 6.5mm;
+      padding: 5.5mm;
       border: 0.5mm solid var(--line);
       border-radius: 2.5mm;
     }
     .qr-wrap {
       position: relative;
-      width: 36mm;
-      height: 36mm;
+      width: 32mm;
+      height: 32mm;
       background: #ffffff;
     }
     .qr-box { width: 100%; height: 100%; }
@@ -237,12 +239,14 @@
     /* ===== PRINT ===== */
     @page { size: A4 portrait; margin: 0; }
     @media print {
-      html, body { margin: 0 !important; padding: 0 !important; }
-      body { background: #ffffff !important; }
+      html, body, #preview { margin: 0 !important; padding: 0 !important; border: 0 !important; }
+      body { background: #ffffff !important; min-height: auto !important; }
       .no-print { display: none !important; }
-      #preview { padding: 0 !important; }
       .sheet {
-        margin: 0 !important;
+        width: 188mm !important;
+        height: 275mm !important;
+        margin: 0 auto !important;
+        padding: 15mm 8mm 8mm !important;
         box-shadow: none !important;
         break-after: page;
         page-break-after: always;
@@ -369,10 +373,10 @@
 
     function numSizeMm(code) {
       const len = String(code).length;
-      if (len <= 2) return 25;
-      if (len === 3) return 20;
-      if (len === 4) return 16;
-      return 13;
+      if (len <= 2) return 18;
+      if (len === 3) return 16;
+      if (len === 4) return 13;
+      return 11;
     }
 
     function tileHtml(code, style) {
