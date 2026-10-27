@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BLMCSS Cafe - Open Day Order</title>
-
+  <title>BLMCSS CAFE - E-Portal</title>
+  
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- JsBarcode for Code 128 ticket + downloadable receipt -->
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <!-- Camera scanner library (jsDelivr primary, unpkg fallback for blocked networks) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
+    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     body { font-family: 'Inter', sans-serif; }
 
+    /* ===== THEME VARIABLES ===== */
     :root {
       --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e2e8f0;
       --border: #e2e8f0; --border-2: #cbd5e1;
@@ -27,11 +30,15 @@
     }
     body { background-color: var(--bg); color: var(--text); }
 
+    /* ===== DARK THEME OVERRIDES ===== */
     [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
     [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
     [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
     [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
+    [data-theme="dark"] .bg-slate-800 { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .bg-slate-900 { background-color: var(--surface) !important; }
 
+    [data-theme="dark"] .border-slate-100 { border-color: var(--border) !important; }
     [data-theme="dark"] .border-slate-200 { border-color: var(--border) !important; }
     [data-theme="dark"] .border-slate-300 { border-color: var(--border-2) !important; }
 
@@ -42,186 +49,1081 @@
     [data-theme="dark"] .text-slate-500 { color: var(--text-3) !important; }
     [data-theme="dark"] .text-slate-400 { color: var(--text-4) !important; }
 
+    [data-theme="dark"] .text-slate-950 { color: #0b1120 !important; } /* keep dark on amber */
+
     [data-theme="dark"] .rounded-3xl { border-radius: 1rem !important; }
     [data-theme="dark"] .rounded-2xl { border-radius: 0.875rem !important; }
     [data-theme="dark"] .shadow-sm { box-shadow: none !important; }
     [data-theme="dark"] .shadow-md { box-shadow: 0 4px 20px -4px rgba(0,0,0,0.4) !important; }
+    [data-theme="dark"] .shadow-lg { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important; }
+    [data-theme="dark"] .shadow-2xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.6) !important; }
 
-    [data-theme="dark"] input, [data-theme="dark"] textarea { background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important; }
-    [data-theme="dark"] input:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
+    /* Inputs & selects */
+    [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+      background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important;
+    }
+    [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
     [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
 
+    /* Fix hover states in dark mode */
     [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
     [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
+    [data-theme="dark"] .hover\:bg-slate-200:hover { background-color: var(--border-2) !important; }
+    [data-theme="dark"] .hover\:text-slate-900:hover { color: var(--text) !important; }
 
-    #barcode { background-color: #ffffff !important; }
+    /* QR tile cards — readable in both modes */
+    [data-theme="dark"] .bg-emerald-50 { background-color: #064e3b !important; }
+    [data-theme="dark"] .bg-rose-50 { background-color: #4c0519 !important; }
+    [data-theme="dark"] .border-emerald-300 { border-color: #065f46 !important; }
+    [data-theme="dark"] .border-rose-300 { border-color: #7f1d1d !important; }
+
+    /* KDS marquee alert for unassigned incoming orders */
+    @keyframes kds-marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    .kds-marquee-track {
+      display: inline-flex; white-space: nowrap; will-change: transform;
+      animation: kds-marquee-scroll 22s linear infinite;
+    }
+    @keyframes kds-new-flash {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.45); }
+    }
+    .kds-unassigned { animation: kds-new-flash 1.6s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .kds-marquee-track { animation: none; }
+      .kds-unassigned { animation: none; }
+    }
+
+    /* Keep QR code & ticket readable */
+    [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
+
+    /* Tile QR print: hide everything else when printing the modal */
+    @media print {
+      body * { visibility: hidden; }
+      #tileQRPrintModal, #tileQRPrintModal * { visibility: visible; }
+      #tileQRPrintModal {
+        position: absolute; left: 0; top: 0; width: 100%; height: auto;
+        background: white; display: block !important; padding: 0;
+      }
+      #tileQRPrintModal button, #tileQRPrintModal .border-b { display: none; }
+      #tileQRPrintGrid { background: white; border: none; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+    /* ===== FULLSCREEN PICKUP DISPLAY MODE ===== */
+    /* Hides the portal header / nav tabs and enlarges the pickup numbers */
+    body.display-mode header { display: none !important; }
+    body.display-mode main { max-width: none !important; padding: 0.75rem !important; }
+    body.display-mode #view-pickup > .pickup-hide { display: none !important; }
+    body.display-mode #view-pickup {
+      display: flex; flex-direction: column;
+      min-height: calc(100vh - 1.5rem); min-height: calc(100dvh - 1.5rem);
+    }
+    body.display-mode #view-pickup > div.grid { flex: 1 1 auto; align-content: start; }
+    body.display-mode #view-pickup > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem !important; }
+    body.display-mode .pickup-col-title { font-size: 1rem !important; margin-bottom: 0.5rem !important; padding-bottom: 0.35rem !important; }
+    body.display-mode .pickup-number { font-size: clamp(2.75rem, 11vw, 8rem) !important; }
+    body.display-mode .pickup-sub { font-size: 0.95rem !important; }
+    body.display-mode #pickupPreparingList > div,
+    body.display-mode #pickupReadyList > div { padding: 1rem 0.5rem !important; }
+
+    #displayExitBtn { display: none; }
+    body.display-mode #displayExitBtn { display: flex; }
+
+    /* Toast slide animation */
+    #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
+
+    /* Smooth theme transition */
+    *, *::before, *::after { transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
   </style>
-  <script>
-    (function(){
-      const s = localStorage.getItem("mfcafe_theme");
-      const dark = s ? s === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    })();
-  </script>
 </head>
-<body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+<body class="min-h-screen flex flex-col">
+
+  <!-- LOGIN MODAL / OVERLAY -->
+  <div id="loginOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 text-center space-y-6">
+      <div class="w-16 h-16 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-amber-500/30">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <div>
+        <h2 class="text-2xl font-black text-slate-800">MFCAFE Portal Login</h2>
+        <p class="text-xs text-slate-400 font-semibold mt-1">Please log in with your authorized staff credentials</p>
+      </div>
+
+      <div class="space-y-4 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
+          <input type="text" id="loginUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        </div>
+        <p id="loginError" class="text-xs font-bold text-rose-500 hidden text-center"></p>
+      </div>
+
+      <button onclick="attemptLogin()" id="btnLogin" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition">
+        Log In to Portal
+      </button>
+    </div>
+  </div>
 
   <!-- Header -->
-  <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
-    <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-700 px-3.5 py-1 rounded-full text-xs font-extrabold mb-2 border border-amber-300/60">
-      <i class="fa-solid fa-mug-hot text-amber-500"></i>
-      <span>MFCafe Open Day Portal</span>
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="bg-amber-500 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
+          <i class="fa-solid fa-store"></i>
+          <span>MFCafe Portal</span>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg text-slate-800 leading-tight">MFCafe E-Portal</h1>
+          <p id="syncStatusText" class="text-[11px] text-emerald-600 font-semibold flex items-center">
+            <span id="syncStatusDot" class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse"></span>
+            <span id="syncStatusLabel">Real-time Sync Active</span>
+            <span id="syncLastTime" class="ml-2 text-slate-400"></span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs & User Profile -->
+      <div class="flex items-center space-x-3">
+        <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
+          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+            <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
+          </button>
+          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition relative">
+            <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
+            <span id="badge-kds" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
+          </button>
+          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+            <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
+            <span id="badge-ready" class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
+          </button>
+          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+            <i class="fa-solid fa-square-check mr-1"></i> Clearing
+            <span id="badge-helper" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
+          </button>
+          <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
+          </button>
+          <button onclick="switchView('money')" id="tab-money" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+            <i class="fa-solid fa-money-bill-count mr-1"></i> Count Money
+          </button>
+        </nav>
+
+        <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+          <span id="clockBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 hidden sm:block">
+            <i class="fa-regular fa-clock text-amber-500 mr-1"></i>
+            <span id="clockDisplay">--:--</span>
+          </span>
+          <button onclick="toggleSound()" id="soundToggle" title="Toggle notification sound" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
+            <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-600"></i>
+          </button>
+          <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
+            <i id="themeIcon" class="fa-solid fa-moon text-slate-600"></i>
+          </button>
+          <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center">
+            <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
+            <span id="lblUsername">Staff</span>
+          </span>
+          <button onclick="logout()" class="text-xs font-bold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200 transition">
+            Logout
+          </button>
+        </div>
+      </div>
     </div>
-    <h1 class="text-2xl font-black text-slate-800">Open Day Self-Order</h1>
-    <p class="text-xs text-slate-500 mt-1 font-medium">Pick your drink, get a payment barcode, then pay at the 2/F Chill Zone cashier</p>
   </header>
 
-  <!-- Paused Overlay -->
-  <div id="pausedOverlay" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
-    <div class="bg-rose-100 text-rose-700 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
-      <i class="fa-solid fa-pause mr-1"></i> Ordering Paused
-    </div>
-    <h2 class="text-2xl font-black text-slate-800">Too busy right now</h2>
-    <p class="text-sm text-slate-500">The Open Day order portal is temporarily closed due to high volume. Please order at the counter.</p>
-  </div>
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
 
-  <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
-    <!-- Guest Info -->
-    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-      <div>
-        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Your Name</label>
-        <input type="text" id="custName" placeholder="e.g. Mr. Wong / Guest" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
-      </div>
-      <div>
-        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time <span class="normal-case font-bold text-slate-400">(optional)</span></label>
-        <input type="text" id="custPickupTime" placeholder="e.g. 2:30 PM / Now" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
-      </div>
-    </div>
-
-    <!-- Drink Selection Grid -->
-    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-      <div class="flex justify-between items-center mb-3">
-        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
-        <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">0 available</span>
-      </div>
-      <div id="customerCategoryTabs" class="flex flex-wrap gap-1.5 mb-3"></div>
-      <div class="grid grid-cols-2 gap-2.5" id="customerMenuList">
-        <p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">Loading menu...</p>
-      </div>
-    </div>
-
-    <!-- Drink Customization Configurator -->
-    <div id="itemOptions" class="bg-amber-500/5 p-4 rounded-3xl border border-amber-200/80 hidden space-y-3.5 shadow-sm">
-      <div class="flex justify-between items-center border-b border-amber-200/60 pb-2">
-        <span id="selectedItemName" class="font-black text-slate-800 text-sm">Drink Name</span>
-        <span id="selectedItemPrice" class="font-black text-amber-600 text-sm">$0.00</span>
+    <!-- VIEW 1: CASHIER POS -->
+    <section id="view-cashier" class="hidden space-y-4">
+      
+      <!-- Unpaid / Reserved Mobile Queue -->
+      <div class="bg-amber-500/10 p-4 rounded-3xl border border-amber-300/60">
+        <div class="flex justify-between items-center mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
+            <h3 class="font-extrabold text-amber-900 text-sm">Self-Order & Pre-Order Queue</h3>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="payScanInput" placeholder="Scan order #"
+              class="w-32 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+              onkeydown="payScanKeydown(event)">
+            <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-camera text-amber-400"></i>
+              <span>Camera</span>
+            </button>
+          </div>
+        </div>
+        <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
       </div>
 
-      <div>
-        <label class="block text-xs font-bold text-slate-400 mb-1">Temperature Option</label>
-        <div class="flex space-x-2" id="custTempBtnContainer"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left: Select Drink Grid -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex justify-between items-center">
+            <h2 class="font-black text-slate-800 text-lg flex items-center">
+              <i class="fa-solid fa-utensils text-amber-500 mr-2"></i> Select Drink
+            </h2>
+            <span id="menuAvailableBadge" class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full text-xs">
+              0 items available
+            </span>
+          </div>
+
+          <div id="categoryTabs" class="flex flex-wrap gap-1.5"></div>
+
+          <div id="posMenuGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- Right: Single-Item Order Builder Panel -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 class="font-black text-slate-800 text-lg">Current Order</h3>
+              <span id="posOrderNumDisplay" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-lg text-xs">#Auto</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Cashier Name</label>
+                <input type="text" id="posCashierName" readonly placeholder="Cashier" class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Guest Name</label>
+                <input type="text" id="posGuestName" placeholder="e.g. Spaghetti Xu" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+              </div>
+            </div>
+
+            <!-- Active Selected Drink Customization Panel -->
+            <div id="posSelectionDetails" class="bg-amber-500/5 p-4 rounded-2xl border border-amber-200/60 hidden space-y-3">
+              <div class="flex justify-between items-center">
+                <span id="posSelectedItemName" class="font-black text-slate-800 text-sm">Drink</span>
+                <span id="posSelectedItemPrice" class="font-black text-amber-600 text-sm">$0.00</span>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Temperature Option</label>
+                <div class="flex space-x-2" id="posTempBtnContainer"></div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">Customization / Notes</label>
+                <div class="flex flex-wrap gap-1.5 mb-2" id="posRemarkPillsContainer"></div>
+                <input type="text" id="posNotes" placeholder="Custom note..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">
+                  QR Tile <span class="text-amber-500">(optional — scan or type tile #)</span>
+                </label>
+                <div class="flex gap-2">
+                  <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    onkeydown="if(event.key==='Enter')submitPosOrder()">
+                  <button onclick="scanQRTileForOrder()" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Scan QR tile">
+                    <i class="fa-solid fa-qrcode"></i>
+                  </button>
+                </div>
+                <p id="posQRTileStatus" class="text-[10px] text-slate-400 mt-1">Leave empty for traditional order-number pickup</p>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="submitPosOrder()" id="btnSubmitPos" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="posSubmitBtnText">Confirm & Submit ($0.00)</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- VIEW 2: BAR KDS SCREEN -->
+    <section id="view-kds" class="space-y-6">
+      <div class="flex justify-between items-start">
+        <div>
+          <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
+          <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
+        </div>
+        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
+          0 Active Orders
+        </span>
       </div>
 
-      <div>
-        <label class="block text-xs font-bold text-slate-400 mb-1">Customization / Notes</label>
-        <div class="flex flex-wrap gap-1.5 mb-2" id="custRemarkPillsContainer"></div>
-        <input type="text" id="custNotes" placeholder="e.g. Less sugar, extra hot..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
+      <!-- Unassigned order marquee -->
+      <div id="kdsMarqueeWrap" class="hidden bg-slate-900 rounded-2xl overflow-hidden shadow-sm border border-slate-700">
+        <div class="flex items-center">
+          <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-3 py-3 uppercase tracking-wider flex-shrink-0">
+            <i class="fa-solid fa-bell animate-bounce mr-1"></i> New
+          </span>
+          <div class="overflow-hidden flex-1 py-3">
+            <div id="kdsMarqueeTrack" class="kds-marquee-track text-white text-sm font-bold"></div>
+          </div>
+        </div>
       </div>
-    </div>
-  </main>
 
-  <footer id="orderFooter" class="pt-3">
-    <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
-      <i class="fa-solid fa-barcode"></i>
-      <span id="submitBtnText">Place Order (Pay at Cashier)</span>
-    </button>
-  </footer>
+      <div id="kdsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+    </section>
 
-  <!-- PAYMENT BARCODE TICKET VIEW -->
-  <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
-    <div class="bg-rose-100 text-rose-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
-      <i class="fa-solid fa-hourglass-half mr-1"></i> STATUS: UNPAID — PAY AT CASHIER
-    </div>
+    <!-- VIEW 3: PUBLIC PICKUP DISPLAY -->
+    <section id="view-pickup" class="hidden space-y-6">
+      <button id="displayExitBtn" onclick="toggleFullscreen()"
+        class="fixed top-3 right-3 z-[60] bg-white/85 backdrop-blur text-slate-700 w-10 h-10 rounded-xl shadow-md border border-slate-200 items-center justify-center transition hover:bg-white"
+        title="Exit fullscreen display">
+        <i class="fa-solid fa-compress"></i>
+      </button>
+      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm relative pickup-hide">
+        <button onclick="toggleFullscreen()" class="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-600 w-9 h-9 rounded-xl text-sm font-bold transition" title="Fullscreen display — hides the header and enlarges the numbers">
+          <i class="fa-solid fa-expand"></i>
+        </button>
+        <h2 class="text-3xl font-black text-amber-500 tracking-wide">ORDER STATUS DISPLAY</h2>
+        <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
+      </div>
 
-    <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
-    <p class="text-xs text-slate-500 font-medium">Show this barcode to the 2/F Chill Zone cashier to pay</p>
+      <!-- Clearing Box on Pickup Screen (hidden in fullscreen display mode) -->
+      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm pickup-hide">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-qrcode text-emerald-600 text-lg"></i>
+            <span class="font-black text-slate-800 text-sm">Quick Clear</span>
+            <span class="text-xs text-slate-400">Scan QR tile / order # to clear picked-up order</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="text" id="pickupScanInput" placeholder="Scan to clear..."
+              class="flex-1 md:w-56 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-800"
+              onkeydown="pickupScanKeydown(event)">
+            <button onclick="document.getElementById('pickupScanInput').focus(); document.getElementById('pickupScanInput').select();"
+              class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Focus scanner">
+              <i class="fa-solid fa-keyboard"></i>
+            </button>
+            <button onclick="scanQRToClear()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+              <i class="fa-solid fa-camera"></i> Camera
+            </button>
+          </div>
+        </div>
+      </div>
 
-    <div class="bg-white p-4 rounded-2xl shadow-md my-2 border-4 border-amber-400 w-full flex justify-center" id="barcodeWrap">
-      <svg id="barcode"></svg>
-    </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <h3 class="pickup-col-title font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
+            <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
+          </h3>
+          <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
+        </div>
 
-    <div class="bg-rose-50 border-2 border-rose-300 text-rose-800 p-3.5 rounded-2xl w-full">
-      <p class="text-sm font-black leading-snug">
-        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-        Drinks will not be crafted unless paid at 2/F Chill Zone cashier.
-      </p>
-    </div>
+        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
+          <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
+            <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
+          </h3>
+          <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
+        </div>
+      </div>
+    </section>
 
-    <div class="text-xs text-slate-600 bg-slate-50 p-4 rounded-2xl w-full text-left space-y-1.5 border border-slate-200">
-      <p><strong class="text-slate-400">Guest:</strong> <span id="ticketGuest" class="text-slate-800 font-bold">-</span></p>
-      <p><strong class="text-slate-400">Order Time:</strong> <span id="ticketOrderTime" class="text-slate-800 font-bold">-</span></p>
-      <p><strong class="text-slate-400">Pickup Time:</strong> <span id="ticketPickup" class="text-purple-700 font-black">-</span></p>
-      <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-slate-800 font-bold">-</span></p>
-      <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
-    </div>
+    <!-- VIEW 4: HELPER / CLEAR VIEW -->
+    <section id="view-helper" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <h2 class="font-black text-slate-800 text-lg flex items-center">
+          <i class="fa-solid fa-square-check text-emerald-600 mr-2"></i> Clearing Pickup Screen
+        </h2>
+        <div class="flex items-center gap-2">
+          <input type="text" id="helperScanInput" placeholder="Scan QR tile or type order #"
+            class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+            onkeydown="helperScanKeydown(event)">
+          <button onclick="document.getElementById('helperScanInput').focus(); document.getElementById('helperScanInput').select();"
+            class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Focus scanner input">
+            <i class="fa-solid fa-keyboard"></i>
+          </button>
+          <button onclick="scanQRToClear()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-2 transition">
+            <i class="fa-solid fa-camera"></i>
+            <span>Camera Scan</span>
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 text-center">Just scan a QR tile to clear its order — no need to click anything.</p>
+      <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
 
-    <button onclick="downloadReceipt()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
-      <i class="fa-solid fa-download"></i>
-      <span>Download Barcode Receipt to Photos</span>
-    </button>
+    <!-- VIEW 5: ADMIN PANEL -->
+    <section id="view-admin" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Revenue</p>
+          <p id="adminRevenue" class="text-3xl font-black text-emerald-600 mt-1">$0.00</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Served</p>
+          <p id="adminTotalOrders" class="text-3xl font-black text-amber-500 mt-1">0</p>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-400 font-bold uppercase">Active Menu Items</p>
+          <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-600 mt-1">0</p>
+        </div>
+      </div>
 
-    <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
-      Order Another Drink
-    </button>
-  </div>
+      <!-- Global Operation Settings -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-sliders text-amber-500 mr-2"></i> Global Operation Settings
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Cold Drink Extra ($)</label>
+            <div class="flex items-center gap-2">
+              <input type="number" step="0.5" id="adminColdExtraInput" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <button onclick="saveColdExtraSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Pause All Cold Drinks</span>
+            <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
+          </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Pre-Order Portal</span>
+            <button id="adminToggleReservationBtn" onclick="toggleReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+          </div>
+        </div>
+      </div>
 
-  <!-- RECEIPT PREVIEW MODAL -->
-  <div id="receiptModal" class="hidden fixed inset-0 z-[110] bg-black/75 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl w-full max-w-sm max-h-[92vh] overflow-y-auto p-4 space-y-3 text-center">
-      <div class="flex items-center justify-between">
-        <p class="text-sm font-black text-slate-800">Your Receipt</p>
-        <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-          <i class="fa-solid fa-xmark"></i>
+      <!-- Configurable Remark Hotkeys Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-tags text-amber-500 mr-2"></i> Remark Hotkeys Configuration
+        </h3>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Custom Remark Hotkeys (Comma separated)</label>
+          <input type="text" id="adminHotkeysInput" placeholder="+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+        </div>
+        <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+          Save Remark Hotkeys
         </button>
       </div>
-      <img id="receiptImg" alt="Order receipt" class="w-full rounded-xl border border-slate-200 shadow-sm">
-      <p class="text-[11px] text-slate-500 font-medium leading-snug">
-        <i class="fa-brands fa-apple mr-1"></i> On iPhone / iPad: press and hold the image, then choose <strong>Save to Photos</strong>.<br>
-        <i class="fa-brands fa-android mr-1"></i> On Android: tap <strong>Download image</strong> below.
-      </p>
-      <a id="receiptDownloadLink" href="#" download="receipt.png" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">
-        <i class="fa-solid fa-download mr-1"></i> Download image
-      </a>
+
+      <!-- Category Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-layer-group text-amber-500 mr-2"></i> Menu Categories
+        </h3>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Categories (Comma separated)</label>
+          <input type="text" id="adminCategoriesInput" placeholder="Hot Drinks, Cold Drinks, Snacks" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+        </div>
+        <button onclick="saveCategoriesSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+          Save Categories
+        </button>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-2">KDS Category Colours</label>
+          <div id="adminCategoryColorsList" class="flex flex-wrap gap-3"></div>
+          <p class="text-[10px] text-slate-400 mt-2">Colours are used on the KDS order cards so each department can spot its own drinks.</p>
+        </div>
+      </div>
+
+      <!-- QR Tile Manager -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <h3 class="font-black text-slate-800 text-lg">
+            <i class="fa-solid fa-qrcode text-amber-500 mr-2"></i> QR Tiles
+          </h3>
+          <div class="flex items-center gap-2">
+            <input type="text" id="newTileCode" placeholder="Tile # e.g. 31" class="w-28 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+            <button onclick="addQRTileSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition">+ Add</button>
+            <button onclick="openTileQRPrintModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl text-xs font-bold transition" title="Print QR labels for all tiles">
+              <i class="fa-solid fa-print"></i> Print QR
+            </button>
+          </div>
+        </div>
+        <div id="qrTilesGrid" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2"></div>
+      </div>
+
+      <!-- User Account Management -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">Staff User Management</h3>
+            <p class="text-xs text-slate-400">Manage cashier logins and assigned User Codes for order numbering</p>
+          </div>
+          <button onclick="openAddUserModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-user-plus mr-1"></i> Add New User
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
+                <th class="py-2.5 px-3">Username</th>
+                <th class="py-2.5 px-3">Role</th>
+                <th class="py-2.5 px-3">User Code (Prefix)</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Menu Management Table -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">Menu Management</h3>
+            <p class="text-xs text-slate-400">Pause items, edit prices, or update availability</p>
+          </div>
+          <button onclick="openAddMenuModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-plus mr-1"></i> Add New Item
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
+                <th class="py-2.5 px-3">Item Name</th>
+                <th class="py-2.5 px-3">Category</th>
+                <th class="py-2.5 px-3">Temp Options</th>
+                <th class="py-2.5 px-3">Price</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminMenuTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Financial & Orders Log -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-file-invoice-dollar text-emerald-600 mr-2"></i> Orders & Financial Log
+        </h3>
+        <div id="adminFinancialLog" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- POST-SUBMIT ORDER SUCCESS MODAL -->
+  <div id="orderSuccessModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        <i class="fa-solid fa-check font-black"></i>
+      </div>
+      <div>
+        <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Order Created Successfully</p>
+        <h2 id="modalOrderNum" class="text-4xl font-black text-amber-500 mt-1">#1001</h2>
+      </div>
+
+      <div class="bg-slate-50 p-3.5 rounded-2xl text-left text-xs space-y-1.5 border border-slate-200/80">
+        <p><strong class="text-slate-400">Guest:</strong> <span id="modalGuestName" class="font-bold text-slate-800">-</span></p>
+        <p><strong class="text-slate-400">Drink:</strong> <span id="modalDrinkName" class="font-bold text-slate-800">-</span></p>
+        <p><strong class="text-slate-400">Amount Paid:</strong> <span id="modalPrice" class="font-black text-emerald-600">$0.00</span></p>
+      </div>
+
+      <button onclick="closeSuccessModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-3 rounded-xl text-xs transition">
+        Done (Next Order)
+      </button>
+    </div>
+  </div>
+
+  <!-- ADD USER MODAL -->
+  <div id="addUserModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-black text-slate-800 text-base">Add New Staff User</h3>
+        <button onclick="closeAddUserModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
+          <input type="text" id="newUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Password</label>
+          <input type="password" id="newPassword" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">User Code (Order Prefix)</label>
+          <input type="number" id="newUserCode" placeholder="e.g. 1 for 1001+, 2 for 2001+" value="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="saveUserSubmit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
+          Save User
+        </button>
+        <button onclick="closeAddUserModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT / ADD MENU ITEM MODAL -->
+  <div id="menuModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modalTitle" class="font-black text-slate-800 text-base">Edit Menu Item</h3>
+        <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <input type="hidden" id="editOriginalName">
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Item Name</label>
+          <input type="text" id="editItemName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
+          <input type="number" step="0.5" id="editItemPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Options</label>
+          <select id="editItemTemp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <option value="Hot & Cold">Hot & Cold</option>
+            <option value="Hot">Hot Only</option>
+            <option value="Cold">Cold Only</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
+          <select id="editItemStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <option value="Active">Active</option>
+            <option value="Paused">Paused / Hidden</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Category</label>
+          <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
+        </div>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+          <input type="checkbox" id="editItemColdPaused" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+          Pause cold option for this item (hot stays available)
+        </label>
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="saveMenuItemSubmit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
+          Save Changes
+        </button>
+        <button onclick="closeMenuModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+    <!-- VIEW 6: MONEY COUNTING -->
+    <section id="view-money" class="hidden space-y-6">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h2 class="font-black text-slate-800 text-2xl tracking-tight flex items-center">
+          <i class="fa-solid fa-money-bill-count text-emerald-600 mr-2"></i> Money Counter
+        </h2>
+        <p class="text-xs font-semibold text-slate-400 mt-1">HKD denominations — enter counts, total updates automatically</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Banknotes</h3>
+          <div id="moneyNotes" class="space-y-3"></div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Coins</h3>
+          <div id="moneyCoins" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="bg-emerald-600 p-6 rounded-3xl border border-emerald-500 shadow-lg flex flex-col items-center justify-center space-y-2">
+        <p class="text-emerald-100 text-xs font-bold uppercase tracking-wider">Total Amount</p>
+        <p id="moneyTotal" class="text-5xl font-black text-white tracking-tight">$0.00</p>
+        <button onclick="resetMoneyCounter()" class="mt-2 bg-white/20 hover:bg-white/30 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Reset All
+        </button>
+      </div>
+    </section>
+
+  <!-- CAMERA QR SCANNER MODAL -->
+  <div id="qrScannerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-extrabold text-slate-800 text-base"><i class="fa-solid fa-camera text-amber-500 mr-2"></i>Scan Customer QR</h3>
+        <button onclick="stopQRScanner()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-2 border-dashed border-amber-500 bg-slate-50"></div>
+      <p class="text-xs text-slate-500 font-medium">Point camera at customer's phone QR code</p>
+      <button onclick="stopQRScanner()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs">
+        Cancel Scanning
+      </button>
+    </div>
+  </div>
+
+  <!-- TILE QR PRINT MODAL -->
+  <div id="tileQRPrintModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-extrabold text-slate-800 text-base"><i class="fa-solid fa-print text-amber-500 mr-2"></i>Print Tile QR Labels</h3>
+        <button onclick="closeTileQRPrintModal()" class="text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="text-xs text-slate-500">Print this page — each tile gets its own QR code. Use standard adhesive labels or cut manually.</p>
+      <div id="tileQRPrintGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200"></div>
+      <div class="flex gap-2">
+        <button onclick="window.print()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs"><i class="fa-solid fa-print mr-1"></i> Print</button>
+        <button onclick="closeTileQRPrintModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs">Close</button>
+      </div>
     </div>
   </div>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[120] space-y-2 pointer-events-none"></div>
+  <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
+
+  <!-- CUSTOM CONFIRM DIALOG -->
+  <div id="confirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-800 text-base">Confirm Action</h3>
+          <p id="confirmMessage" class="text-sm text-slate-500 mt-1">Are you sure?</p>
+        </div>
+      </div>
+      <div class="flex space-x-2 pt-2">
+        <button id="confirmYesBtn" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition">
+          Confirm
+        </button>
+        <button id="confirmNoBtn" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-slate-200 transition">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZAWU6KqBOvX9vNZ1c739f06gNgXi6WP9VPn2zu570tHDsiLRg-DhBWIcATTyTQ1JFxw/exec";
 
-    // Brand logo embedded as a data URI so the exported receipt canvas is never tainted
-    const RECEIPT_LOGO_SRC = "data:image/png;base64,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";
-    const receiptLogo = new Image();
-    receiptLogo.src = RECEIPT_LOGO_SRC;
-
     let state = {
       menu: [],
+      orders: [],
+      users: [],
       categories: [],
+      qrTiles: [],
+      selectedPosItem: null,
+      selectedPosTemp: "Cold",
       selectedCategory: "All",
-      selectedItem: null,
-      selectedTemp: "Cold",
+      selectedQRTile: "",
+      orderHistory: [],
+      currentUser: null,
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
+      serverVersion: null,
       coldExtra: 2,
       coldPaused: false,
       reservationOpen: true,
-      currentOrder: null
+      categoryColors: {}
     };
 
-    // ===== SAFE PRICE HELPER =====
+    let html5QrcodeScanner = null;
+    let isProcessingScan = false;
+    let isModalAddMode = false;
+    let scanMode = "pay"; // "pay" | "bind" | "clear"
+    let soundEnabled = localStorage.getItem("mfcafe_sound") !== "off";
+
+    // ===== SAFE PRICE HELPER (prevents crash on undefined) =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+
+    // ===== TOAST NOTIFICATIONS =====
+    function showToast(message, type = "info", duration = 3000) {
+      const container = document.getElementById("toastContainer");
+      if (!container) return;
+      const colors = {
+        success: "bg-emerald-600",
+        error: "bg-rose-600",
+        warning: "bg-amber-500",
+        info: "bg-slate-800"
+      };
+      const icons = {
+        success: "fa-circle-check",
+        error: "fa-circle-xmark",
+        warning: "fa-triangle-exclamation",
+        info: "fa-circle-info"
+      };
+      const toast = document.createElement("div");
+      toast.className = `${colors[type] || colors.info} text-white px-4 py-3 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto transform translate-x-0 transition-all duration-300 max-w-xs`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(120%)";
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    // ===== CUSTOM CONFIRM DIALOG (returns Promise) =====
+    let confirmCallback = null;
+    function showConfirm(message) {
+      return new Promise(resolve => {
+        const modal = document.getElementById("confirmModal");
+        document.getElementById("confirmMessage").innerText = message;
+        modal.classList.remove("hidden");
+        confirmCallback = resolve;
+      });
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("confirmYesBtn")?.addEventListener("click", () => {
+        document.getElementById("confirmModal").classList.add("hidden");
+        if (confirmCallback) { confirmCallback(true); confirmCallback = null; }
+      });
+      document.getElementById("confirmNoBtn")?.addEventListener("click", () => {
+        document.getElementById("confirmModal").classList.add("hidden");
+        if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
+      });
+    });
+
+    // ===== SOUND TOGGLE =====
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      localStorage.setItem("mfcafe_sound", soundEnabled ? "on" : "off");
+      const icon = document.getElementById("soundIcon");
+      if (icon) {
+        icon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
+      }
+      showToast(soundEnabled ? "Sound notifications ON" : "Sound notifications OFF", soundEnabled ? "success" : "warning");
+    }
+
+    // ===== THEME =====
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      const icon = document.getElementById("themeIcon");
+      if (icon) icon.className = theme === "dark" ? "fa-solid fa-sun text-amber-400" : "fa-solid fa-moon text-slate-600";
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem("mfcafe_theme");
+      if (saved === "light" || saved === "dark") {
+        applyTheme(saved);
+      } else {
+        // Auto: follow system
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        applyTheme(prefersDark ? "dark" : "light");
+        // Listen for system changes
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+          if (!localStorage.getItem("mfcafe_theme")) applyTheme(e.matches ? "dark" : "light");
+        });
+      }
+    }
+
+    function toggleTheme() {
+      const cur = document.documentElement.getAttribute("data-theme") || "light";
+      const next = cur === "dark" ? "light" : "dark";
+      localStorage.setItem("mfcafe_theme", next);
+      applyTheme(next);
+      showToast(`Theme: ${next === "dark" ? "Dark" : "Light"} mode`, "info");
+    }
+
+    // Enter/leave the pickup display mode: hides the header + nav tabs and enlarges the numbers
+    function toggleFullscreen() {
+      const enabling = !document.body.classList.contains('display-mode');
+      document.body.classList.toggle('display-mode', enabling);
+
+      const el = document.documentElement;
+      if (enabling) {
+        const request = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (request) {
+          try {
+            const p = request.call(el);
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          } catch (e) {}
+        }
+      } else {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    // Leaving fullscreen with ESC / the browser button must also restore the header
+    function syncDisplayMode() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        document.body.classList.remove('display-mode');
+      }
+    }
+    document.addEventListener('fullscreenchange', syncDisplayMode);
+    document.addEventListener('webkitfullscreenchange', syncDisplayMode);
+
+    // ===== CLOCK =====
+    function updateClock() {
+      const el = document.getElementById("clockDisplay");
+      if (el) {
+        const now = new Date();
+        el.innerText = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+    }
+
+    // ===== CONNECTION STATUS =====
+    function setSyncStatus(status) {
+      const dot = document.getElementById("syncStatusDot");
+      const label = document.getElementById("syncStatusLabel");
+      const timeEl = document.getElementById("syncLastTime");
+      if (!dot || !label) return;
+      if (status === "online") {
+        dot.className = "w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse";
+        label.innerText = "Real-time Sync Active";
+        label.className = "text-emerald-600";
+        if (timeEl) timeEl.innerText = "· updated " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      } else if (status === "offline") {
+        dot.className = "w-2 h-2 bg-rose-500 rounded-full inline-block mr-1.5";
+        label.innerText = "Connection Lost — Reconnecting...";
+        label.className = "text-rose-600";
+      } else {
+        dot.className = "w-2 h-2 bg-amber-500 rounded-full inline-block mr-1.5 animate-pulse";
+        label.innerText = "Syncing...";
+        label.className = "text-amber-600";
+      }
+    }
+
+    // Cookie Utilities
+    function setCookie(name, value, days = 7) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${encodeURIComponent(value)};expires=${date.toUTCString()};path=/`;
+    }
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+
+    function checkAuth() {
+      const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
+      if (savedUser) {
+        state.currentUser = savedUser;
+        document.getElementById("lblUsername").innerText = savedUser;
+        document.getElementById("posCashierName").value = savedUser;
+        document.getElementById("loginOverlay").classList.add("hidden");
+      } else {
+        document.getElementById("loginOverlay").classList.remove("hidden");
+      }
+    }
+
+    function attemptLogin() {
+      const u = document.getElementById("loginUsername").value.trim();
+      const p = document.getElementById("loginPassword").value.trim();
+      const errEl = document.getElementById("loginError");
+
+      if (!u || !p) {
+        errEl.innerText = "Please enter both username and password.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "login", username: u, password: p })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.currentUser = res.username;
+          setCookie("mfcafe_user", res.username, 7);
+          localStorage.setItem("mfcafe_user", res.username);
+          document.getElementById("lblUsername").innerText = res.username;
+          document.getElementById("posCashierName").value = res.username;
+          document.getElementById("loginOverlay").classList.add("hidden");
+          errEl.classList.add("hidden");
+          fetchFromSheet();
+        } else {
+          errEl.innerText = res.error || "Invalid username or password.";
+          errEl.classList.remove("hidden");
+        }
+      })
+      .catch(() => {
+        errEl.innerText = "Network error authenticating.";
+        errEl.classList.remove("hidden");
+      });
+    }
+
+    function logout() {
+      setCookie("mfcafe_user", "", -1);
+      localStorage.removeItem("mfcafe_user");
+      state.currentUser = null;
+      document.getElementById("loginOverlay").classList.remove("hidden");
+    }
+
+    function switchView(viewName) {
+      // Leaving the pickup screen must also leave the kiosk/fullscreen display mode
+      if (viewName !== 'pickup' && document.body.classList.contains('display-mode')) {
+        toggleFullscreen();
+      }
+
+      ['cashier', 'kds', 'pickup', 'helper', 'admin', 'money'].forEach(v => {
+        const viewEl = document.getElementById(`view-${v}`);
+        if (viewEl) viewEl.classList.add('hidden');
+        
+        const tab = document.getElementById(`tab-${v}`);
+        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition";
+      });
+
+      const activeView = document.getElementById(`view-${viewName}`);
+      if (activeView) activeView.classList.remove('hidden');
+
+      const activeTab = document.getElementById(`tab-${viewName}`);
+      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition";
+      
+      if (viewName === 'money') initMoneyCounter();
+      if (viewName === 'admin') fetchOrderHistory();
+      if (viewName === 'helper') {
+        setTimeout(() => {
+          const inp = document.getElementById('helperScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 100);
+      }
+      if (viewName === 'pickup') {
+        setTimeout(() => {
+          const inp = document.getElementById('pickupScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 100);
+      }
+      renderAll();
+    }
+
+    function fetchOrderHistory() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      fetch(`${APPS_SCRIPT_URL}?action=getOrderHistory&limit=200&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data.orders)) {
+            state.orderHistory = data.orders;
+            const revEl = document.getElementById('adminRevenue');
+            const cntEl = document.getElementById('adminTotalOrders');
+            if (revEl) revEl.innerText = fmtPrice(data.totalRevenue || 0);
+            if (cntEl) cntEl.innerText = data.totalCount || 0;
+            renderAdminFinancialLog();
+          }
+        })
+        .catch(() => {});
+    }
+
+    function triggerChime() {
+      if (!soundEnabled) return;
+      // Cooldown: prevent repeat chimes within 1.5s
+      const now = Date.now();
+      if (triggerChime._last && now - triggerChime._last < 1500) return;
+      triggerChime._last = now;
+      const audioUrl = "chime.mp3"; 
+      const audio = new Audio(audioUrl);
+      audio.play().catch(err => console.log("Audio playback waiting for interaction:", err));
+    }
 
     function escapeHtml(str) {
       return String(str || "")
@@ -232,165 +1134,200 @@
         .replace(/'/g, "&#039;");
     }
 
-    // ===== TOAST NOTIFICATIONS =====
-    function showToast(message, type = "info", duration = 3000) {
-      const container = document.getElementById("toastContainer");
-      if (!container) return;
-      const colors = { success: "bg-emerald-600", error: "bg-rose-600", warning: "bg-amber-500", info: "bg-slate-800" };
-      const icons = { success: "fa-circle-check", error: "fa-circle-xmark", warning: "fa-triangle-exclamation", info: "fa-circle-info" };
-      const toast = document.createElement("div");
-      toast.className = `${colors[type] || colors.info} text-white px-4 py-2.5 rounded-2xl shadow-lg text-xs font-bold flex items-center space-x-2 pointer-events-auto max-w-xs`;
-      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i><span>${escapeHtml(message)}</span>`;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(-10px)";
-        setTimeout(() => toast.remove(), 300);
-      }, duration);
+    function getElapsedTimeStr(isoTimeStr) {
+      if (!isoTimeStr) return "0:00";
+      const start = new Date(isoTimeStr).getTime();
+      const now = new Date().getTime();
+      if (isNaN(start)) return "0:00";
+      const diffSec = Math.max(0, Math.floor((now - start) / 1000));
+      
+      const mins = Math.floor(diffSec / 60);
+      const secs = String(diffSec % 60).padStart(2, '0');
+      return `${mins}:${secs}`;
     }
 
-    // ===== TIME FORMATTING =====
-    function formatOrderTime(raw) {
-      if (!raw) return "-";
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) return String(raw);
-      const pad = n => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    function updateTimers() {
+      document.querySelectorAll('.kds-timer').forEach(el => {
+        const orderTime = el.getAttribute('data-ordertime');
+        if (orderTime) {
+          el.innerText = getElapsedTimeStr(orderTime);
+        }
+      });
     }
 
-    function init() {
+    function smartCheckUpdates() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
-      fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+      fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
+        .then(res => res.json())
+        .then(info => {
+          setSyncStatus("online");
+          if (info.version && info.version !== state.serverVersion) {
+            state.serverVersion = info.version;
+            fetchFromSheet();
+          }
+        })
+        .catch(err => {
+          setSyncStatus("offline");
+          console.log("Check error:", err);
+        });
+    }
+
+    function fetchFromSheet() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      setSyncStatus("syncing");
+
+      fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
+          setSyncStatus("online");
+          if (data.version) state.serverVersion = data.version;
+          if (Array.isArray(data.menu)) state.menu = data.menu;
+          if (Array.isArray(data.users)) state.users = data.users;
+          if (Array.isArray(data.categories)) state.categories = data.categories;
+          if (Array.isArray(data.qrTiles)) state.qrTiles = data.qrTiles;
+          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
           if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
-          if (data.menu) state.menu = data.menu;
-          if (data.categories) state.categories = data.categories;
-          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
-          applyReservationState();
-          renderMenu();
+          if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
+
+          if (Array.isArray(data.orders)) {
+            const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+            const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+            state.orders = data.orders;
+            if (newReady > oldReady) triggerChime();
+          }
+          renderAll();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
-
-      // Poll for menu updates every 15s (so paused items disappear)
-      setInterval(() => {
-        if (document.getElementById("qrTicketView") && !document.getElementById("qrTicketView").classList.contains("hidden")) return;
-        fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
-          .then(res => res.json())
-          .then(data => {
-            if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
-            if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
-            if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
-            if (data.menu) state.menu = data.menu;
-            if (data.categories) state.categories = data.categories;
-            if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
-            applyReservationState();
-            renderMenu();
-          })
-          .catch(() => {});
-      }, 15000);
+        .catch(err => {
+          setSyncStatus("offline");
+          console.log("Fetch error:", err);
+        });
     }
 
-    function applyReservationState() {
-      const paused = !state.reservationOpen;
-      document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
-      document.getElementById('orderView').classList.toggle('hidden', paused);
-      document.getElementById('orderFooter').classList.toggle('hidden', paused);
+    function renderAll() {
+      renderTabBadges();
+      renderPosMenu();
+      renderUnpaidOrders();
+      renderKDS();
+      renderPickup();
+      renderHelper();
+      renderAdmin();
     }
 
-    function renderMenu() {
-      const container = document.getElementById('customerMenuList');
-      if (!container) return;
+    function renderTabBadges() {
+      const kdsCount = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).length;
+      const readyCount = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+      const helperCount = readyCount; // same as ready orders needing clearing
 
-      const tabsEl = document.getElementById('customerCategoryTabs');
-      if (tabsEl) {
-        const cats = ["All", ...state.categories];
-        tabsEl.innerHTML = cats.map(cat => {
-          const active = state.selectedCategory === cat;
-          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
-        }).join('');
+      const kdsBadge = document.getElementById("badge-kds");
+      const readyBadge = document.getElementById("badge-ready");
+      const helperBadge = document.getElementById("badge-helper");
+
+      if (kdsBadge) {
+        kdsBadge.innerText = kdsCount;
+        kdsBadge.classList.toggle("hidden", kdsCount === 0);
       }
+      if (readyBadge) {
+        readyBadge.innerText = readyCount;
+        readyBadge.classList.toggle("hidden", readyCount === 0);
+      }
+      if (helperBadge) {
+        helperBadge.innerText = helperCount;
+        helperBadge.classList.toggle("hidden", helperCount === 0);
+      }
+    }
 
-      const availableItems = state.menu.filter(i => {
+    function renderPosMenu() {
+      const grid = document.getElementById('posMenuGrid');
+      const tabs = document.getElementById('categoryTabs');
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const activeItems = state.menu.filter(i => {
         if (i.available === false) return false;
         const opts = i.tempOptions || "";
         const onlyCold = opts.includes("Cold") && !opts.includes("Hot");
         if (onlyCold && (state.coldPaused || i.coldPaused)) return false;
         return true;
       });
+      const badge = document.getElementById('menuAvailableBadge');
+      if (badge) badge.innerText = `${activeItems.length} items available`;
 
-      const filtered = state.selectedCategory === "All" ? availableItems : availableItems.filter(i => (i.category || "Other") === state.selectedCategory);
-
-      const badge = document.getElementById('mobileAvailableCount');
-      if (badge) badge.innerText = `${filtered.length} available`;
-
-      if (filtered.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
-        return;
+      // Render category tabs
+      if (tabs) {
+        const cats = ["All", ...state.categories];
+        let html = "";
+        cats.forEach(cat => {
+          const active = state.selectedCategory === cat;
+          html += `<button onclick="selectCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+        });
+        tabs.innerHTML = html;
       }
 
-      container.innerHTML = "";
+      const filtered = state.selectedCategory === "All" ? activeItems : activeItems.filter(i => (i.category || "Other") === state.selectedCategory);
+
       filtered.forEach(item => {
-        const isSelected = state.selectedItem?.name === item.name;
+        const isSelected = state.selectedPosItem?.name === item.name;
         const btn = document.createElement('button');
-        btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
-        btn.onclick = () => selectItem(item);
+        btn.className = `p-4 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
+        btn.onclick = () => selectPosMenuItem(item);
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
+          <p class="text-amber-600 font-black text-sm mt-2">${fmtPrice(item.price)}</p>
         `;
-        container.appendChild(btn);
+        grid.appendChild(btn);
       });
     }
 
-    function selectCustomerCategory(cat) {
+    function selectCategory(cat) {
       state.selectedCategory = cat;
-      renderMenu();
+      renderPosMenu();
     }
 
-    function getItemPrice(item, temp) {
+    function getPosItemPrice(item, temp) {
       if (!item) return 0;
       const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
       return (Number(item.price) || 0) + coldExtra;
     }
 
-    function selectItem(item) {
-      state.selectedItem = item;
-      document.getElementById('itemOptions')?.classList.remove('hidden');
+    function selectPosMenuItem(item) {
+      state.selectedPosItem = item;
+      document.getElementById('posSelectionDetails')?.classList.remove('hidden');
 
       const opts = item.tempOptions || "Hot & Cold";
       const coldAllowed = opts.includes("Cold") && !state.coldPaused && !item.coldPaused;
-      state.selectedTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
 
-      document.getElementById('selectedItemName').innerText = item.name;
-      document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(item, state.selectedTemp));
-      document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(item, state.selectedTemp))}) — Pay at Cashier`;
+      // Default to hot if cold is paused, otherwise keep cold default
+      state.selectedPosTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
 
-      const tempContainer = document.getElementById('custTempBtnContainer');
+      document.getElementById('posSelectedItemName').innerText = item.name;
+      document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
+      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
+
+      const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
 
       if (opts.includes("Cold") && opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" onclick="setTemp('Cold')" id="btnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2.5 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
-          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
+          <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
         `;
       } else if (opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" id="btnHot" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+          <button type="button" id="posBtnHot" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
         `;
       } else {
         tempContainer.innerHTML = `
-          <button type="button" id="btnCold" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+          <button type="button" id="posBtnCold" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
         `;
       }
 
-      setTemp(state.selectedTemp);
+      setPosTemp(state.selectedPosTemp);
 
-      const pillsContainer = document.getElementById('custRemarkPillsContainer');
+      const pillsContainer = document.getElementById('posRemarkPillsContainer');
       pillsContainer.innerHTML = "";
       const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
       hotkeys.forEach(hk => {
@@ -399,61 +1336,60 @@
         `;
       });
 
-      renderMenu();
+      renderPosMenu();
     }
 
-    function setTemp(temp) {
-      state.selectedTemp = temp;
-      const btnCold = document.getElementById('btnCold');
-      const btnHot = document.getElementById('btnHot');
-      if (btnCold) btnCold.className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
-      if (btnHot) btnHot.className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
-      if (state.selectedItem) {
-        document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
-        document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) — Pay at Cashier`;
+    function setPosTemp(t) {
+      state.selectedPosTemp = t;
+      const btnCold = document.getElementById('posBtnCold');
+      const btnHot = document.getElementById('posBtnHot');
+      if (btnCold) btnCold.className = t === 'Cold' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (state.selectedPosItem) {
+        document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
+        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
       }
     }
 
     function addNotePill(text) {
-      const field = document.getElementById('custNotes');
+      const field = document.getElementById('posNotes');
       if (field) field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
-    function submitSelfOrder() {
-      const nameInput = document.getElementById('custName');
-      const pickupInput = document.getElementById('custPickupTime');
+    function submitPosOrder() {
+      if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
+      const guestInput = document.getElementById('posGuestName');
+      const cashierInput = document.getElementById('posCashierName');
+      const notesInput = document.getElementById('posNotes');
+      const qrTileInput = document.getElementById('posQRTile');
 
-      const name = nameInput ? nameInput.value.trim() : "";
-      const pickupTime = pickupInput ? pickupInput.value.trim() : "";
+      const guest = guestInput ? guestInput.value.trim() || "Guest" : "Guest";
+      const cashier = cashierInput ? cashierInput.value.trim() || state.currentUser || "Staff" : "Staff";
+      const notes = notesInput ? notesInput.value : "";
+      const qrTile = qrTileInput ? qrTileInput.value.trim() : "";
 
-      if (!name) return showToast("Please enter your name!", "warning");
-      if (!state.selectedItem) return showToast("Please select a drink!", "warning");
-
-      const btnSubmit = document.getElementById('btnSubmit');
+      const btnSubmit = document.getElementById('btnSubmitPos');
       if (btnSubmit) {
         btnSubmit.disabled = true;
         btnSubmit.classList.add('opacity-50');
       }
 
-      const notesInput = document.getElementById('custNotes');
-      const notes = notesInput ? notesInput.value : "";
-
       const orderPayload = {
         orderTime: new Date().toISOString(),
-        pickupTime: pickupTime,
-        cashier: "Open Day / Self-Order",
-        guestName: name,
-        productName: state.selectedItem.name,
-        temp: state.selectedTemp,
+        cashier: cashier,
+        guestName: guest,
+        productName: state.selectedPosItem.name,
+        temp: state.selectedPosTemp,
         customization: notes,
-        price: getItemPrice(state.selectedItem, state.selectedTemp),
-        status: "UNPAID"
+        price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
+        status: "PENDING",
+        qrTile: qrTile
       };
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "createUnpaidOrder", order: orderPayload })
+        body: JSON.stringify({ action: "createOrder", order: orderPayload })
       })
       .then(res => res.json())
       .then(res => {
@@ -461,10 +1397,19 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
+
         if (res.success && res.order) {
-          showTicket(res.order);
+          showOrderSuccessModal(res.order);
+
+          state.selectedPosItem = null;
+          document.getElementById('posSelectionDetails')?.classList.add('hidden');
+          if (notesInput) notesInput.value = "";
+          if (qrTileInput) qrTileInput.value = "";
+          document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
+          
+          fetchFromSheet();
         } else {
-          showToast(res.error || "Order creation failed.", "error");
+          showToast("Order failed: " + (res.error || "Unknown error"), "error");
         }
       })
       .catch(err => {
@@ -472,253 +1417,1265 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        showToast("Network error. Please try again.", "error");
+        showToast("Network error creating order", "error");
       });
     }
 
-    function showTicket(order) {
-      state.currentOrder = order;
-      document.getElementById('orderView')?.classList.add('hidden');
-      document.getElementById('orderFooter')?.classList.add('hidden');
-      document.getElementById('qrTicketView')?.classList.remove('hidden');
+    function showOrderSuccessModal(order) {
+      const modal = document.getElementById('orderSuccessModal');
+      if (!modal) return;
 
-      document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
-      document.getElementById('ticketGuest').innerText = order.guestName;
-      document.getElementById('ticketOrderTime').innerText = formatOrderTime(order.orderTime);
-      document.getElementById('ticketPickup').innerText = order.pickupTime || "Not specified";
-      document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
+      document.getElementById('modalOrderNum').innerText = `#${order.orderNum}`;
+      document.getElementById('modalGuestName').innerText = order.guestName;
+      document.getElementById('modalDrinkName').innerText = `${order.productName} (${order.temp})`;
+      document.getElementById('modalPrice').innerText = fmtPrice(order.price);
 
-      const barcodeEl = document.getElementById('barcode');
-      if (barcodeEl && typeof JsBarcode !== "undefined") {
-        JsBarcode("#barcode", String(order.orderNum), {
-          format: "CODE128",
-          width: 2,
-          height: 80,
-          displayValue: true,
-          fontSize: 16,
-          font: "Inter",
-          margin: 10
-        });
-      }
-      showToast("Order placed! Pay at the 2/F Chill Zone cashier.", "success", 4500);
+      modal.classList.remove('hidden');
     }
 
-    // ===== DOWNLOADABLE RECEIPT (canvas, printer-slip style) =====
-    function buildReceiptCanvas(order) {
-      const W = 720;
-      const PAD = 48;
-      const canvas = document.createElement('canvas');
-      canvas.width = W;
-      canvas.height = 1240;
-      const ctx = canvas.getContext('2d');
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-
-      // Brand logo drawn from the embedded data URI so the export is not tainted
-      if (receiptLogo.complete && receiptLogo.naturalWidth) {
-        const logoW = 132;
-        const logoH = Math.round(logoW * receiptLogo.naturalHeight / receiptLogo.naturalWidth);
-        ctx.drawImage(receiptLogo, (W - logoW) / 2, 20, logoW, logoH);
-      }
-
-      let y = 176;
-      ctx.font = 'bold 46px "Courier New", monospace';
-      ctx.fillText('BLMCSS CAFE', W / 2, y);
-
-      y += 40;
-      ctx.font = 'bold 26px "Courier New", monospace';
-      ctx.fillText('OPEN DAY - 2/F CHILL ZONE', W / 2, y);
-
-      y += 44;
-      ctx.font = '20px "Courier New", monospace';
-      ctx.fillText('*** ORDER RECEIPT ***', W / 2, y);
-
-      // dashed separator
-      y += 26;
-      ctx.save();
-      ctx.setLineDash([10, 8]);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(PAD, y);
-      ctx.lineTo(W - PAD, y);
-      ctx.stroke();
-      ctx.restore();
-
-      y += 62;
-      ctx.font = '22px "Courier New", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('ORDER NO.', PAD, y);
-      ctx.textAlign = 'right';
-      ctx.font = 'bold 56px "Courier New", monospace';
-      ctx.fillText(`#${order.orderNum}`, W - PAD, y + 2);
-
-      y += 58;
-      ctx.font = '22px "Courier New", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('ORDER TIME', PAD, y);
-      ctx.font = 'bold 24px "Courier New", monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(formatOrderTime(order.orderTime), W - PAD, y);
-
-      y += 46;
-      ctx.font = '22px "Courier New", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('GUEST', PAD, y);
-      ctx.font = 'bold 24px "Courier New", monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(String(order.guestName || 'Guest'), W - PAD, y);
-
-      if (order.pickupTime) {
-        y += 46;
-        ctx.font = '22px "Courier New", monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText('PICKUP TIME', PAD, y);
-        ctx.font = 'bold 24px "Courier New", monospace';
-        ctx.textAlign = 'right';
-        ctx.fillText(String(order.pickupTime), W - PAD, y);
-      }
-
-      // dashed separator
-      y += 40;
-      ctx.save();
-      ctx.setLineDash([10, 8]);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(PAD, y);
-      ctx.lineTo(W - PAD, y);
-      ctx.stroke();
-      ctx.restore();
-
-      y += 54;
-      ctx.textAlign = 'left';
-      ctx.font = 'bold 26px "Courier New", monospace';
-      ctx.fillText('ITEM', PAD, y);
-      ctx.textAlign = 'right';
-      ctx.fillText('AMOUNT', W - PAD, y);
-
-      y += 44;
-      ctx.textAlign = 'left';
-      ctx.font = '24px "Courier New", monospace';
-      ctx.fillText(`${order.productName} (${order.temp})`, PAD, y);
-      ctx.textAlign = 'right';
-      ctx.fillText(fmtPrice(order.price), W - PAD, y);
-
-      if (order.customization) {
-        y += 34;
-        ctx.textAlign = 'left';
-        ctx.font = '20px "Courier New", monospace';
-        const note = String(order.customization);
-        ctx.fillText(note.length > 48 ? note.slice(0, 48) + '...' : note, PAD, y);
-      }
-
-      // dashed separator
-      y += 34;
-      ctx.save();
-      ctx.setLineDash([10, 8]);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(PAD, y);
-      ctx.lineTo(W - PAD, y);
-      ctx.stroke();
-      ctx.restore();
-
-      y += 54;
-      ctx.textAlign = 'left';
-      ctx.font = 'bold 28px "Courier New", monospace';
-      ctx.fillText('TOTAL', PAD, y);
-      ctx.textAlign = 'right';
-      ctx.font = 'bold 34px "Courier New", monospace';
-      ctx.fillText(fmtPrice(order.price), W - PAD, y);
-
-      y += 52;
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 22px "Courier New", monospace';
-      ctx.fillText('PAYMENT: UNPAID - PAY AT CASHIER', W / 2, y);
-
-      // Barcode
-      const barcodeCanvas = document.createElement('canvas');
-      if (typeof JsBarcode !== "undefined") {
-        JsBarcode(barcodeCanvas, String(order.orderNum), {
-          format: 'CODE128',
-          width: 3,
-          height: 130,
-          displayValue: true,
-          fontSize: 26,
-          font: '"Courier New", monospace',
-          margin: 6,
-          background: '#ffffff',
-          lineColor: '#000000'
-        });
-      }
-
-      y += 46;
-      const bcW = Math.min(barcodeCanvas.width, W - PAD * 2);
-      const bcH = Math.round(barcodeCanvas.height * (bcW / (barcodeCanvas.width || bcW)));
-      ctx.drawImage(barcodeCanvas, (W - bcW) / 2, y, bcW, bcH);
-
-      y += bcH + 46;
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 22px "Courier New", monospace';
-      ctx.fillText('Drinks will not be crafted unless paid', W / 2, y);
-      ctx.fillText('at 2/F Chill Zone cashier.', W / 2, y + 32);
-
-      y += 74;
-      ctx.font = '18px "Courier New", monospace';
-      ctx.fillText('Thank you & enjoy Open Day!', W / 2, y);
-
-      return canvas;
+    function closeSuccessModal() {
+      const modal = document.getElementById('orderSuccessModal');
+      if (modal) modal.classList.add('hidden');
     }
 
-    function downloadReceipt() {
-      const order = state.currentOrder;
-      if (!order) return showToast("No order found.", "warning");
-      if (typeof JsBarcode === "undefined") return showToast("Receipt generator not loaded. Please refresh.", "error");
+    function renderUnpaidOrders() {
+      const container = document.getElementById('unpaidOrdersContainer');
+      if (!container) return;
 
-      try {
-        const canvas = buildReceiptCanvas(order);
-        const dataUrl = canvas.toDataURL('image/png');
+      const queueOrders = state.orders.filter(o => ["UNPAID", "RESERVED"].includes((o.status || "").toUpperCase()));
+      container.innerHTML = queueOrders.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid or pre-order queue items right now.</p>` : "";
 
-        const img = document.getElementById('receiptImg');
-        if (img) img.src = dataUrl;
+      queueOrders.forEach(o => {
+        const isReserved = (o.status || "").toUpperCase() === "RESERVED";
+        const card = document.createElement('div');
+        card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center space-x-1.5 flex-wrap">
+              <span class="font-black text-amber-600 text-sm">#${escapeHtml(o.orderNum)}</span>
+              <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
+              ${isReserved ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>` : ''}
+            </div>
+            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})</p>
+          </div>
+          <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
+            Confirm & Pay
+          </button>
+        `;
+        container.appendChild(card);
+      });
+    }
 
-        const link = document.getElementById('receiptDownloadLink');
-        if (link) {
-          link.href = dataUrl;
-          link.download = `OpenDay-Order-${order.orderNum}.png`;
+    function confirmOrderPayment(orderNum) {
+      const targetNum = String(orderNum).trim().replace("#", "");
+      const order = state.orders.find(o => String(o.orderNum).trim() === targetNum);
+
+      if (order) {
+        const prevStatus = order.status;
+        order.status = "PENDING";
+        renderAll();
+
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            order.status = prevStatus;
+            renderAll();
+            showToast("Payment confirmation failed: " + (res.error || "Unknown error"), "error");
+          } else {
+            showToast(`Order #${targetNum} confirmed & paid`, "success");
+          }
+        })
+        .catch(() => {
+          order.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
+        });
+        return true;
+      }
+      return false;
+    }
+
+    let scannerStarting = false;
+
+    // mode: "pay" | "bind" | "clear"
+    function startScan(mode) {
+      scanMode = mode;
+      startQRScanner();
+    }
+
+    function handleScanResult(decodedText) {
+      if (isProcessingScan) return;
+      isProcessingScan = true;
+      const scanned = String(decodedText || "").trim().replace(/^#/, "");
+
+      if (scanMode === "pay") {
+        const success = confirmOrderPayment(scanned);
+        if (success) { triggerChime(); stopQRScanner(); }
+        else { showToast(`Order #${scanned} not found in unpaid queue.`, "warning"); isProcessingScan = false; }
+      } else if (scanMode === "bind") {
+        const input = document.getElementById('posQRTile');
+        if (input) input.value = scanned;
+        const tile = state.qrTiles.find(t => String(t.code) === scanned);
+        const statusEl = document.getElementById('posQRTileStatus');
+        if (tile && tile.status === "Available") {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} available ✓`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
+        } else if (tile) {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} is currently bound to order ${tile.boundOrder}`; statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold"; }
+        } else {
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} not registered`; statusEl.className = "text-[10px] text-amber-500 mt-1 font-bold"; }
+        }
+        stopQRScanner();
+      } else if (scanMode === "clear") {
+        clearOrderByTile(scanned);
+        stopQRScanner();
+        setTimeout(() => {
+          const activeView = ['pickup', 'helper'].find(v => !document.getElementById(`view-${v}`).classList.contains('hidden'));
+          if (!activeView) return;
+          const inp = document.getElementById(activeView === 'pickup' ? 'pickupScanInput' : 'helperScanInput');
+          if (inp) { inp.focus(); inp.select(); }
+        }, 200);
+      }
+    }
+
+    function startQRScanner() {
+      if (scannerStarting) return;
+
+      if (typeof Html5Qrcode === "undefined") {
+        showToast("Scanner library not loaded. Check the internet connection, or use the scanner gun / manual input.", "error", 6000);
+        return;
+      }
+
+      // Browsers only allow camera access on HTTPS or localhost
+      if (!window.isSecureContext) {
+        showToast("Camera needs a secure (HTTPS) connection. Open this page via https:// or localhost, or use the scanner gun.", "error", 8000);
+        return;
+      }
+
+      const modal = document.getElementById('qrScannerModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      isProcessingScan = false;
+      scannerStarting = true;
+
+      const stopExisting = (html5QrcodeScanner && html5QrcodeScanner.isScanning)
+        ? html5QrcodeScanner.stop().catch(() => {})
+        : Promise.resolve();
+
+      stopExisting.then(() => {
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
         }
 
-        document.getElementById('receiptModal')?.classList.remove('hidden');
-      } catch (err) {
-        showToast("Could not create the receipt image on this device.", "error");
+        // Let the modal paint before the camera viewport is measured
+        setTimeout(() => {
+          const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.PDF_417
+          ] : undefined;
+
+          const config = {
+            fps: 12,
+            qrbox: (viewWidth, viewHeight) => {
+              const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+          };
+          if (formats) config.formatsToSupport = formats;
+
+          html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            config,
+            handleScanResult,
+            () => {}
+          ).then(() => {
+            scannerStarting = false;
+          }).catch(err => {
+            scannerStarting = false;
+            const msg = (err && err.message) ? err.message : String(err);
+            showToast("Camera failed: " + msg + " — allow camera permission or use the scanner gun.", "error", 6000);
+            stopQRScanner();
+          });
+        }, 250);
+      });
+    }
+
+    function scanQRTileForOrder() {
+      startScan("bind");
+    }
+
+    function scanQRToClear() {
+      startScan("clear");
+    }
+
+    // Clearing accepts BOTH codes:
+    //   1. the barcode printed on the guest's pre-order ticket (encodes the order number)
+    //   2. the QR tile handed out at the counter (encodes the tile number)
+    const CLEARABLE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "RESERVED", "READY"];
+
+    function clearOrderByTile(scannedCode) {
+      const code = String(scannedCode || "").trim().replace(/^#/, "");
+      if (!code) return;
+
+      // 1) Guest's pre-order barcode → match the order number straight away
+      const byOrderNum = state.orders.find(o =>
+        String(o.orderNum).trim() === code &&
+        CLEARABLE_STATUSES.includes(String(o.status || "").toUpperCase()));
+      if (byOrderNum) {
+        clearOrder(byOrderNum.orderNum);
+        return;
+      }
+
+      // 2) Otherwise treat the code as a QR tile
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "clearOrderByTile", tileCode: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          showToast(`Order #${res.orderNum} cleared via tile`, "success");
+          fetchFromSheet();
+          return;
+        }
+        // 3) Fallback: tile already loaded on this screen
+        const byTile = state.orders.find(o =>
+          String(o.qrTile || "").trim() === code &&
+          CLEARABLE_STATUSES.includes(String(o.status || "").toUpperCase()));
+        if (byTile) {
+          clearOrder(byTile.orderNum);
+          return;
+        }
+        showToast(res.error || `Nothing to clear for "${code}"`, "warning");
+      })
+      .catch(() => showToast("Network error clearing order", "error"));
+    }
+
+    // Handle scanner input on clearing screen — pipeline mode
+    function helperScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        clearOrderByTile(code);
+        // Refocus for next scan
+        setTimeout(() => input.focus(), 50);
       }
     }
 
-    function closeReceiptModal() {
-      document.getElementById('receiptModal')?.classList.add('hidden');
+    // Handle scanner input for payment confirmation
+    function payScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        const success = confirmOrderPayment(code);
+        if (!success) showToast(`Order #${code} not found in unpaid queue.`, "warning");
+        setTimeout(() => input.focus(), 50);
+      }
     }
 
-    function resetCustomerForm() {
-      closeReceiptModal();
-      document.getElementById('qrTicketView')?.classList.add('hidden');
-      document.getElementById('orderView')?.classList.remove('hidden');
-      document.getElementById('orderFooter')?.classList.remove('hidden');
-      state.selectedItem = null;
-      state.currentOrder = null;
-      document.getElementById('itemOptions')?.classList.add('hidden');
-      document.getElementById('custNotes').value = "";
-      document.getElementById('custPickupTime').value = "";
-      document.getElementById('submitBtnText').innerText = "Place Order (Pay at Cashier)";
-      init();
+    // Handle scanner input on pickup display — pipeline clear without switching views
+    function pickupScanKeydown(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const input = e.target;
+        const code = input.value.trim();
+        if (!code) return;
+        input.value = "";
+        clearOrderByTile(code);
+        setTimeout(() => input.focus(), 50);
+      }
+    }
+
+    function stopQRScanner() {
+      const modal = document.getElementById('qrScannerModal');
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        html5QrcodeScanner.stop().then(() => {
+          if (modal) modal.classList.add('hidden');
+          isProcessingScan = false;
+        }).catch(() => {
+          if (modal) modal.classList.add('hidden');
+          isProcessingScan = false;
+        });
+      } else {
+        if (modal) modal.classList.add('hidden');
+        isProcessingScan = false;
+      }
+    }
+
+    function getOrderCategory(order) {
+      const item = state.menu.find(m => String(m.name).trim() === String(order.productName || "").trim());
+      return item ? (item.category || "Other") : "Other";
+    }
+
+    function getCategoryColor(category) {
+      return state.categoryColors[category] || "#64748b";
+    }
+
+    function renderKDS() {
+      const grid = document.getElementById('kdsGrid');
+      if (!grid) return;
+
+      const activeOrders = state.orders
+        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
+        .sort((a, b) => String(a.orderTime).localeCompare(String(b.orderTime)));
+
+      const badge = document.getElementById('kdsPendingCount');
+      if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+
+      // ---- Marquee: every order not yet assigned by the head chef ----
+      const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
+      const marqueeWrap = document.getElementById('kdsMarqueeWrap');
+      const marqueeTrack = document.getElementById('kdsMarqueeTrack');
+      if (marqueeWrap && marqueeTrack) {
+        if (unassigned.length === 0) {
+          marqueeWrap.classList.add('hidden');
+          marqueeTrack.innerHTML = "";
+        } else {
+          const line = unassigned.map(o => {
+            const cat = getOrderCategory(o);
+            return `#${o.orderNum} ${o.productName} (${o.temp}) · ${cat}${o.qrTile ? ` · Tile ${o.qrTile}` : ""}`;
+          }).join("   •   ");
+          // Duplicate content so the scroll loops seamlessly
+          marqueeTrack.innerHTML = `<span class="pr-8">${escapeHtml(line)}</span><span class="pr-8">${escapeHtml(line)}</span>`;
+          marqueeWrap.classList.remove('hidden');
+        }
+      }
+
+      if (activeOrders.length === 0) {
+        grid.innerHTML = `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>`;
+        return;
+      }
+
+      let html = "";
+      activeOrders.forEach(o => {
+        const status = (o.status || "").toUpperCase();
+        const timeAgo = getElapsedTimeStr(o.orderTime);
+        const isReserved = status === "RESERVED";
+        const isAssigned = status === "ASSIGNED";
+        const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
+        const category = getOrderCategory(o);
+        const color = getCategoryColor(category);
+
+        html += `
+          <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-left: 6px solid ${color};">
+            <div class="space-y-3">
+              <div class="flex justify-between items-start gap-2">
+                <div>
+                  <h3 class="text-2xl font-black text-slate-900 tracking-tight">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
+                  <p class="text-xs text-slate-400 font-semibold mt-0.5">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
+                </div>
+                <div class="flex flex-col items-end gap-1.5">
+                  <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
+                    ${timeAgo}
+                  </span>
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background-color: ${color};">
+                    ${escapeHtml(category)}
+                  </span>
+                </div>
+              </div>
+
+              ${isReserved || o.pickupTime ? `
+                <div class="bg-purple-600 text-white p-2.5 rounded-2xl shadow-sm text-center">
+                  <p class="text-xs font-black uppercase tracking-wider"><i class="fa-solid fa-clock mr-1"></i> RESERVED DRINKS</p>
+                  <p class="text-sm font-extrabold mt-0.5">Pickup Time: ${pickupLabel}</p>
+                </div>
+              ` : ''}
+
+              <div>
+                <p class="font-extrabold text-slate-900 text-base leading-snug">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
+              </div>
+
+              ${o.customization ? `
+                <div class="bg-amber-500/10 p-2.5 rounded-xl border border-amber-200/80">
+                  <p class="text-xs text-amber-800 font-bold leading-tight">${escapeHtml(o.customization)}</p>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="space-y-2">
+              <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer">
+                <input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignOrder('${escapeHtml(o.orderNum)}', this.checked)" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+                <span class="text-xs font-bold ${isAssigned ? 'text-emerald-700' : 'text-slate-600'}">
+                  ${isAssigned ? 'Assigned to department' : 'Assigned — click to stop alert'}
+                </span>
+              </label>
+              <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
+                Call Drink Ready (#${escapeHtml(o.orderNum)})
+              </button>
+            </div>
+          </div>`;
+      });
+      grid.innerHTML = html;
+    }
+
+    function assignOrder(orderNum, isChecked) {
+      const targetNum = String(orderNum).trim().replace("#", "");
+      const o = state.orders.find(item => String(item.orderNum).trim() === targetNum);
+      if (!o) return;
+
+      const prevStatus = o.status;
+      o.status = isChecked ? "ASSIGNED" : "PENDING";
+      renderAll();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: isChecked ? "assignOrder" : "confirmPayment",
+          orderNum: targetNum
+        })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          o.status = prevStatus;
+          renderAll();
+          showToast(res.error || "Failed to update assignment", "error");
+        } else {
+          showToast(isChecked ? `#${targetNum} assigned — alert cleared` : `#${targetNum} unassigned`, "success");
+        }
+      })
+      .catch(() => {
+        o.status = prevStatus;
+        renderAll();
+        showToast("Network error — reverted", "error");
+      });
+    }
+
+    function markOrderReady(orderNum) {
+      const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
+      if (o) {
+        const prevStatus = o.status;
+        o.status = "READY";
+        renderAll();
+        triggerChime();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "markReady", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            o.status = prevStatus;
+            renderAll();
+            showToast(`Failed to mark #${orderNum} ready`, "error");
+          }
+        })
+        .catch(() => {
+          o.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
+        });
+      }
+    }
+
+    // The number on the guest's tile is what they are actually holding, so it becomes
+    // the big number. The 4-digit order number stays underneath in a smaller font.
+    function pickupNumberCard(order, isReady) {
+      const tile = String(order.qrTile || "").trim();
+      const num = String(order.orderNum || "").trim();
+      const primary = tile || `#${num}`;
+      const secondary = tile && num ? `Order #${escapeHtml(num)}` : "";
+      const cls = isReady
+        ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md"
+        : "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
+      return `<div class="${cls}">
+        <div class="pickup-number leading-none">${escapeHtml(primary)}</div>
+        ${secondary ? `<div class="pickup-sub text-[11px] font-bold opacity-70 mt-1">${secondary}</div>` : ""}
+      </div>`;
+    }
+
+    function renderPickup() {
+      const prepList = document.getElementById('pickupPreparingList');
+      const readyList = document.getElementById('pickupReadyList');
+      if (!prepList || !readyList) return;
+
+      let prepHtml = "";
+      state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
+        prepHtml += pickupNumberCard(o, false);
+      });
+      prepList.innerHTML = prepHtml;
+
+      let readyHtml = "";
+      state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
+        readyHtml += pickupNumberCard(o, true);
+      });
+      readyList.innerHTML = readyHtml;
+    }
+
+    function renderHelper() {
+      const grid = document.getElementById('helperGrid');
+      if (!grid) return;
+
+      const ready = state.orders.filter(o => (o.status || "").toUpperCase() === "READY");
+      if (ready.length === 0) {
+        grid.innerHTML = `<p class="text-slate-400 col-span-3 text-center py-10 font-medium">No ready orders to clear.</p>`;
+        return;
+      }
+
+      let html = "";
+      ready.forEach(o => {
+        const tile = String(o.qrTile || "").trim();
+        const num = String(o.orderNum || "").trim();
+        html += `
+          <div class="bg-white border border-emerald-300 p-4 rounded-2xl shadow-sm flex justify-between items-center">
+            <div>
+              <span class="text-2xl font-black text-emerald-600">${escapeHtml(tile || `#${num}`)}</span>
+              <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
+              <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
+            </div>
+            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs">
+              Clear
+            </button>
+          </div>`;
+      });
+      grid.innerHTML = html;
+    }
+
+    function clearOrder(orderNum) {
+      const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
+      if (o) {
+        const prevStatus = o.status;
+        o.status = "CLEARED";
+        renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            o.status = prevStatus;
+            renderAll();
+            showToast(`Failed to clear #${orderNum}`, "error");
+          } else {
+            showToast(`Order #${orderNum} cleared`, "success", 1500);
+          }
+        })
+        .catch(() => {
+          o.status = prevStatus;
+          renderAll();
+          showToast("Network error — order reverted", "error");
+        });
+      }
+    }
+
+    function renderAdmin() {
+      // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
+      const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
+      const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
+      const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+
+      document.getElementById('adminRevenue').innerText = fmtPrice(rev);
+      document.getElementById('adminTotalOrders').innerText = paidOrders.length;
+      document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
+
+      document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
+
+      const coldExtraInput = document.getElementById('adminColdExtraInput');
+      if (coldExtraInput) coldExtraInput.value = state.coldExtra;
+
+      const coldPauseBtn = document.getElementById('adminToggleColdPauseBtn');
+      if (coldPauseBtn) {
+        coldPauseBtn.innerText = state.coldPaused ? "Paused" : "Active";
+        coldPauseBtn.className = state.coldPaused
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700";
+      }
+
+      const reservationBtn = document.getElementById('adminToggleReservationBtn');
+      if (reservationBtn) {
+        reservationBtn.innerText = state.reservationOpen ? "Open" : "Closed";
+        reservationBtn.className = state.reservationOpen
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
+      }
+
+      const catInput = document.getElementById('adminCategoriesInput');
+      if (catInput) catInput.value = state.categories.join(", ");
+
+      const colorsList = document.getElementById('adminCategoryColorsList');
+      if (colorsList) {
+        colorsList.innerHTML = state.categories.length === 0
+          ? '<p class="text-xs text-slate-400">Save categories first.</p>'
+          : state.categories.map(cat => {
+              const color = state.categoryColors[cat] || "#64748b";
+              return `<label class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl cursor-pointer">
+                <input type="color" value="${color}" onchange="saveCategoryColorSubmit('${escapeHtml(cat)}', this.value)" class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0">
+                <span class="text-xs font-bold text-slate-700">${escapeHtml(cat)}</span>
+              </label>`;
+            }).join('');
+      }
+
+      // QR Tiles grid
+      const tilesGrid = document.getElementById('qrTilesGrid');
+      if (tilesGrid) {
+        if (state.qrTiles.length === 0) {
+          tilesGrid.innerHTML = '<p class="col-span-full text-slate-400 text-center text-xs py-4">No tiles. Add a tile code above.</p>';
+        } else {
+          let html = "";
+          state.qrTiles.forEach(t => {
+            const bound = t.status === "Bound";
+            html += `
+              <div class="relative flex flex-col items-center p-2 rounded-xl border-2 ${bound ? 'border-rose-300 bg-rose-50' : 'border-emerald-300 bg-emerald-50'}">
+                <span class="font-black text-lg text-slate-800">#${escapeHtml(t.code)}</span>
+                <span class="text-[9px] font-bold ${bound ? 'text-rose-600' : 'text-emerald-600'}">${bound ? 'Bound' : 'Free'}</span>
+                ${t.boundOrder ? `<span class="text-[8px] text-slate-500">→${escapeHtml(t.boundOrder)}</span>` : ''}
+                <button onclick="deleteQRTileSubmit('${escapeHtml(t.code)}')" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full text-[10px] font-bold hover:bg-rose-600 transition">×</button>
+              </div>`;
+          });
+          tilesGrid.innerHTML = html;
+        }
+      }
+
+      const usersTbody = document.getElementById('adminUsersTableBody');
+      if (usersTbody) {
+        let html = "";
+        state.users.forEach(u => {
+          html += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
+              <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
+              <td class="py-3 px-3 font-bold text-amber-600">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
+              <td class="py-3 px-3 text-right">
+                <button onclick="deleteUserSubmit('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                  Delete
+                </button>
+              </td>
+            </tr>`;
+        });
+        usersTbody.innerHTML = html;
+      }
+
+      const tbody = document.getElementById('adminMenuTableBody');
+      if (tbody) {
+        let html = "";
+        state.menu.forEach(item => {
+          const isPaused = item.status?.toLowerCase() === "paused";
+          const coldPaused = item.coldPaused || (state.coldPaused && String(item.tempOptions).includes("Cold"));
+          html += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
+              <td class="py-3 px-3"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
+              <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(item.tempOptions)}</td>
+              <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}</td>
+              <td class="py-3 px-3">
+                <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                  ${isPaused ? 'Paused' : 'Active'}
+                </span>
+                ${String(item.tempOptions).includes("Cold") ? `<span class="font-bold px-2 py-0.5 rounded-full text-[10px] ml-1 ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
+              </td>
+              <td class="py-3 px-3 text-right space-x-1">
+                <button onclick="togglePauseItem('${escapeHtml(item.name)}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
+                  ${isPaused ? 'Unpause' : 'Pause'}
+                </button>
+                ${String(item.tempOptions).includes("Cold") ? `<button onclick="toggleItemColdPause('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${item.coldPaused ? 'bg-sky-50 text-sky-700 hover:bg-sky-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${item.coldPaused ? 'Unpause Cold' : 'Pause Cold'}</button>` : ''}
+                <button onclick="openEditMenuModal('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                  Edit
+                </button>
+                <button onclick="deleteMenuItem('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                  Delete
+                </button>
+              </td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+      }
+
+      renderAdminFinancialLog();
+    }
+
+    function renderAdminFinancialLog() {
+      const finLog = document.getElementById('adminFinancialLog');
+      if (finLog) {
+        if (state.orderHistory.length === 0) {
+          finLog.innerHTML = `<p class="text-slate-400 text-center py-4 font-medium">No order log history available.</p>`;
+          return;
+        }
+
+        let html = "";
+        [...state.orderHistory].reverse().forEach(o => {
+          const statusUpper = (o.status || "").toUpperCase();
+          let statusBadgeColor = "text-amber-600 bg-amber-50 border-amber-200";
+          
+          if (statusUpper === "CLEARED") statusBadgeColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
+          if (statusUpper === "READY") statusBadgeColor = "text-sky-700 bg-sky-50 border-sky-200";
+          if (statusUpper === "UNPAID") statusBadgeColor = "text-rose-700 bg-rose-50 border-rose-200";
+          if (statusUpper === "RESERVED") statusBadgeColor = "text-purple-700 bg-purple-50 border-purple-200";
+
+          html += `
+            <div class="flex justify-between items-center p-3 rounded-2xl bg-slate-50 border border-slate-200">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-black text-slate-800">#${escapeHtml(o.orderNum)} - ${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</span>
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${statusBadgeColor}">
+                    ${escapeHtml(statusUpper)}
+                  </span>
+                </div>
+                <span class="text-slate-500 block text-[11px] font-semibold mt-0.5">
+                  Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} ${o.pickupTime ? `| Pickup: ${escapeHtml(o.pickupTime)}` : ''}
+                  ${o.customization ? `| Note: <em class="text-amber-800">${escapeHtml(o.customization)}</em>` : ''}
+                </span>
+              </div>
+              <div class="flex items-center space-x-3">
+                <span class="font-black text-emerald-600 text-sm">${fmtPrice(o.price)}</span>
+                <button onclick="deleteOrderSubmit('${o.orderNum}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
+                  Delete
+                </button>
+              </div>
+            </div>`;
+        });
+        finLog.innerHTML = html;
+      }
+    }
+
+    function saveRemarkHotkeysSubmit() {
+      const val = document.getElementById('adminHotkeysInput').value.trim();
+      state.remarkHotkeys = val;
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveHotkeys", hotkeys: val })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast("Remark hotkeys saved", "success");
+        else showToast(res.error || "Failed to save hotkeys", "error");
+      })
+      .catch(() => showToast("Network error saving hotkeys", "error"));
+    }
+
+    function saveCategoriesSubmit() {
+      const val = document.getElementById('adminCategoriesInput').value.trim();
+      state.categories = val.split(",").map(s => s.trim()).filter(Boolean);
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveCategories", categories: val })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          showToast("Categories saved", "success");
+          renderAll();
+        } else {
+          showToast(res.error || "Failed to save categories", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving categories", "error"));
+    }
+
+    function saveCategoryColorSubmit(category, color) {
+      state.categoryColors[category] = color;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveCategoryColor", category: category, color: color })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(`Colour for "${category}" saved`, "success");
+        else showToast(res.error || "Failed to save colour", "error");
+      })
+      .catch(() => showToast("Network error saving colour", "error"));
+    }
+
+    function saveColdExtraSubmit() {
+      const val = parseFloat(document.getElementById('adminColdExtraInput').value);
+      if (isNaN(val) || val < 0) return showToast("Invalid cold extra price", "warning");
+      state.coldExtra = val;
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveColdExtra", value: val })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          showToast(`Cold drink extra set to $${val.toFixed(2)}`, "success");
+          renderAll();
+        } else {
+          showToast(res.error || "Failed to save cold extra", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving cold extra", "error"));
+    }
+
+    function toggleColdPauseSubmit() {
+      const newPaused = !state.coldPaused;
+      state.coldPaused = newPaused;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleColdPause", paused: newPaused })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newPaused ? "All cold drinks paused" : "Cold drinks resumed", "success");
+        else showToast(res.error || "Failed to update cold pause", "error");
+      })
+      .catch(() => showToast("Network error updating cold pause", "error"));
+    }
+
+    function toggleReservationSubmit() {
+      const newOpen = !state.reservationOpen;
+      state.reservationOpen = newOpen;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleReservation", open: newOpen })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newOpen ? "Pre-order portal opened" : "Pre-order portal closed", "success");
+        else showToast(res.error || "Failed to update reservation switch", "error");
+      })
+      .catch(() => showToast("Network error updating reservation switch", "error"));
+    }
+
+    function addQRTileSubmit() {
+      const code = document.getElementById('newTileCode').value.trim();
+      if (!code) return showToast("Enter a tile code", "warning");
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "addQRTile", tileCode: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          document.getElementById('newTileCode').value = "";
+          showToast(`Tile #${code} added`, "success");
+          fetchFromSheet();
+        } else {
+          showToast(res.error || "Failed to add tile", "error");
+        }
+      })
+      .catch(() => showToast("Network error adding tile", "error"));
+    }
+
+    function deleteQRTileSubmit(code) {
+      showConfirm(`Delete QR tile #${code}?`).then(ok => {
+        if (!ok) return;
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteQRTile", tileCode: code })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            showToast(`Tile #${code} deleted`, "success");
+            fetchFromSheet();
+          } else {
+            showToast(res.error || "Failed to delete tile", "error");
+          }
+        })
+        .catch(() => showToast("Network error deleting tile", "error"));
+      });
+    }
+
+    function openTileQRPrintModal() {
+      const grid = document.getElementById('tileQRPrintGrid');
+      if (!grid) return;
+      grid.innerHTML = "";
+      if (state.qrTiles.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-slate-400 text-xs text-center py-4">No tiles to print.</p>';
+      } else {
+        state.qrTiles.forEach(t => {
+          const wrapper = document.createElement('div');
+          wrapper.className = "flex flex-col items-center p-3 bg-white rounded-xl border border-slate-200";
+          const qrDiv = document.createElement('div');
+          qrDiv.className = "mb-2";
+          wrapper.appendChild(qrDiv);
+          const label = document.createElement('div');
+          label.className = "font-black text-slate-800 text-sm";
+          label.innerText = "Tile #" + t.code;
+          wrapper.appendChild(label);
+          grid.appendChild(wrapper);
+          new QRCode(qrDiv, { text: String(t.code), width: 96, height: 96 });
+        });
+      }
+      document.getElementById('tileQRPrintModal').classList.remove('hidden');
+    }
+
+    function closeTileQRPrintModal() {
+      document.getElementById('tileQRPrintModal').classList.add('hidden');
+    }
+
+    function openAddUserModal() {
+      document.getElementById('newUsername').value = "";
+      document.getElementById('newPassword').value = "";
+      document.getElementById('newUserCode').value = "1";
+      document.getElementById('addUserModal').classList.remove('hidden');
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').classList.add('hidden');
+    }
+
+    function saveUserSubmit() {
+      const u = document.getElementById('newUsername').value.trim();
+      const p = document.getElementById('newPassword').value.trim();
+      const code = document.getElementById('newUserCode').value.trim() || "1";
+      if (!u || !p) return showToast("Please enter username and password.", "warning");
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "addUser", username: u, password: p, role: "Staff", userCode: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          closeAddUserModal();
+          showToast(`User "${u}" added`, "success");
+          fetchFromSheet();
+        } else {
+          showToast(res.error || "Failed to add user.", "error");
+        }
+      })
+      .catch(() => showToast("Network error adding user", "error"));
+    }
+
+    function deleteUserSubmit(username) {
+      showConfirm(`Delete user "${username}"? This cannot be undone.`).then(ok => {
+        if (!ok) return;
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteUser", username: username })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            showToast(`User "${username}" deleted`, "success");
+            fetchFromSheet();
+          } else {
+            showToast(res.error || "Failed to delete user", "error");
+          }
+        })
+        .catch(() => showToast("Network error deleting user", "error"));
+      });
+    }
+
+    function deleteOrderSubmit(orderNum) {
+      showConfirm(`Delete Order #${orderNum}? This cannot be undone.`).then(ok => {
+        if (!ok) return;
+        const removed = state.orders.filter(o => String(o.orderNum).trim() === String(orderNum).trim());
+        state.orders = state.orders.filter(o => String(o.orderNum).trim() !== String(orderNum).trim());
+        renderAll();
+
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            state.orders = state.orders.concat(removed);
+            renderAll();
+            showToast("Failed to delete order", "error");
+          } else {
+            showToast(`Order #${orderNum} deleted`, "success");
+          }
+        })
+        .catch(() => {
+          state.orders = state.orders.concat(removed);
+          renderAll();
+          showToast("Network error — order restored", "error");
+        });
+      });
+    }
+
+    function togglePauseItem(itemName, newStatus) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (item) {
+        const prevStatus = item.status;
+        const prevAvail = item.available;
+        item.status = newStatus;
+        item.available = newStatus.toLowerCase() === "active";
+        renderAll();
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "toggleMenuItem", itemName: itemName, newStatus: newStatus })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            item.status = prevStatus;
+            item.available = prevAvail;
+            renderAll();
+            showToast(`Failed to update "${itemName}"`, "error");
+          } else {
+            showToast(`"${itemName}" ${newStatus === "Active" ? "activated" : "paused"}`, "success");
+          }
+        })
+        .catch(() => {
+          item.status = prevStatus;
+          item.available = prevAvail;
+          renderAll();
+          showToast("Network error — reverted", "error");
+        });
+      }
+    }
+
+    function toggleItemColdPause(itemName) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (!item) return;
+      const newColdPaused = !item.coldPaused;
+      item.coldPaused = newColdPaused;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveMenuItem", item: { originalName: itemName, name: item.name, price: item.price, tempOptions: item.tempOptions, status: item.status, category: item.category, coldPaused: newColdPaused } })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) {
+          item.coldPaused = !newColdPaused;
+          renderAll();
+          showToast(`Failed to update cold pause for "${itemName}"`, "error");
+        } else {
+          showToast(`"${itemName}" cold option ${newColdPaused ? "paused" : "resumed"}`, "success");
+        }
+      })
+      .catch(() => {
+        item.coldPaused = !newColdPaused;
+        renderAll();
+        showToast("Network error — reverted", "error");
+      });
+    }
+
+    function populateCategorySelect(selected) {
+      const sel = document.getElementById('editItemCategory');
+      if (!sel) return;
+      sel.innerHTML = state.categories.map(c => `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+      if (sel.options.length === 0) sel.innerHTML = '<option value="Other">Other</option>';
+    }
+
+    function openEditMenuModal(itemName) {
+      const item = state.menu.find(i => i.name === itemName);
+      if (!item) return;
+      isModalAddMode = false;
+
+      document.getElementById('modalTitle').innerText = "Edit Menu Item";
+      document.getElementById('editOriginalName').value = item.name;
+      document.getElementById('editItemName').value = item.name;
+      document.getElementById('editItemPrice').value = item.price;
+      document.getElementById('editItemTemp').value = item.tempOptions;
+      document.getElementById('editItemStatus').value = item.status || "Active";
+      populateCategorySelect(item.category || "Other");
+      document.getElementById('editItemColdPaused').checked = !!item.coldPaused;
+
+      document.getElementById('menuModal').classList.remove('hidden');
+    }
+
+    function openAddMenuModal() {
+      isModalAddMode = true;
+
+      document.getElementById('modalTitle').innerText = "Add New Menu Item";
+      document.getElementById('editOriginalName').value = "";
+      document.getElementById('editItemName').value = "";
+      document.getElementById('editItemPrice').value = "";
+      document.getElementById('editItemTemp').value = "Hot & Cold";
+      document.getElementById('editItemStatus').value = "Active";
+      document.getElementById('editItemColdPaused').checked = false;
+      populateCategorySelect("Other");
+
+      document.getElementById('menuModal').classList.remove('hidden');
+    }
+
+    function closeMenuModal() {
+      document.getElementById('menuModal').classList.add('hidden');
+    }
+
+    function saveMenuItemSubmit() {
+      const originalName = document.getElementById('editOriginalName').value;
+      const name = document.getElementById('editItemName').value.trim();
+      const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+      const tempOptions = document.getElementById('editItemTemp').value;
+      const status = document.getElementById('editItemStatus').value;
+      const category = document.getElementById('editItemCategory').value || "Other";
+      const coldPaused = document.getElementById('editItemColdPaused').checked;
+
+      if (!name) return showToast("Please enter item name!", "warning");
+
+      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused };
+
+      if (isModalAddMode) {
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused });
+      } else {
+        const item = state.menu.find(i => i.name === originalName);
+        if (item) {
+          item.name = name;
+          item.price = price;
+          item.tempOptions = tempOptions;
+          item.status = status;
+          item.category = category;
+          item.coldPaused = coldPaused;
+          item.available = status === "Active";
+        }
+      }
+
+      renderAll();
+      closeMenuModal();
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) showToast(res.error || "Failed to save menu item", "error");
+        else showToast(`"${name}" saved`, "success");
+      })
+      .catch(() => showToast("Network error saving menu item", "error"));
+    }
+
+    function deleteMenuItem(itemName) {
+      showConfirm(`Delete menu item "${itemName}"?`).then(ok => {
+        if (!ok) return;
+        const removed = state.menu.filter(i => i.name === itemName);
+        state.menu = state.menu.filter(i => i.name !== itemName);
+        renderAll();
+
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (!res.success) {
+            state.menu = state.menu.concat(removed);
+            renderAll();
+            showToast("Failed to delete menu item", "error");
+          } else {
+            showToast(`"${itemName}" deleted`, "success");
+          }
+        })
+        .catch(() => {
+          state.menu = state.menu.concat(removed);
+          renderAll();
+          showToast("Network error — item restored", "error");
+        });
+      });
+    }
+
+    // ===== MONEY COUNTER =====
+    const MONEY_DENOMS = [
+      { key: "1000", label: "$1000", value: 1000, type: "note" },
+      { key: "500",  label: "$500",  value: 500,  type: "note" },
+      { key: "100",  label: "$100",  value: 100,  type: "note" },
+      { key: "50",   label: "$50",   value: 50,   type: "note" },
+      { key: "20",   label: "$20",   value: 20,   type: "note" },
+      { key: "10",   label: "$10",   value: 10,   type: "note" },
+      { key: "5",    label: "$5",    value: 5,    type: "coin" },
+      { key: "2",    label: "$2",    value: 2,    type: "coin" },
+      { key: "1",    label: "$1",    value: 1,    type: "coin" },
+      { key: "0.5",  label: "50¢",   value: 0.5,  type: "coin" },
+      { key: "0.2",  label: "20¢",   value: 0.2,  type: "coin" },
+      { key: "0.1",  label: "10¢",   value: 0.1,  type: "coin" }
+    ];
+
+    function initMoneyCounter() {
+      const notesEl = document.getElementById('moneyNotes');
+      const coinsEl = document.getElementById('moneyCoins');
+      if (!notesEl || notesEl.children.length > 0) return;
+
+      notesEl.innerHTML = MONEY_DENOMS.filter(d => d.type === "note").map(d => moneyRowHtml(d)).join('');
+      coinsEl.innerHTML = MONEY_DENOMS.filter(d => d.type === "coin").map(d => moneyRowHtml(d)).join('');
+    }
+
+    function moneyRowHtml(d) {
+      const color = d.type === 'note' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+      return `
+        <div class="flex items-center justify-between gap-3">
+          <span class="w-16 h-10 ${color} border-2 rounded-lg font-black text-sm flex items-center justify-center">${d.label}</span>
+          <div class="flex items-center gap-1">
+            <button type="button" onclick="moneyDelta('${d.key}', -1)" class="w-8 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-600 transition">-</button>
+            <input type="number" min="0" value="0" id="money-${d.key}" oninput="updateMoneyTotal()" class="w-16 h-10 bg-slate-50 border border-slate-200 rounded-lg text-center font-bold text-slate-800 text-sm">
+            <button type="button" onclick="moneyDelta('${d.key}', 1)" class="w-8 h-10 bg-emerald-100 hover:bg-emerald-200 rounded-lg font-bold text-emerald-700 transition">+</button>
+          </div>
+          <span id="money-subtotal-${d.key}" class="w-20 text-right font-black text-slate-700 text-sm">$0.00</span>
+        </div>`;
+    }
+
+    function moneyDelta(key, delta) {
+      const el = document.getElementById(`money-${key}`);
+      if (!el) return;
+      const cur = parseInt(el.value, 10) || 0;
+      el.value = Math.max(0, cur + delta);
+      updateMoneyTotal();
+    }
+
+    function updateMoneyTotal() {
+      let total = 0;
+      MONEY_DENOMS.forEach(d => {
+        const el = document.getElementById(`money-${d.key}`);
+        const count = el ? (parseInt(el.value, 10) || 0) : 0;
+        const sub = count * d.value;
+        total += sub;
+        const subEl = document.getElementById(`money-subtotal-${d.key}`);
+        if (subEl) subEl.innerText = `$${sub.toFixed(2)}`;
+      });
+      const totalEl = document.getElementById('moneyTotal');
+      if (totalEl) totalEl.innerText = `$${total.toFixed(2)}`;
+    }
+
+    function resetMoneyCounter() {
+      document.querySelectorAll('#moneyNotes input, #moneyCoins input').forEach(el => { el.value = 0; });
+      updateMoneyTotal();
+    }
+
+    function init() {
+      initTheme();
+      checkAuth();
+      // Init sound icon state
+      const soundIcon = document.getElementById("soundIcon");
+      if (soundIcon) soundIcon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
+      fetchFromSheet();
+      setInterval(updateTimers, 1000);
+      setInterval(smartCheckUpdates, 2000);
+      setInterval(updateClock, 1000);
+      updateClock();
+      // Keyboard shortcut: Enter to submit POS order when drink selected
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && state.selectedPosItem && !e.target.matches("input, textarea, select, button")) {
+          e.preventDefault();
+          submitPosOrder();
+        }
+      });
     }
 
     init();
