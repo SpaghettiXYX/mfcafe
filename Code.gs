@@ -342,12 +342,34 @@ function calculateNextOrderNum(ordersData, userCode) {
   const prefixBase = userCode * 1000;
   const minRange = prefixBase + 1;
   const maxRange = prefixBase + 999;
+  const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+
   let maxFound = prefixBase;
+  const activeNumbers = {};
+
   for (let i = 1; i < ordersData.length; i++) {
     const num = parseInt(ordersData[i][0], 10);
-    if (!isNaN(num) && num >= minRange && num <= maxRange && num > maxFound) maxFound = num;
+    if (isNaN(num) || num < minRange || num > maxRange) continue;
+    if (num > maxFound) maxFound = num;
+    const status = String(ordersData[i][9] || "").trim().toUpperCase();
+    // Numbers still held by a live order must never be handed out twice
+    if (ACTIVE_STATUSES.indexOf(status) !== -1) activeNumbers[num] = true;
   }
-  return String(maxFound + 1);
+
+  // Normal case: keep counting up
+  const next = maxFound + 1;
+  if (next <= maxRange && !activeNumbers[next]) return String(next);
+
+  // Rollover: X999 -> X001, skipping any number an active order is still using
+  const span = maxRange - minRange + 1;
+  const startOffset = (next - minRange) % span;
+  for (let step = 0; step < span; step++) {
+    const candidate = minRange + ((startOffset + step) % span);
+    if (!activeNumbers[candidate]) return String(candidate);
+  }
+
+  // Every number in this user's range is currently in use by a live order
+  throw new Error("All order numbers in this range are in use. Please clear some orders first.");
 }
 
 function createOrderLocked(order) {
@@ -413,51 +435,84 @@ function updateOrderStatus(orderNum, newStatus) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Orders Log");
   const data = sheet.getDataRange().getValues();
+  const target = String(orderNum).trim();
+  const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
 
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(orderNum).trim()) {
-      sheet.getRange(i + 1, 10).setValue(newStatus);
-      // Pickup time is user-specified text; do not auto-fill with ISO date
-      // Free QR tile when order is cleared
-      if (newStatus === "CLEARED") {
-        const tile = data[i][10] ? String(data[i][10]).trim() : "";
-        if (tile) freeTile(tile);
-      }
-      SpreadsheetApp.flush();
-      bumpVersion();
-      return { success: true, orderNum: orderNum, status: newStatus };
-    }
+  // Order numbers repeat after X999 rolls back to X001, so always pick the newest
+  // row — preferably the newest one that is still active.
+  let matchIndex = -1;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() !== target) continue;
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    if (ACTIVE_STATUSES.indexOf(status) !== -1) { matchIndex = i; break; }
+    if (matchIndex === -1) matchIndex = i;
   }
-  return { success: false, error: "Order not found" };
+
+  if (matchIndex === -1) return { success: false, error: "Order not found" };
+
+  sheet.getRange(matchIndex + 1, 10).setValue(newStatus);
+  // Pickup time is user-specified text; do not auto-fill with ISO date
+  // Free QR tile when order is cleared
+  if (newStatus === "CLEARED") {
+    const tile = data[matchIndex][10] ? String(data[matchIndex][10]).trim() : "";
+    if (tile) freeTile(tile);
+  }
+  SpreadsheetApp.flush();
+  bumpVersion();
+  return { success: true, orderNum: orderNum, status: newStatus };
 }
 
-// Clear order by scanning QR tile - finds the READY order bound to this tile
-function clearOrderByTile(tileCode) {
+// Clear an order from a scanned code. The scanner may read either:
+//   1. the barcode on the guest's pre-order ticket -> encodes the ORDER number
+//   2. the QR tile handed out at the counter       -> encodes the TILE number
+// Both are resolved to the newest matching row, because order numbers repeat
+// after X999 rolls back to X001.
+function clearOrderByTile(scannedCode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Orders Log");
   const data = sheet.getDataRange().getValues();
+  const target = String(scannedCode).trim().replace(/^#/, "");
+  const CLEARABLE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
 
-  for (let i = 1; i < data.length; i++) {
+  // 1) QR tile: newest READY order bound to this tile
+  for (let i = data.length - 1; i >= 1; i--) {
     const tile = data[i][10] ? String(data[i][10]).trim() : "";
     const status = String(data[i][9] || "").trim().toUpperCase();
-    if (tile === String(tileCode).trim() && status === "READY") {
+    if (tile === target && status === "READY") {
       const orderNum = String(data[i][0]).trim();
+      const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
       sheet.getRange(i + 1, 10).setValue("CLEARED");
-      freeTile(tileCode);
+      if (rowTile) freeTile(rowTile);
       SpreadsheetApp.flush();
       bumpVersion();
-      return { success: true, orderNum: orderNum, status: "CLEARED" };
+      return { success: true, orderNum: orderNum, status: "CLEARED", via: "tile" };
     }
   }
-  return { success: false, error: "No ready order found for this tile" };
+
+  // 2) Guest's pre-order barcode: newest live order carrying this order number
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() !== target) continue;
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    if (CLEARABLE.indexOf(status) === -1) continue;
+    const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
+    sheet.getRange(i + 1, 10).setValue("CLEARED");
+    if (rowTile) freeTile(rowTile);
+    SpreadsheetApp.flush();
+    bumpVersion();
+    return { success: true, orderNum: target, status: "CLEARED", via: "orderNum" };
+  }
+
+  return { success: false, error: "No matching order found for this code" };
 }
 
 function deleteOrder(orderNum) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Orders Log");
   const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === String(orderNum).trim()) {
+  const target = String(orderNum).trim();
+  // Newest row wins, because order numbers repeat after the X999 rollover
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() === target) {
       const tile = data[i][10] ? String(data[i][10]).trim() : "";
       if (tile) freeTile(tile);
       sheet.deleteRow(i + 1);

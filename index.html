@@ -113,6 +113,26 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
+    /* ===== FULLSCREEN PICKUP DISPLAY MODE ===== */
+    /* Hides the portal header / nav tabs and enlarges the pickup numbers */
+    body.display-mode header { display: none !important; }
+    body.display-mode main { max-width: none !important; padding: 0.75rem !important; }
+    body.display-mode #view-pickup > .pickup-hide { display: none !important; }
+    body.display-mode #view-pickup {
+      display: flex; flex-direction: column;
+      min-height: calc(100vh - 1.5rem); min-height: calc(100dvh - 1.5rem);
+    }
+    body.display-mode #view-pickup > div.grid { flex: 1 1 auto; align-content: start; }
+    body.display-mode #view-pickup > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem !important; }
+    body.display-mode .pickup-col-title { font-size: 1rem !important; margin-bottom: 0.5rem !important; padding-bottom: 0.35rem !important; }
+    body.display-mode .pickup-number { font-size: clamp(2.75rem, 11vw, 8rem) !important; }
+    body.display-mode .pickup-sub { font-size: 0.95rem !important; }
+    body.display-mode #pickupPreparingList > div,
+    body.display-mode #pickupReadyList > div { padding: 1rem 0.5rem !important; }
+
+    #displayExitBtn { display: none; }
+    body.display-mode #displayExitBtn { display: flex; }
+
     /* Toast slide animation */
     #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
 
@@ -353,16 +373,21 @@
 
     <!-- VIEW 3: PUBLIC PICKUP DISPLAY -->
     <section id="view-pickup" class="hidden space-y-6">
-      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm relative">
-        <button onclick="toggleFullscreen()" class="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-600 w-9 h-9 rounded-xl text-sm font-bold transition" title="Toggle fullscreen (for display screens)">
+      <button id="displayExitBtn" onclick="toggleFullscreen()"
+        class="fixed top-3 right-3 z-[60] bg-white/85 backdrop-blur text-slate-700 w-10 h-10 rounded-xl shadow-md border border-slate-200 items-center justify-center transition hover:bg-white"
+        title="Exit fullscreen display">
+        <i class="fa-solid fa-compress"></i>
+      </button>
+      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm relative pickup-hide">
+        <button onclick="toggleFullscreen()" class="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-600 w-9 h-9 rounded-xl text-sm font-bold transition" title="Fullscreen display — hides the header and enlarges the numbers">
           <i class="fa-solid fa-expand"></i>
         </button>
         <h2 class="text-3xl font-black text-amber-500 tracking-wide">ORDER STATUS DISPLAY</h2>
         <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
       </div>
 
-      <!-- Clearing Box on Pickup Screen -->
-      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+      <!-- Clearing Box on Pickup Screen (hidden in fullscreen display mode) -->
+      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm pickup-hide">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <i class="fa-solid fa-qrcode text-emerald-600 text-lg"></i>
@@ -386,14 +411,14 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <h3 class="font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
+          <h3 class="pickup-col-title font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
             <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
           </h3>
           <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
 
         <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
-          <h3 class="font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
+          <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
             <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
           </h3>
           <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
@@ -903,13 +928,37 @@
       showToast(`Theme: ${next === "dark" ? "Dark" : "Light"} mode`, "info");
     }
 
+    // Enter/leave the pickup display mode: hides the header + nav tabs and enlarges the numbers
     function toggleFullscreen() {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
+      const enabling = !document.body.classList.contains('display-mode');
+      document.body.classList.toggle('display-mode', enabling);
+
+      const el = document.documentElement;
+      if (enabling) {
+        const request = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (request) {
+          try {
+            const p = request.call(el);
+            if (p && typeof p.catch === "function") p.catch(() => {});
+          } catch (e) {}
+        }
       } else {
-        document.exitFullscreen();
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
       }
     }
+
+    // Leaving fullscreen with ESC / the browser button must also restore the header
+    function syncDisplayMode() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        document.body.classList.remove('display-mode');
+      }
+    }
+    document.addEventListener('fullscreenchange', syncDisplayMode);
+    document.addEventListener('webkitfullscreenchange', syncDisplayMode);
 
     // ===== CLOCK =====
     function updateClock() {
@@ -1012,6 +1061,11 @@
     }
 
     function switchView(viewName) {
+      // Leaving the pickup screen must also leave the kiosk/fullscreen display mode
+      if (viewName !== 'pickup' && document.body.classList.contains('display-mode')) {
+        toggleFullscreen();
+      }
+
       ['cashier', 'kds', 'pickup', 'helper', 'admin', 'money'].forEach(v => {
         const viewEl = document.getElementById(`view-${v}`);
         if (viewEl) viewEl.classList.add('hidden');
@@ -1564,28 +1618,48 @@
       startScan("clear");
     }
 
-    function clearOrderByTile(tileCode) {
+    // Clearing accepts BOTH codes:
+    //   1. the barcode printed on the guest's pre-order ticket (encodes the order number)
+    //   2. the QR tile handed out at the counter (encodes the tile number)
+    const CLEARABLE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "RESERVED", "READY"];
+
+    function clearOrderByTile(scannedCode) {
+      const code = String(scannedCode || "").trim().replace(/^#/, "");
+      if (!code) return;
+
+      // 1) Guest's pre-order barcode → match the order number straight away
+      const byOrderNum = state.orders.find(o =>
+        String(o.orderNum).trim() === code &&
+        CLEARABLE_STATUSES.includes(String(o.status || "").toUpperCase()));
+      if (byOrderNum) {
+        clearOrder(byOrderNum.orderNum);
+        return;
+      }
+
+      // 2) Otherwise treat the code as a QR tile
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "clearOrderByTile", tileCode: String(tileCode) })
+        body: JSON.stringify({ action: "clearOrderByTile", tileCode: code })
       })
       .then(res => res.json())
       .then(res => {
         if (res.success) {
           showToast(`Order #${res.orderNum} cleared via tile`, "success");
           fetchFromSheet();
-        } else {
-          // Fallback: try clearing by order number
-          const order = state.orders.find(o => String(o.orderNum).trim() === String(tileCode).trim() && o.status?.toUpperCase() === "READY");
-          if (order) {
-            updateOrderStatus(order.orderNum, "CLEARED");
-          } else {
-            showToast(res.error || "Tile not found or order not ready", "warning");
-          }
+          return;
         }
+        // 3) Fallback: tile already loaded on this screen
+        const byTile = state.orders.find(o =>
+          String(o.qrTile || "").trim() === code &&
+          CLEARABLE_STATUSES.includes(String(o.status || "").toUpperCase()));
+        if (byTile) {
+          clearOrder(byTile.orderNum);
+          return;
+        }
+        showToast(res.error || `Nothing to clear for "${code}"`, "warning");
       })
-      .catch(() => showToast("Network error clearing order by tile", "error"));
+      .catch(() => showToast("Network error clearing order", "error"));
     }
 
     // Handle scanner input on clearing screen — pipeline mode
@@ -1704,8 +1778,8 @@
             <div class="space-y-3">
               <div class="flex justify-between items-start gap-2">
                 <div>
-                  <h3 class="text-2xl font-black text-slate-900 tracking-tight">#${escapeHtml(o.orderNum)}</h3>
-                  <p class="text-xs text-slate-400 font-semibold mt-0.5">Guest: ${escapeHtml(o.guestName)}</p>
+                  <h3 class="text-2xl font-black text-slate-900 tracking-tight">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
+                  <p class="text-xs text-slate-400 font-semibold mt-0.5">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
                 </div>
                 <div class="flex flex-col items-end gap-1.5">
                   <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
@@ -1726,7 +1800,6 @@
 
               <div>
                 <p class="font-extrabold text-slate-900 text-base leading-snug">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
-                ${o.qrTile ? `<span class="inline-block mt-1.5 text-[10px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">Tile #${escapeHtml(o.qrTile)}</span>` : ''}
               </div>
 
               ${o.customization ? `
@@ -1814,6 +1887,22 @@
       }
     }
 
+    // The number on the guest's tile is what they are actually holding, so it becomes
+    // the big number. The 4-digit order number stays underneath in a smaller font.
+    function pickupNumberCard(order, isReady) {
+      const tile = String(order.qrTile || "").trim();
+      const num = String(order.orderNum || "").trim();
+      const primary = tile || `#${num}`;
+      const secondary = tile && num ? `Order #${escapeHtml(num)}` : "";
+      const cls = isReady
+        ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md"
+        : "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
+      return `<div class="${cls}">
+        <div class="pickup-number leading-none">${escapeHtml(primary)}</div>
+        ${secondary ? `<div class="pickup-sub text-[11px] font-bold opacity-70 mt-1">${secondary}</div>` : ""}
+      </div>`;
+    }
+
     function renderPickup() {
       const prepList = document.getElementById('pickupPreparingList');
       const readyList = document.getElementById('pickupReadyList');
@@ -1821,13 +1910,13 @@
 
       let prepHtml = "";
       state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
-        prepHtml += `<div class="bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-xl text-slate-700">#${escapeHtml(o.orderNum)}</div>`;
+        prepHtml += pickupNumberCard(o, false);
       });
       prepList.innerHTML = prepHtml;
 
       let readyHtml = "";
       state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
-        readyHtml += `<div class="bg-emerald-600 text-white p-3 rounded-xl font-black text-2xl animate-pulse shadow-md">#${escapeHtml(o.orderNum)}</div>`;
+        readyHtml += pickupNumberCard(o, true);
       });
       readyList.innerHTML = readyHtml;
     }
@@ -1844,10 +1933,13 @@
 
       let html = "";
       ready.forEach(o => {
+        const tile = String(o.qrTile || "").trim();
+        const num = String(o.orderNum || "").trim();
         html += `
           <div class="bg-white border border-emerald-300 p-4 rounded-2xl shadow-sm flex justify-between items-center">
             <div>
-              <span class="text-2xl font-black text-emerald-600">#${escapeHtml(o.orderNum)}</span>
+              <span class="text-2xl font-black text-emerald-600">${escapeHtml(tile || `#${num}`)}</span>
+              <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
               <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
             </div>
             <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs">
@@ -1875,6 +1967,8 @@
             o.status = prevStatus;
             renderAll();
             showToast(`Failed to clear #${orderNum}`, "error");
+          } else {
+            showToast(`Order #${orderNum} cleared`, "success", 1500);
           }
         })
         .catch(() => {
