@@ -78,9 +78,9 @@
   <!-- Paused Overlay -->
   <div id="pausedOverlay" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
     <div class="bg-rose-100 text-rose-700 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
-      <i class="fa-solid fa-pause mr-1"></i> Ordering Paused
+      <i class="fa-solid fa-pause mr-1"></i> Ordering Paused Due To Some Reasons
     </div>
-    <h2 class="text-2xl font-black text-slate-800">Too busy right now</h2>
+    <h2 class="text-2xl font-black text-slate-800">Online Pre-Order not available right now...</h2>
     <p class="text-sm text-slate-500">The Open Day order page is temporarily closed due to some reasons. Please order at the counter (if available).</p>
   </div>
 
@@ -92,7 +92,7 @@
         <input type="text" id="custName" placeholder="e.g. Mr. Wong / Guest" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
       </div>
       <div>
-        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time <span class="normal-case font-bold text-slate-400">(optional)</span></label>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time (during opening time) <span class="normal-case font-bold text-slate-400">(optional)</span></label>
         <input type="text" id="custPickupTime" placeholder="e.g. 2:30 PM / Now" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
       </div>
     </div>
@@ -152,7 +152,7 @@
     <div class="bg-rose-50 border-2 border-rose-300 text-rose-800 p-3.5 rounded-2xl w-full">
       <p class="text-sm font-black leading-snug">
         <i class="fa-solid fa-triangle-exclamation mr-1"></i>
-        Drinks will not be made unless paid at 2/F Chill Zone cashier.
+        Drinks will not be prepared unless paid at 2/F Chill Zone cashier.
       </p>
     </div>
 
@@ -272,7 +272,7 @@
           applyReservationState();
           renderMenu();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+        .catch(() => showToast("Err 403:Failed to load menu. Please refresh.", "error"));
 
       // Poll for menu updates every 15s (so paused items disappear)
       setInterval(() => {
