@@ -2,7 +2,7 @@
 <html lang="en"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MFCafe - Self-Service Order Check</title>
+  <title>MFCafe - Self-Service Station</title>
 
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -75,7 +75,7 @@
         </div>
         <div>
           <h1 class="text-lg font-black text-slate-800 leading-tight">CAFE</h1>
-          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Self-Service Order Check</p>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Self-Service Station</p>
         </div>
       </div>
       <div class="text-right">
@@ -87,8 +87,8 @@
     <!-- Home / Scan View -->
     <main id="homeView" class="flex-1 flex flex-col justify-center py-6 space-y-5">
       <div class="text-center space-y-2">
-        <h2 class="text-3xl font-black text-slate-800">Check your order</h2>
-        <p class="text-sm text-slate-500 font-medium">Scan your drink barcode or the QR code on your table tile</p>
+        <h2 class="text-3xl font-black text-slate-800">Check your order status here</h2>
+        <p class="text-sm text-slate-500 font-medium">Scan your drink barcode or the QR code on your QR tile</p>
       </div>
 
       <!-- Camera Scanner -->
@@ -118,7 +118,7 @@
       <!-- Scanner gun / manual -->
       <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Scanner Gun / Manual</span>
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Scanner / Manual input</span>
           <span class="text-[10px] font-bold text-slate-400">Type &amp; press Enter</span>
         </div>
         <div class="flex gap-2">
@@ -134,7 +134,7 @@
     </main>
 
     <footer class="text-center text-[11px] font-medium text-slate-400 py-3">
-      Need help? Please ask our staff at the counter.
+      Need help? Please ask our staff at the counter!
     </footer>
   </div>
 
@@ -170,7 +170,7 @@
           </div>
           <div class="flex-1 flex flex-col items-center gap-1.5" data-step="1">
             <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">2</div>
-            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Crafting</span>
+            <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Preparing...</span>
           </div>
           <div class="flex-1 flex flex-col items-center gap-1.5" data-step="2">
             <div class="step-dot w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] font-black">3</div>
@@ -181,7 +181,7 @@
             <span class="text-[10px] font-bold text-slate-400 text-center leading-tight">Collected</span>
           </div>
         </div>
-        <p id="stepperNote" class="hidden text-center text-[11px] font-bold text-rose-600 mt-2">Awaiting payment at cashier</p>
+        <p id="stepperNote" class="hidden text-center text-[11px] font-bold text-rose-600 mt-2">Awaiting payment at cashier!!!</p>
       </div>
 
       <!-- Order details -->
@@ -225,7 +225,7 @@
         </div>
 
         <p id="rsInactiveNote" class="hidden text-center text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3">
-          This order is no longer active. It may have been collected or closed.
+          ERR 404:This order is no longer active. It may have been collected or closed.
         </p>
 
         <!-- Auto-refresh / reset -->
@@ -233,14 +233,14 @@
           <div class="flex items-center justify-between text-[11px] font-bold">
             <span class="flex items-center gap-1.5 text-emerald-600">
               <i class="fa-solid fa-rotate ss-live-dot"></i>
-              Auto-updating every 5s
+              Automatically updates every 5s
             </span>
             <span id="rsRefreshStamp" class="text-slate-400">Updated just now</span>
           </div>
           <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
             <div id="resetBar" class="h-full bg-amber-500 transition-all duration-1000 ease-linear" style="width:100%"></div>
           </div>
-          <p id="resetText" class="text-center text-[11px] font-bold text-slate-400">Returns to scan screen in 45s</p>
+          <p id="resetText" class="text-center text-[11px] font-bold text-slate-400">Closing in 45s</p>
         </div>
 
         <button onclick="resetToHome()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center gap-2">
