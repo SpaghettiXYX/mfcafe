@@ -258,6 +258,17 @@ function getInitialData() {
   const props = PropertiesService.getScriptProperties();
   let hotkeys = props.getProperty("REMARK_HOTKEYS") || "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot";
 
+  // One-time migration: the old single reservation switch becomes both new switches
+  const legacyReservation = props.getProperty("RESERVATION_OPEN");
+  if (legacyReservation !== null) {
+    if (props.getProperty("TEACHER_RESERVATION_OPEN") === null) {
+      props.setProperty("TEACHER_RESERVATION_OPEN", legacyReservation);
+    }
+    if (props.getProperty("OPENDAY_RESERVATION_OPEN") === null) {
+      props.setProperty("OPENDAY_RESERVATION_OPEN", legacyReservation);
+    }
+  }
+
   const coldExtra = getColdExtra();
   const coldPausedGlobal = getColdPaused();
   const teacherReservationOpen = getTeacherReservationOpen();
