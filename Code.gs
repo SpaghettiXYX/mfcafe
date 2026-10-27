@@ -69,6 +69,9 @@ function ensureUsersSheet(ss) {
     usersSheet.appendRow(["ku", "123456", "Staff", "4"]);
   } else {
     const headers = usersSheet.getRange(1, 1, 1, 4).getValues()[0];
+    if (!headers[2] || String(headers[2]).trim() === "") {
+      usersSheet.getRange(1, 3).setValue("Role");
+    }
     if (!headers[3] || String(headers[3]).trim() === "") {
       usersSheet.getRange(1, 4).setValue("UserCode");
     }

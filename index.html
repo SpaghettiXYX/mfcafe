@@ -226,9 +226,12 @@
           <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
             <i id="themeIcon" class="fa-solid fa-moon text-slate-600"></i>
           </button>
-          <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center">
-            <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
-            <span id="lblUsername">Staff</span>
+          <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2">
+            <span class="flex items-center">
+              <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
+              <span id="lblUsername">Staff</span>
+            </span>
+            <span id="lblRole" class="text-[10px] uppercase px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600">Staff</span>
           </span>
           <button onclick="logout()" class="text-xs font-bold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200 transition">
             Logout
@@ -1091,6 +1094,17 @@
       }
     }
 
+    function updateRoleLabel(role) {
+      const roleEl = document.getElementById("lblRole");
+      if (!roleEl) return;
+      const normalizedRole = String(role || "Staff").trim();
+      roleEl.innerText = normalizedRole;
+      const isAdmin = normalizedRole.toLowerCase() === "admin";
+      roleEl.className = "text-[10px] uppercase px-1.5 py-0.5 rounded-md " + (isAdmin
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-slate-200 text-slate-600");
+    }
+
     function checkAuth() {
       const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
       const savedRole = getCookie("mfcafe_role") || localStorage.getItem("mfcafe_role");
@@ -1099,6 +1113,7 @@
         state.currentUserRole = savedRole || "Staff";
         document.getElementById("lblUsername").innerText = savedUser;
         document.getElementById("posCashierName").value = savedUser;
+        updateRoleLabel(state.currentUserRole);
         document.getElementById("loginOverlay").classList.add("hidden");
         applyRoleVisibility();
       } else {
@@ -1133,6 +1148,7 @@
           localStorage.setItem("mfcafe_role", state.currentUserRole);
           document.getElementById("lblUsername").innerText = res.username;
           document.getElementById("posCashierName").value = res.username;
+          updateRoleLabel(state.currentUserRole);
           document.getElementById("loginOverlay").classList.add("hidden");
           errEl.classList.add("hidden");
           applyRoleVisibility();
@@ -1155,6 +1171,7 @@
       localStorage.removeItem("mfcafe_role");
       state.currentUser = null;
       state.currentUserRole = "Staff";
+      updateRoleLabel("Staff");
       document.getElementById("loginOverlay").classList.remove("hidden");
       applyRoleVisibility();
     }
