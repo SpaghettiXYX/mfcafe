@@ -211,7 +211,7 @@
             <i class="fa-solid fa-square-check mr-1"></i> Clearing
             <span id="badge-helper" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <button onclick="switchView('admin')" id="tab-admin" class="hidden px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
             <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
           </button>
           <button onclick="switchView('money')" id="tab-money" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
@@ -1089,11 +1089,11 @@
       const isAdmin = String(state.currentUserRole || "").toLowerCase() === "admin";
       const adminTab = document.getElementById("tab-admin");
       if (adminTab) adminTab.classList.toggle("hidden", !isAdmin);
-      // If a non-admin somehow lands on the admin view, kick them out
+      // If a non-admin somehow lands on the admin view, kick them out silently
       if (!isAdmin) {
         const adminView = document.getElementById("view-admin");
         if (adminView && !adminView.classList.contains("hidden")) {
-          switchView("cashier");
+          switchView("cashier", { silent: true });
         }
       }
     }
@@ -1180,10 +1180,11 @@
       applyRoleVisibility();
     }
 
-    function switchView(viewName) {
+    function switchView(viewName, options = {}) {
+      const silent = options.silent === true;
       // Admin panel is restricted to admin users only
       if (viewName === 'admin' && String(state.currentUserRole || "").toLowerCase() !== 'admin') {
-        showToast("Admin access only.", "error");
+        if (!silent) showToast("Admin access only.", "error");
         return;
       }
 
