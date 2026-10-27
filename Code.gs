@@ -399,7 +399,7 @@ function createOrderLocked(order) {
     const createdOrder = {
       orderNum: assignedOrderNum,
       orderTime: orderTime,
-      pickupTime: pickupTime,
+      pickupTime: pickupTime.replace(/^'/, ""),
       cashier: cashier,
       guestName: guestName,
       productName: order.productName,
@@ -411,7 +411,7 @@ function createOrderLocked(order) {
     };
 
     sheet.appendRow([
-      createdOrder.orderNum, createdOrder.orderTime, createdOrder.pickupTime,
+      createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile
     ]);
@@ -573,7 +573,7 @@ function createWalletPass(order) {
     secondaryFields: [
       { label: "GUEST", value: String(order.guestName || "Guest") },
       { label: "DRINK", value: `${order.productName || ""} (${order.temp || ""})`.trim() },
-      { label: "PICKUP", value: String(order.pickupTime || "Scheduled") }
+      { label: "PICKUP", value: String(order.pickupTime || "Scheduled").replace(/^'/, "") }
     ],
     backFields: [
       { label: "Status", value: String(order.status || "RESERVED") },
