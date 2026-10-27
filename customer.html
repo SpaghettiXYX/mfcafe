@@ -80,8 +80,8 @@
     <div class="bg-rose-100 text-rose-700 px-3.5 py-1 rounded-full text-xs font-extrabold border border-rose-300">
       <i class="fa-solid fa-pause mr-1"></i> Pre-Order Paused
     </div>
-    <h2 class="text-2xl font-black text-slate-800">Too busy right now</h2>
-    <p class="text-sm text-slate-500">The pre-order portal is temporarily closed due to high volume. Please order at the counter.</p>
+    <h2 id="pausedOverlayTitle" class="text-2xl font-black text-slate-800">Too busy right now</h2>
+    <p id="pausedOverlayReason" class="text-sm text-slate-500">The pre-order portal is temporarily closed due to high volume. Please order at the counter.</p>
   </div>
 
   <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
@@ -237,7 +237,8 @@
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       coldExtra: 2,
       coldPaused: false,
-      reservationOpen: true,
+      teacherReservationOpen: true,
+      teacherPauseReason: "",
       currentOrder: null
     };
 
@@ -287,7 +288,8 @@
         .then(data => {
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
-          if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+          if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
+          if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
@@ -304,7 +306,8 @@
           .then(data => {
             if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
             if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
-            if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+            if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
+            if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
             if (data.menu) state.menu = data.menu;
             if (data.categories) state.categories = data.categories;
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
@@ -316,10 +319,13 @@
     }
 
     function applyReservationState() {
-      const paused = !state.reservationOpen;
+      const paused = !state.teacherReservationOpen;
       document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
       document.getElementById('orderView').classList.toggle('hidden', paused);
       document.getElementById('orderFooter').classList.toggle('hidden', paused);
+
+      const reasonEl = document.getElementById('pausedOverlayReason');
+      if (reasonEl) reasonEl.innerText = state.teacherPauseReason || "The pre-order portal is temporarily closed. Please order at the counter.";
     }
 
     function renderMenu() {

@@ -485,9 +485,39 @@
             <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
           </div>
           <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Pre-Order Portal</span>
-            <button id="adminToggleReservationBtn" onclick="toggleReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+            <span class="text-xs font-bold text-slate-500">Teacher Pre-Order</span>
+            <button id="adminToggleTeacherReservationBtn" onclick="toggleTeacherReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
           </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Open Day Pre-Order</span>
+            <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Teacher Pause Reason</label>
+            <textarea id="adminTeacherPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when teacher pre-order is paused..."></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Open Day Pause Reason</label>
+            <textarea id="adminOpenDayPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when Open Day pre-order is paused..."></textarea>
+          </div>
+        </div>
+        <button onclick="savePauseReasonsSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
+      </div>
+
+      <!-- Push Message Broadcast -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+          <i class="fa-solid fa-bullhorn text-amber-500 mr-2"></i> Push Message Broadcast
+        </h3>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Message</label>
+          <textarea id="adminPushMessageInput" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Type a message to show on all active portal screens..."></textarea>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="sendPushMessageSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Send Push Message</button>
+          <button onclick="clearPushMessageSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Clear Push Message</button>
         </div>
       </div>
 
@@ -783,6 +813,23 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
 
+  <!-- PUSH MESSAGE MODAL -->
+  <div id="pushMessageModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[95] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-amber-200 space-y-4">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-bullhorn"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 id="pushMessageTitle" class="font-black text-slate-800 text-base">Announcement</h3>
+          <p id="pushMessageText" class="text-sm text-slate-600 mt-1 whitespace-pre-wrap"></p>
+          <p id="pushMessageSender" class="text-[10px] text-slate-400 mt-2"></p>
+        </div>
+      </div>
+      <button onclick="dismissPushMessage()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm transition">Dismiss</button>
+    </div>
+  </div>
+
   <!-- CUSTOM CONFIRM DIALOG -->
   <div id="confirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
@@ -822,11 +869,16 @@
       selectedQRTile: "",
       orderHistory: [],
       currentUser: null,
+      currentUserRole: "Staff",
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       serverVersion: null,
       coldExtra: 2,
       coldPaused: false,
-      reservationOpen: true,
+      teacherReservationOpen: true,
+      openDayReservationOpen: true,
+      teacherPauseReason: "",
+      openDayPauseReason: "",
+      pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       categoryColors: {}
     };
 
@@ -864,6 +916,29 @@
         toast.style.transform = "translateX(120%)";
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+
+    // ===== PUSH MESSAGE BROADCAST =====
+    function handlePushMessage() {
+      const msg = state.pushMessage || {};
+      if (!msg.active || !msg.text) {
+        document.getElementById("pushMessageModal")?.classList.add("hidden");
+        return;
+      }
+      const dismissed = localStorage.getItem("mfcafe_push_dismissed");
+      if (dismissed && String(msg.timestamp) === dismissed) {
+        document.getElementById("pushMessageModal")?.classList.add("hidden");
+        return;
+      }
+      document.getElementById("pushMessageText").innerText = msg.text;
+      document.getElementById("pushMessageSender").innerText = msg.sender ? `From ${escapeHtml(msg.sender)}` : "";
+      document.getElementById("pushMessageModal").classList.remove("hidden");
+    }
+
+    function dismissPushMessage() {
+      const msg = state.pushMessage || {};
+      if (msg.timestamp) localStorage.setItem("mfcafe_push_dismissed", String(msg.timestamp));
+      document.getElementById("pushMessageModal")?.classList.add("hidden");
     }
 
     // ===== CUSTOM CONFIRM DIALOG (returns Promise) =====
@@ -1003,13 +1078,29 @@
       return match ? decodeURIComponent(match[2]) : null;
     }
 
+    function applyRoleVisibility() {
+      const isAdmin = String(state.currentUserRole || "").toLowerCase() === "admin";
+      const adminTab = document.getElementById("tab-admin");
+      if (adminTab) adminTab.classList.toggle("hidden", !isAdmin);
+      // If a non-admin somehow lands on the admin view, kick them out
+      if (!isAdmin) {
+        const adminView = document.getElementById("view-admin");
+        if (adminView && !adminView.classList.contains("hidden")) {
+          switchView("cashier");
+        }
+      }
+    }
+
     function checkAuth() {
       const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
+      const savedRole = getCookie("mfcafe_role") || localStorage.getItem("mfcafe_role");
       if (savedUser) {
         state.currentUser = savedUser;
+        state.currentUserRole = savedRole || "Staff";
         document.getElementById("lblUsername").innerText = savedUser;
         document.getElementById("posCashierName").value = savedUser;
         document.getElementById("loginOverlay").classList.add("hidden");
+        applyRoleVisibility();
       } else {
         document.getElementById("loginOverlay").classList.remove("hidden");
       }
@@ -1035,12 +1126,16 @@
       .then(res => {
         if (res.success) {
           state.currentUser = res.username;
+          state.currentUserRole = res.role || "Staff";
           setCookie("mfcafe_user", res.username, 7);
+          setCookie("mfcafe_role", state.currentUserRole, 7);
           localStorage.setItem("mfcafe_user", res.username);
+          localStorage.setItem("mfcafe_role", state.currentUserRole);
           document.getElementById("lblUsername").innerText = res.username;
           document.getElementById("posCashierName").value = res.username;
           document.getElementById("loginOverlay").classList.add("hidden");
           errEl.classList.add("hidden");
+          applyRoleVisibility();
           fetchFromSheet();
         } else {
           errEl.innerText = res.error || "Invalid username or password.";
@@ -1055,12 +1150,22 @@
 
     function logout() {
       setCookie("mfcafe_user", "", -1);
+      setCookie("mfcafe_role", "", -1);
       localStorage.removeItem("mfcafe_user");
+      localStorage.removeItem("mfcafe_role");
       state.currentUser = null;
+      state.currentUserRole = "Staff";
       document.getElementById("loginOverlay").classList.remove("hidden");
+      applyRoleVisibility();
     }
 
     function switchView(viewName) {
+      // Admin panel is restricted to admin users only
+      if (viewName === 'admin' && String(state.currentUserRole || "").toLowerCase() !== 'admin') {
+        showToast("Admin access only.", "error");
+        return;
+      }
+
       // Leaving the pickup screen must also leave the kiosk/fullscreen display mode
       if (viewName !== 'pickup' && document.body.classList.contains('display-mode')) {
         toggleFullscreen();
@@ -1189,8 +1294,15 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
-          if (typeof data.reservationOpen === "boolean") state.reservationOpen = data.reservationOpen;
+          if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
+          if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
+          if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
+          if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
+          if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
+
+          // Show any active push message from the server
+          handlePushMessage();
 
           if (Array.isArray(data.orders)) {
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
@@ -1774,7 +1886,7 @@
         const color = getCategoryColor(category);
 
         html += `
-          <div class="bg-white border ${isReserved ? 'border-purple-300 ring-2 ring-purple-200' : 'border-slate-200'} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-left: 6px solid ${color};">
+          <div class="bg-white border-4 ${isReserved ? 'ring-2 ring-purple-200' : ''} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-color: ${color};">
             <div class="space-y-3">
               <div class="flex justify-between items-start gap-2">
                 <div>
@@ -2002,13 +2114,27 @@
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700";
       }
 
-      const reservationBtn = document.getElementById('adminToggleReservationBtn');
-      if (reservationBtn) {
-        reservationBtn.innerText = state.reservationOpen ? "Open" : "Closed";
-        reservationBtn.className = state.reservationOpen
+      const teacherBtn = document.getElementById('adminToggleTeacherReservationBtn');
+      if (teacherBtn) {
+        teacherBtn.innerText = state.teacherReservationOpen ? "Open" : "Closed";
+        teacherBtn.className = state.teacherReservationOpen
           ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
       }
+
+      const openDayBtn = document.getElementById('adminToggleOpenDayReservationBtn');
+      if (openDayBtn) {
+        openDayBtn.innerText = state.openDayReservationOpen ? "Open" : "Closed";
+        openDayBtn.className = state.openDayReservationOpen
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
+      }
+
+      const teacherReasonInput = document.getElementById('adminTeacherPauseReasonInput');
+      if (teacherReasonInput) teacherReasonInput.value = state.teacherPauseReason;
+
+      const openDayReasonInput = document.getElementById('adminOpenDayPauseReasonInput');
+      if (openDayReasonInput) openDayReasonInput.value = state.openDayPauseReason;
 
       const catInput = document.getElementById('adminCategoriesInput');
       if (catInput) catInput.value = state.categories.join(", ");
@@ -2240,21 +2366,109 @@
       .catch(() => showToast("Network error updating cold pause", "error"));
     }
 
-    function toggleReservationSubmit() {
-      const newOpen = !state.reservationOpen;
-      state.reservationOpen = newOpen;
+    function toggleTeacherReservationSubmit() {
+      const newOpen = !state.teacherReservationOpen;
+      state.teacherReservationOpen = newOpen;
       renderAll();
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "toggleReservation", open: newOpen })
+        body: JSON.stringify({ action: "toggleTeacherReservation", open: newOpen })
       })
       .then(res => res.json())
       .then(res => {
-        if (res.success) showToast(newOpen ? "Pre-order portal opened" : "Pre-order portal closed", "success");
-        else showToast(res.error || "Failed to update reservation switch", "error");
+        if (res.success) showToast(newOpen ? "Teacher pre-order opened" : "Teacher pre-order closed", "success");
+        else showToast(res.error || "Failed to update teacher switch", "error");
       })
-      .catch(() => showToast("Network error updating reservation switch", "error"));
+      .catch(() => showToast("Network error updating teacher switch", "error"));
+    }
+
+    function toggleOpenDayReservationSubmit() {
+      const newOpen = !state.openDayReservationOpen;
+      state.openDayReservationOpen = newOpen;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleOpenDayReservation", open: newOpen })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newOpen ? "Open Day pre-order opened" : "Open Day pre-order closed", "success");
+        else showToast(res.error || "Failed to update Open Day switch", "error");
+      })
+      .catch(() => showToast("Network error updating Open Day switch", "error"));
+    }
+
+    function savePauseReasonsSubmit() {
+      const teacherReason = document.getElementById('adminTeacherPauseReasonInput').value.trim();
+      const openDayReason = document.getElementById('adminOpenDayPauseReasonInput').value.trim();
+      state.teacherPauseReason = teacherReason;
+      state.openDayPauseReason = openDayReason;
+
+      const p1 = fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePauseReason", target: "teacher", reason: teacherReason })
+      }).then(r => r.json());
+
+      const p2 = fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePauseReason", target: "openday", reason: openDayReason })
+      }).then(r => r.json());
+
+      Promise.all([p1, p2])
+        .then(results => {
+          const ok = results.every(r => r.success);
+          if (ok) showToast("Pause reasons saved", "success");
+          else showToast("Failed to save pause reasons", "error");
+        })
+        .catch(() => showToast("Network error saving pause reasons", "error"));
+    }
+
+    function sendPushMessageSubmit() {
+      const text = document.getElementById('adminPushMessageInput').value.trim();
+      if (!text) return showToast("Please enter a message", "warning");
+      const sender = state.currentUser || "Admin";
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePushMessage", text: text, sender: sender, active: true })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.pushMessage = res.pushMessage || { active: true, text, sender, timestamp: Date.now() };
+          document.getElementById('adminPushMessageInput').value = "";
+          showToast("Push message sent", "success");
+          handlePushMessage();
+        } else {
+          showToast(res.error || "Failed to send push message", "error");
+        }
+      })
+      .catch(() => showToast("Network error sending push message", "error"));
+    }
+
+    function clearPushMessageSubmit() {
+      const sender = state.currentUser || "Admin";
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePushMessage", text: "", sender: sender, active: false })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.pushMessage = { active: false, text: "", sender: "", timestamp: 0 };
+          document.getElementById('adminPushMessageInput').value = "";
+          showToast("Push message cleared", "success");
+          dismissPushMessage();
+        } else {
+          showToast(res.error || "Failed to clear push message", "error");
+        }
+      })
+      .catch(() => showToast("Network error clearing push message", "error"));
     }
 
     function addQRTileSubmit() {
