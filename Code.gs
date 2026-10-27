@@ -79,6 +79,30 @@ function ensureUsersSheet(ss) {
   return usersSheet;
 }
 
+function ensureOrdersSheet(ss) {
+  let sheet = ss.getSheetByName("Orders Log");
+  if (!sheet) {
+    sheet = ss.insertSheet("Orders Log");
+    sheet.appendRow([
+      "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
+      "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus"
+    ]);
+  } else {
+    const headers = sheet.getRange(1, 1, 1, 12).getValues()[0];
+    if (!headers[11] || String(headers[11]).trim() === "") {
+      sheet.getRange(1, 12).setValue("PaymentStatus");
+      // Backfill existing rows: UNPAID/RESERVED -> UNPAID, everything else -> PAID
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const status = String(data[i][9] || "").trim().toUpperCase();
+        const paymentStatus = (status === "UNPAID" || status === "RESERVED") ? "UNPAID" : "PAID";
+        sheet.getRange(i + 1, 12).setValue(paymentStatus);
+      }
+    }
+  }
+  return sheet;
+}
+
 function ensureQRTilesSheet(ss) {
   let sheet = ss.getSheetByName("QR Tiles");
   if (!sheet) {
@@ -331,7 +355,8 @@ function getInitialData() {
           customization: String(row[7] || "").replace(/^'/, "").trim(),
           price: Number(row[8]) || 0,
           status: status,
-          qrTile: row[10] ? String(row[10]).trim() : ""
+          qrTile: row[10] ? String(row[10]).trim() : "",
+          paymentStatus: String(row[11] || "").trim().toUpperCase() || "PAID"
         });
       }
     }
@@ -383,6 +408,7 @@ function getOrderHistory(limit) {
     const row = data[i];
     const status = String(row[9] || "").trim().toUpperCase();
     if (["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"].includes(status)) {
+      const paymentStatus = String(row[11] || "").trim().toUpperCase() || "PAID";
       orders.push({
         orderNum: String(row[0]).trim(),
         orderTime: row[1] ? String(row[1]) : "",
@@ -394,9 +420,10 @@ function getOrderHistory(limit) {
         customization: String(row[7] || "").replace(/^'/, "").trim(),
         price: Number(row[8]) || 0,
         status: status,
-        qrTile: row[10] ? String(row[10]).trim() : ""
+        qrTile: row[10] ? String(row[10]).trim() : "",
+        paymentStatus: paymentStatus
       });
-      if (status !== "UNPAID") revenue += Number(row[8]) || 0;
+      if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
     }
   }
   return { orders: orders, totalRevenue: revenue, totalCount: orders.length };
@@ -459,7 +486,7 @@ function createOrderLocked(order) {
 
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName("Orders Log");
+    const sheet = ensureOrdersSheet(ss);
     const data = sheet.getDataRange().getValues();
 
     const userCode = getUserCodeForOrder(ss, order);
@@ -473,6 +500,10 @@ function createOrderLocked(order) {
     const guestName = order.guestName || "Guest";
     const status = order.status || "PENDING";
     const qrTile = order.qrTile || "";
+    let paymentStatus = String(order.paymentStatus || "").trim();
+    if (!paymentStatus) {
+      paymentStatus = (status === "UNPAID" || status === "RESERVED") ? "UNPAID" : "PAID";
+    }
 
     let rawNote = String(order.customization || "").replace(/[\r\n]+/g, " ").trim();
     if (rawNote.startsWith("+") || rawNote.startsWith("=") || rawNote.startsWith("-")) rawNote = "'" + rawNote;
@@ -488,13 +519,15 @@ function createOrderLocked(order) {
       customization: rawNote.replace(/^'/, ""),
       price: Number(order.price) || 0,
       status: status,
-      qrTile: qrTile
+      qrTile: qrTile,
+      paymentStatus: paymentStatus
     };
 
     sheet.appendRow([
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
-      createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile
+      createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
+      createdOrder.paymentStatus
     ]);
 
     // Bind QR tile if provided
@@ -514,7 +547,7 @@ function createOrderLocked(order) {
 
 function updateOrderStatus(orderNum, newStatus) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Orders Log");
+  const sheet = ensureOrdersSheet(ss);
   const data = sheet.getDataRange().getValues();
   const target = String(orderNum).trim();
   const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
@@ -543,6 +576,32 @@ function updateOrderStatus(orderNum, newStatus) {
   return { success: true, orderNum: orderNum, status: newStatus };
 }
 
+function confirmPaymentStatus(orderNum) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ensureOrdersSheet(ss);
+  const data = sheet.getDataRange().getValues();
+  const target = String(orderNum).trim();
+  const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+
+  let matchIndex = -1;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() !== target) continue;
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    if (ACTIVE_STATUSES.indexOf(status) !== -1) { matchIndex = i; break; }
+    if (matchIndex === -1) matchIndex = i;
+  }
+
+  if (matchIndex === -1) return { success: false, error: "Order not found" };
+
+  const currentStatus = String(data[matchIndex][9] || "").trim().toUpperCase();
+  const nextStatus = currentStatus === "UNPAID" ? "PENDING" : currentStatus;
+  sheet.getRange(matchIndex + 1, 10).setValue(nextStatus);
+  sheet.getRange(matchIndex + 1, 12).setValue("PAID");
+  SpreadsheetApp.flush();
+  bumpVersion();
+  return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID" };
+}
+
 // Clear an order from a scanned code. The scanner may read either:
 //   1. the barcode on the guest's pre-order ticket -> encodes the ORDER number
 //   2. the QR tile handed out at the counter       -> encodes the TILE number
@@ -550,7 +609,7 @@ function updateOrderStatus(orderNum, newStatus) {
 // after X999 rolls back to X001.
 function clearOrderByTile(scannedCode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Orders Log");
+  const sheet = ensureOrdersSheet(ss);
   const data = sheet.getDataRange().getValues();
   const target = String(scannedCode).trim().replace(/^#/, "");
   const CLEARABLE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
@@ -588,7 +647,7 @@ function clearOrderByTile(scannedCode) {
 
 function deleteOrder(orderNum) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Orders Log");
+  const sheet = ensureOrdersSheet(ss);
   const data = sheet.getDataRange().getValues();
   const target = String(orderNum).trim();
   // Newest row wins, because order numbers repeat after the X999 rollover
@@ -856,6 +915,7 @@ function lookupOrder(rawCode) {
       price: Number(row[8]) || 0,
       status: String(row[9] || "").trim().toUpperCase(),
       qrTile: row[10] ? String(row[10]).trim() : "",
+      paymentStatus: String(row[11] || "").trim().toUpperCase() || "PAID",
       category: category
     },
     categoryColors: getCategoryColors()
@@ -911,8 +971,9 @@ function doPost(e) {
       if (action === "createReservedOrder") data.order.status = "RESERVED";
       return jsonResponse(createOrderLocked(data.order));
     }
-    if (action === "confirmPayment") return jsonResponse(updateOrderStatus(data.orderNum, "PENDING"));
+    if (action === "confirmPayment") return jsonResponse(confirmPaymentStatus(data.orderNum));
     if (action === "assignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "ASSIGNED"));
+    if (action === "unassignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "PENDING"));
     if (action === "markReady") return jsonResponse(updateOrderStatus(data.orderNum, "READY"));
     if (action === "clearOrder") return jsonResponse(updateOrderStatus(data.orderNum, "CLEARED"));
     if (action === "clearOrderByTile") return jsonResponse(clearOrderByTile(data.tileCode));

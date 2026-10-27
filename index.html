@@ -1620,6 +1620,8 @@
             renderAll();
             showToast("Payment confirmation failed: " + (res.error || "Unknown error"), "error");
           } else {
+            order.paymentStatus = "PAID";
+            renderAll();
             showToast(`Order #${targetNum} confirmed & paid`, "success");
           }
         })
@@ -1921,6 +1923,7 @@
                   <span class="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background-color: ${color};">
                     ${escapeHtml(category)}
                   </span>
+                  ${String(o.paymentStatus || "").toUpperCase() === "UNPAID" ? `<span class="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">UNPAID</span>` : ""}
                 </div>
               </div>
 
@@ -1971,7 +1974,7 @@
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
-          action: isChecked ? "assignOrder" : "confirmPayment",
+          action: isChecked ? "assignOrder" : "unassignOrder",
           orderNum: targetNum
         })
       })
@@ -1982,6 +1985,7 @@
           renderAll();
           showToast(res.error || "Failed to update assignment", "error");
         } else {
+          if (res.paymentStatus) o.paymentStatus = res.paymentStatus;
           showToast(isChecked ? `#${targetNum} assigned — alert cleared` : `#${targetNum} unassigned`, "success");
         }
       })
@@ -2027,10 +2031,21 @@
       const num = String(order.orderNum || "").trim();
       const primary = tile || `#${num}`;
       const secondary = tile && num ? `Order #${escapeHtml(num)}` : "";
-      const cls = isReady
-        ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md"
-        : "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
+      const isUnpaid = String(order.paymentStatus || "").trim().toUpperCase() === "UNPAID";
+      const showUnpaidBadge = isReady && isUnpaid;
+      const unpaidBadge = showUnpaidBadge
+        ? `<div class="absolute -top-2 -right-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm z-10">UNPAID</div>`
+        : "";
+      let cls = "relative ";
+      if (isReady) {
+        cls += showUnpaidBadge
+          ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md border-4 border-rose-500"
+          : "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md";
+      } else {
+        cls += "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
+      }
       return `<div class="${cls}">
+        ${unpaidBadge}
         <div class="pickup-number leading-none">${escapeHtml(primary)}</div>
         ${secondary ? `<div class="pickup-sub text-[11px] font-bold opacity-70 mt-1">${secondary}</div>` : ""}
       </div>`;
@@ -2277,6 +2292,7 @@
                   <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${statusBadgeColor}">
                     ${escapeHtml(statusUpper)}
                   </span>
+                  ${String(o.paymentStatus || "").toUpperCase() === "UNPAID" ? `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-600 text-white">UNPAID</span>` : ""}
                 </div>
                 <span class="text-slate-500 block text-[11px] font-semibold mt-0.5">
                   Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} ${o.pickupTime ? `| Pickup: ${escapeHtml(o.pickupTime)}` : ''}

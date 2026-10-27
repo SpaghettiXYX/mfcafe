@@ -168,8 +168,8 @@
 
   <!-- QR CODE TICKET VIEW -->
   <div id="qrTicketView" class="hidden flex-1 flex flex-col justify-center items-center text-center p-6 bg-white rounded-3xl border border-slate-200 my-auto space-y-4 shadow-sm">
-    <div class="bg-purple-100 text-purple-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-purple-300">
-      <i class="fa-solid fa-clock mr-1"></i> STATUS: RESERVED
+    <div id="ticketStatusBadge" class="bg-purple-100 text-purple-800 px-3.5 py-1 rounded-full text-xs font-extrabold border border-purple-300">
+      <i class="fa-solid fa-clock mr-1" id="ticketStatusIcon"></i> <span id="ticketStatusText">STATUS: RESERVED</span>
     </div>
 
     <h2 class="text-4xl font-black text-amber-600" id="ticketOrderNum">#Auto</h2>
@@ -241,6 +241,7 @@
       teacherPauseReason: "",
       currentOrder: null
     };
+    let statusPollInterval = null;
 
     // ===== SAFE PRICE HELPER =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
@@ -529,6 +530,67 @@
         });
       }
       showToast("Order submitted! Show this barcode at pickup.", "success");
+      startStatusPolling(order.orderNum);
+    }
+
+    function updateTicketStatusUI(status, paymentStatus) {
+      const badge = document.getElementById('ticketStatusBadge');
+      const icon = document.getElementById('ticketStatusIcon');
+      const text = document.getElementById('ticketStatusText');
+      if (!badge || !icon || !text) return;
+
+      const s = String(status || "RESERVED").trim().toUpperCase();
+      const configs = {
+        RESERVED: { cls: "bg-purple-100 text-purple-800 border-purple-300", icon: "fa-clock", label: "STATUS: RESERVED" },
+        UNPAID: { cls: "bg-rose-100 text-rose-800 border-rose-300", icon: "fa-circle-xmark", label: "STATUS: UNPAID" },
+        PENDING: { cls: "bg-amber-100 text-amber-800 border-amber-300", icon: "fa-spinner fa-spin-pulse", label: "STATUS: PREPARING" },
+        ASSIGNED: { cls: "bg-amber-100 text-amber-800 border-amber-300", icon: "fa-spinner fa-spin-pulse", label: "STATUS: PREPARING" },
+        READY: { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: "fa-bell fa-shake", label: "STATUS: READY FOR PICKUP" },
+        CLEARED: { cls: "bg-slate-100 text-slate-600 border-slate-300", icon: "fa-check", label: "STATUS: PICKED UP" }
+      };
+      const cfg = configs[s] || configs.RESERVED;
+      badge.className = `${cfg.cls} px-3.5 py-1 rounded-full text-xs font-extrabold border`;
+      icon.className = `fa-solid ${cfg.icon} mr-1`;
+      text.innerText = cfg.label;
+
+      // Also show UNPAID badge for teacher pre-orders that are ready but not paid
+      let unpaidBadge = document.getElementById('ticketUnpaidBadge');
+      if (paymentStatus === "UNPAID" && s !== "RESERVED" && s !== "UNPAID") {
+        if (!unpaidBadge) {
+          unpaidBadge = document.createElement('div');
+          unpaidBadge.id = 'ticketUnpaidBadge';
+          unpaidBadge.className = "bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-extrabold animate-pulse";
+          unpaidBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation mr-1"></i> UNPAID';
+          badge.parentNode.insertBefore(unpaidBadge, badge.nextSibling);
+        }
+      } else if (unpaidBadge) {
+        unpaidBadge.remove();
+      }
+    }
+
+    function startStatusPolling(orderNum) {
+      stopStatusPolling();
+      const poll = () => {
+        if (!state.currentOrder || String(state.currentOrder.orderNum) !== String(orderNum)) return;
+        fetch(`${APPS_SCRIPT_URL}?action=lookupOrder&code=${encodeURIComponent(orderNum)}&_t=${Date.now()}`, { cache: "no-cache" })
+          .then(res => res.json())
+          .then(res => {
+            if (res.success && res.order) {
+              updateTicketStatusUI(res.order.status, res.order.paymentStatus);
+              if (res.order.status === "CLEARED") stopStatusPolling();
+            }
+          })
+          .catch(() => {});
+      };
+      poll();
+      statusPollInterval = setInterval(poll, 5000);
+    }
+
+    function stopStatusPolling() {
+      if (statusPollInterval) {
+        clearInterval(statusPollInterval);
+        statusPollInterval = null;
+      }
     }
 
     // ===== DOWNLOADABLE RECEIPT (canvas, printer-slip style) =====
@@ -735,10 +797,13 @@
     }
 
     function resetCustomerForm() {
+      stopStatusPolling();
       closeReceiptModal();
       document.getElementById('qrTicketView')?.classList.add('hidden');
       document.getElementById('orderView')?.classList.remove('hidden');
       document.getElementById('orderFooter')?.classList.remove('hidden');
+      const unpaidBadge = document.getElementById('ticketUnpaidBadge');
+      if (unpaidBadge) unpaidBadge.remove();
       state.selectedItem = null;
       state.currentOrder = null;
       document.getElementById('itemOptions')?.classList.add('hidden');
