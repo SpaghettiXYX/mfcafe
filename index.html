@@ -129,6 +129,10 @@
     body.display-mode .pickup-sub { font-size: 0.95rem !important; }
     body.display-mode #pickupPreparingList > div,
     body.display-mode #pickupReadyList > div { padding: 1rem 0.5rem !important; }
+    body.display-mode #pickupQuickClear { padding: 0.5rem 0.75rem !important; border-radius: 1rem !important; }
+    body.display-mode #pickupQuickClear .pickup-clear-text { display: none; }
+    body.display-mode #pickupQuickClear input { padding: 0.375rem 0.75rem !important; }
+    body.display-mode #pickupQuickClear button { padding: 0.375rem 0.75rem !important; }
 
     #displayExitBtn { display: none; }
     body.display-mode #displayExitBtn { display: flex; }
@@ -389,13 +393,13 @@
         <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
       </div>
 
-      <!-- Clearing Box on Pickup Screen (hidden in fullscreen display mode) -->
-      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm pickup-hide">
+      <!-- Clearing Box on Pickup Screen -->
+      <div id="pickupQuickClear" class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <i class="fa-solid fa-qrcode text-emerald-600 text-lg"></i>
             <span class="font-black text-slate-800 text-sm">Quick Clear</span>
-            <span class="text-xs text-slate-400">Scan QR tile / order # to clear picked-up order</span>
+            <span class="pickup-clear-text text-xs text-slate-400">Scan QR tile / order # to clear picked-up order</span>
           </div>
           <div class="flex items-center gap-2">
             <input type="text" id="pickupScanInput" placeholder="Scan to clear..."
