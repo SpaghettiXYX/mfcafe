@@ -84,8 +84,8 @@
       animation: kds-marquee-scroll 22s linear infinite;
     }
     @keyframes kds-new-flash {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-      50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.45); }
+      0%, 100% { outline: 0 solid rgba(245, 158, 11, 0); }
+      50% { outline: 5px solid rgba(245, 158, 11, 0.9); outline-offset: 2px; }
     }
     .kds-unassigned { animation: kds-new-flash 1.6s ease-in-out infinite; }
     @media (prefers-reduced-motion: reduce) {
@@ -328,7 +328,7 @@
 
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">
-                  QR Tile <span class="text-amber-500">(optional — scan or type tile #)</span>
+                  QR Tile <span class="text-amber-500">(required — scan or type tile #)</span>
                 </label>
                 <div class="flex gap-2">
                   <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
@@ -337,7 +337,7 @@
                     <i class="fa-solid fa-qrcode"></i>
                   </button>
                 </div>
-                <p id="posQRTileStatus" class="text-[10px] text-slate-400 mt-1">Leave empty for traditional order-number pickup</p>
+                <p id="posQRTileStatus" class="text-[10px] text-slate-400 mt-1">Required — every order must be bound to a QR tile</p>
               </div>
             </div>
           </div>
@@ -1501,6 +1501,23 @@
       const notes = notesInput ? notesInput.value : "";
       const qrTile = qrTileInput ? qrTileInput.value.trim() : "";
 
+      // Every order must be tied to a QR tile now — no more anonymous
+      // order-number-only pickups.
+      if (!qrTile) {
+        showToast("Please scan or enter the QR tile number for this order.", "warning", 4000);
+        if (qrTileInput) {
+          qrTileInput.focus();
+          qrTileInput.classList.add('ring-2', 'ring-rose-400');
+          setTimeout(() => qrTileInput.classList.remove('ring-2', 'ring-rose-400'), 1600);
+        }
+        return;
+      }
+      const boundTile = state.qrTiles.find(t => String(t.code) === qrTile && String(t.status || "").toLowerCase() !== "available");
+      if (boundTile) {
+        showToast(`Tile #${qrTile} is still bound to order #${boundTile.boundOrder}. Clear that order first.`, "error", 4500);
+        return;
+      }
+
       const btnSubmit = document.getElementById('btnSubmitPos');
       if (btnSubmit) {
         btnSubmit.disabled = true;
@@ -1575,11 +1592,25 @@
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
 
-      const queueOrders = state.orders.filter(o => ["UNPAID", "RESERVED"].includes((o.status || "").toUpperCase()));
+      // Anything that still owes money must stay visible at the cashier —
+      // including teacher pre-orders that are already READY for pickup.
+      const queueOrders = state.orders.filter(o => {
+        const status = (o.status || "").toUpperCase();
+        if (status === "CLEARED") return false;
+        if (status === "UNPAID" || status === "RESERVED") return true;
+        return String(o.paymentStatus || "").toUpperCase() === "UNPAID";
+      });
       container.innerHTML = queueOrders.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid or pre-order queue items right now.</p>` : "";
 
       queueOrders.forEach(o => {
-        const isReserved = (o.status || "").toUpperCase() === "RESERVED";
+        const status = (o.status || "").toUpperCase();
+        const isReserved = status === "RESERVED";
+        const isReady = status === "READY";
+        const statusBadge = isReady
+          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">READY · UNPAID</span>`
+          : isReserved
+            ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>`
+            : '';
         const card = document.createElement('div');
         card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
         card.innerHTML = `
@@ -1587,11 +1618,11 @@
             <div class="flex items-center space-x-1.5 flex-wrap">
               <span class="font-black text-amber-600 text-sm">#${escapeHtml(o.orderNum)}</span>
               <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
-              ${isReserved ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>` : ''}
+              ${statusBadge}
             </div>
-            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})</p>
+            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})${o.qrTile ? ` · Tile ${escapeHtml(o.qrTile)}` : ''}</p>
           </div>
-          <button onclick="confirmOrderPayment('${o.orderNum}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
+          <button onclick="confirmOrderPayment('${escapeHtml(o.orderNum)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
             Confirm & Pay
           </button>
         `;
@@ -1601,11 +1632,23 @@
 
     function confirmOrderPayment(orderNum) {
       const targetNum = String(orderNum).trim().replace("#", "");
-      const order = state.orders.find(o => String(o.orderNum).trim() === targetNum);
+      // Look from the newest row backwards so a recycled order number hits the
+      // live order, not a cleared one from earlier in the day.
+      let order = null;
+      for (let i = state.orders.length - 1; i >= 0; i--) {
+        const o = state.orders[i];
+        if (String(o.orderNum).trim() !== targetNum) continue;
+        if ((o.status || "").toUpperCase() !== "CLEARED") { order = o; break; }
+        if (!order) order = o;
+      }
 
       if (order) {
         const prevStatus = order.status;
-        order.status = "PENDING";
+        const prevPayment = order.paymentStatus;
+        // A drink that is already READY stays READY; only the unpaid queue item
+        // moves into the kitchen queue.
+        if ((order.status || "").toUpperCase() === "UNPAID") order.status = "PENDING";
+        order.paymentStatus = "PAID";
         renderAll();
 
         fetch(APPS_SCRIPT_URL, {
@@ -1617,9 +1660,11 @@
         .then(res => {
           if (!res.success) {
             order.status = prevStatus;
+            order.paymentStatus = prevPayment;
             renderAll();
             showToast("Payment confirmation failed: " + (res.error || "Unknown error"), "error");
           } else {
+            if (res.status) order.status = res.status;
             order.paymentStatus = "PAID";
             renderAll();
             showToast(`Order #${targetNum} confirmed & paid`, "success");
@@ -1627,6 +1672,7 @@
         })
         .catch(() => {
           order.status = prevStatus;
+          order.paymentStatus = prevPayment;
           renderAll();
           showToast("Network error — order reverted", "error");
         });

@@ -60,6 +60,9 @@
     #qrTicketView[hidden], #qrTicketView.hidden,
     #orderedView[hidden], #orderedView.hidden,
     #pausedOverlay[hidden], #pausedOverlay.hidden { display: none !important; }
+    /* Stop the browser from re-anchoring the scroll position when the menu
+       is swapped for the ticket — that caused the page to jump around. */
+    html, body { overflow-anchor: none; }
     #barcode { background-color: #ffffff !important; }
   </style>
   <script>
@@ -522,6 +525,7 @@
     }
 
     function showQRTicket(order) {
+      state.currentOrder = order;
       selfOrderHistory.openTicket(order);
       updateTicketStatusUI(order.status, order.paymentStatus);
       document.getElementById('orderView')?.classList.add('hidden');
@@ -546,7 +550,10 @@
           margin: 10
         });
       }
-      showToast("Order submitted! Show this barcode at pickup.", "success");
+      // Keep the viewport on the ticket instead of staying scrolled down into
+      // the (now hidden) menu.
+      window.scrollTo(0, 0);
+      if (!window.__sohRestoring) showToast("Order submitted! Show this barcode at pickup.", "success");
       startStatusPolling(order.orderNum);
     }
 
