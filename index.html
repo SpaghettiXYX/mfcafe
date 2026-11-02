@@ -84,14 +84,28 @@
       display: inline-flex; white-space: nowrap; will-change: transform;
       animation: kds-marquee-scroll 22s linear infinite;
     }
-    @keyframes kds-new-flash {
-      0%, 100% { outline: 0 solid rgba(245, 158, 11, 0); }
-      50% { outline: 5px solid rgba(245, 158, 11, 0.9); outline-offset: 2px; }
+    /* New-order flash: a pseudo-element ring. Box-shadow is stripped by the
+       dark theme's .shadow-sm reset, and Safari's outline animation is
+       unreliable, so both are avoided. The ring only animates opacity. */
+    .kds-unassigned { position: relative; }
+    .kds-unassigned::after {
+      content: "";
+      position: absolute;
+      inset: -6px;
+      border: 4px solid rgba(245, 158, 11, 0.95);
+      border-radius: inherit;
+      box-shadow: 0 0 20px 2px rgba(245, 158, 11, 0.35);
+      pointer-events: none;
+      opacity: 0;
+      animation: kds-new-flash 1.6s ease-in-out infinite;
     }
-    .kds-unassigned { animation: kds-new-flash 1.6s ease-in-out infinite; }
+    @keyframes kds-new-flash {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
     @media (prefers-reduced-motion: reduce) {
       .kds-marquee-track { animation: none; }
-      .kds-unassigned { animation: none; }
+      .kds-unassigned::after { animation: none; opacity: 1; }
     }
 
     /* Keep QR code & ticket readable */
