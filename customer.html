@@ -53,6 +53,13 @@
     [data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--surface-2) !important; }
     [data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--surface-3) !important; }
 
+
+    /* 明確保護各畫面，避免深色樣式或 flex 覆蓋隱藏狀態。 */
+    #orderView[hidden], #orderView.hidden,
+    #orderFooter[hidden], #orderFooter.hidden,
+    #qrTicketView[hidden], #qrTicketView.hidden,
+    #orderedView[hidden], #orderedView.hidden,
+    #pausedOverlay[hidden], #pausedOverlay.hidden { display: none !important; }
     #barcode { background-color: #ffffff !important; }
   </style>
   <script>
@@ -219,6 +226,7 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] space-y-2 pointer-events-none"></div>
 
+  <script src="self-order-history.js"></script>
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwd36-Yo-7WJwWZ0T4lnp3kOWXF4KRBjkiviTFOVMTMmUlPjrOSOFvlUe2wpdISdI2qZA/exec";
@@ -241,7 +249,12 @@
       teacherPauseReason: "",
       currentOrder: null
     };
-    let statusPollInterval = null;
+    const selfOrderHistory = SelfOrderHistory.create({
+      storageKey: 'mfcafe_customer_orders_v1', state, apiUrl: APPS_SCRIPT_URL,
+      showTicket: order => showQRTicket(order), updateStatus: updateTicketStatusUI,
+      applyReservation: applyReservationState, closeReceipt: closeReceiptModal, notify: showToast
+    });
+    let menuPollingStarted = false;
 
     // ===== SAFE PRICE HELPER =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
@@ -300,6 +313,8 @@
         .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
 
       // Poll for menu updates every 15s (so paused items disappear)
+      if (menuPollingStarted) return;
+      menuPollingStarted = true;
       setInterval(() => {
         if (document.getElementById("qrTicketView") && !document.getElementById("qrTicketView").classList.contains("hidden")) return; // skip if on ticket
         fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
@@ -321,6 +336,7 @@
 
     function applyReservationState() {
       const paused = !state.teacherReservationOpen;
+      if (selfOrderHistory) return selfOrderHistory.applyView(paused, state.teacherPauseReason || "The pre-order portal is temporarily closed. Please order at the counter.");
       document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
       document.getElementById('orderView').classList.toggle('hidden', paused);
       document.getElementById('orderFooter').classList.toggle('hidden', paused);
@@ -491,7 +507,7 @@
           btnSubmit.classList.remove('opacity-50');
         }
         if (res.success && res.order) {
-          showQRTicket(res.order);
+          showQRTicket({ ...res.order, orderTime: res.order.orderTime || orderPayload.orderTime });
         } else {
           showToast(res.error || "Order creation failed.", "error");
         }
@@ -506,7 +522,8 @@
     }
 
     function showQRTicket(order) {
-      state.currentOrder = order;
+      selfOrderHistory.openTicket(order);
+      updateTicketStatusUI(order.status, order.paymentStatus);
       document.getElementById('orderView')?.classList.add('hidden');
       document.getElementById('orderFooter')?.classList.add('hidden');
       document.getElementById('qrTicketView')?.classList.remove('hidden');
@@ -568,29 +585,12 @@
       }
     }
 
-    function startStatusPolling(orderNum) {
-      stopStatusPolling();
-      const poll = () => {
-        if (!state.currentOrder || String(state.currentOrder.orderNum) !== String(orderNum)) return;
-        fetch(`${APPS_SCRIPT_URL}?action=lookupOrder&code=${encodeURIComponent(orderNum)}&_t=${Date.now()}`, { cache: "no-cache" })
-          .then(res => res.json())
-          .then(res => {
-            if (res.success && res.order) {
-              updateTicketStatusUI(res.order.status, res.order.paymentStatus);
-              if (res.order.status === "CLEARED") stopStatusPolling();
-            }
-          })
-          .catch(() => {});
-      };
-      poll();
-      statusPollInterval = setInterval(poll, 5000);
+    function startStatusPolling() {
+      selfOrderHistory.startPolling();
     }
 
     function stopStatusPolling() {
-      if (statusPollInterval) {
-        clearInterval(statusPollInterval);
-        statusPollInterval = null;
-      }
+      selfOrderHistory.stopPolling();
     }
 
     // ===== DOWNLOADABLE RECEIPT (canvas, printer-slip style) =====
@@ -731,7 +731,7 @@
       y += 52;
       ctx.textAlign = 'center';
       ctx.font = 'bold 22px "Courier New", monospace';
-      ctx.fillText('STATUS: RESERVED - SHOW AT PICKUP', W / 2, y);
+      ctx.fillText(`STATUS: ${order.status || '-'} / PAYMENT: ${order.paymentStatus || '-'}`, W / 2, y);
 
       // Barcode
       const barcodeCanvas = document.createElement('canvas');
@@ -806,11 +806,13 @@
       if (unpaidBadge) unpaidBadge.remove();
       state.selectedItem = null;
       state.currentOrder = null;
+      selfOrderHistory.newOrder();
       document.getElementById('itemOptions')?.classList.add('hidden');
       document.getElementById('submitBtnText').innerText = "Submit Pre-Order & Get Barcode";
       init();
     }
 
+    selfOrderHistory.restore();
     init();
   </script>
 
