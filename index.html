@@ -19,14 +19,16 @@
 
     /* ===== THEME VARIABLES ===== */
     :root {
-      --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e2e8f0;
-      --border: #e2e8f0; --border-2: #cbd5e1;
+      /* Four background layers, ~2–3% luminance apart — borders are a light
+         film, never a black frame. */
+      --bg: #f3f6fa; --surface: #ffffff; --surface-2: #f7f9fc; --surface-3: #eef2f7;
+      --border: rgba(15,23,42,0.08); --border-2: rgba(15,23,42,0.14);
       --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
     }
     [data-theme="dark"] {
-      --bg: #0b1120; --surface: #1e293b; --surface-2: #172033; --surface-3: #283548;
-      --border: #283548; --border-2: #3b4a63;
-      --text: #f8fafc; --text-2: #e2e8f0; --text-3: #94a3b8; --text-4: #64748b;
+      --bg: #10151f; --surface: #161c28; --surface-2: #1c2331; --surface-3: #232b3b;
+      --border: rgba(226,232,240,0.07); --border-2: rgba(226,232,240,0.12);
+      --text: #eef2f8; --text-2: #d6dde8; --text-3: #aab5c6; --text-4: #7f8a9d;
     }
     body { background-color: var(--bg); color: var(--text); }
 
@@ -34,7 +36,7 @@
     [data-theme="dark"] .bg-white { background-color: var(--surface) !important; }
     [data-theme="dark"] .bg-slate-50 { background-color: var(--surface-2) !important; }
     [data-theme="dark"] .bg-slate-100 { background-color: var(--surface-3) !important; }
-    [data-theme="dark"] .bg-slate-200 { background-color: var(--border-2) !important; }
+    [data-theme="dark"] .bg-slate-200 { background-color: var(--surface-3) !important; }
     [data-theme="dark"] .bg-slate-800 { background-color: var(--surface-3) !important; }
     [data-theme="dark"] .bg-slate-900 { background-color: var(--surface) !important; }
 
@@ -62,7 +64,6 @@
     [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
       background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important;
     }
-    [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus { border-color: #f59e0b !important; }
     [data-theme="dark"] input::placeholder { color: var(--text-4) !important; }
 
     /* Fix hover states in dark mode */
@@ -95,6 +96,48 @@
 
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
+
+    /* ===== HOUSE DESIGN RULES ===== */
+    /* 1. No pure-black frames. Dark borders are a translucent light film; the
+       four surface layers carry the separation instead. */
+    [data-theme="dark"] .border-slate-700,
+    [data-theme="dark"] .border-slate-800,
+    [data-theme="dark"] .border-slate-900 { border-color: var(--border-2) !important; }
+    .bg-black\/75 { background-color: rgba(16,21,31,0.72) !important; }
+    /* 2. Focus = doubled ring shadow, never a border stroke. */
+    input:focus, textarea:focus, select:focus {
+      outline: 0 none !important;
+      border-color: var(--border-2) !important;
+      box-shadow:
+        0 0 0 2px var(--surface),
+        0 0 0 4px rgba(245,158,11,0.28),
+        0 0 0 7px rgba(245,158,11,0.08) !important;
+    }
+    [data-theme="dark"] input:focus, [data-theme="dark"] textarea:focus, [data-theme="dark"] select:focus {
+      box-shadow:
+        0 0 0 2px var(--surface),
+        0 0 0 5px rgba(245,158,11,0.55),
+        0 0 0 9px rgba(245,158,11,0.16) !important;
+    }
+    /* 3. Dark mode drops every weight by 40%. */
+    [data-theme="dark"] body { font-weight: 300; }
+    [data-theme="dark"] .font-black { font-weight: 540 !important; }
+    [data-theme="dark"] .font-extrabold { font-weight: 480 !important; }
+    [data-theme="dark"] .font-bold { font-weight: 420 !important; }
+    [data-theme="dark"] .font-semibold { font-weight: 360 !important; }
+    [data-theme="dark"] .font-medium { font-weight: 300 !important; }
+    /* 4. Streaming text: 120ms blur-in per glyph, 30ms stagger. */
+    @keyframes soh-stream-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+    .stream-char { display: inline-block; opacity: 0; white-space: pre; animation: soh-stream-in 120ms ease-out forwards; }
+    /* 5. Optical icon alignment. */
+    .fa-solid, .fa-regular, .fa-brands { position: relative; top: 0.125em; }
+    /* 6. Numerals never jitter. */
+    body, input, textarea, select, button { font-variant-numeric: tabular-nums; }
+    /* 8. Nicer line breaking in running copy. */
+    body { text-wrap: pretty; }
+    @media (prefers-reduced-motion: reduce) {
+      .stream-char { animation: none; opacity: 1; filter: none; }
+    }
 
     /* Tile QR print: hide everything else when printing the modal */
     @media print {
@@ -937,7 +980,12 @@
         document.getElementById("pushMessageModal")?.classList.add("hidden");
         return;
       }
-      document.getElementById("pushMessageText").innerText = msg.text;
+      const pushText = document.getElementById("pushMessageText");
+      const pushKey = `${msg.timestamp}|${msg.text}`;
+      if (pushText.dataset.key !== pushKey) {
+        pushText.dataset.key = pushKey;
+        streamText(pushText, msg.text);
+      }
       document.getElementById("pushMessageSender").innerText = msg.sender ? `From ${escapeHtml(msg.sender)}` : "";
       document.getElementById("pushMessageModal").classList.remove("hidden");
     }
@@ -1258,6 +1306,20 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
+    }
+
+    // Stream text in glyph by glyph: 120ms blur-in, 30ms stagger.
+    function streamText(el, text) {
+      if (!el) return;
+      el.innerHTML = "";
+      Array.from(String(text)).forEach((ch, i) => {
+        if (ch === "\n") { el.appendChild(document.createElement("br")); return; }
+        const span = document.createElement("span");
+        span.className = "stream-char";
+        span.style.animationDelay = `${i * 30}ms`;
+        span.textContent = ch === " " ? "\u00a0" : ch;
+        el.appendChild(span);
+      });
     }
 
     function getElapsedTimeStr(isoTimeStr) {

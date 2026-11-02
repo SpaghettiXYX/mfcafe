@@ -12,6 +12,7 @@
   var ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
   var MAX_ORDERS = 30;
   var POLL_MS = 10000;
+  var RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // keep remembered orders for 7 days
 
   function safeParse(raw) {
     try { return JSON.parse(raw); } catch (e) { return null; }
@@ -41,7 +42,8 @@
       price: Number(order.price) || 0,
       status: status,
       paymentStatus: payment,
-      qrTile: order.qrTile || ""
+      qrTile: order.qrTile || "",
+      addedAt: Number(order.addedAt) || Date.now()
     };
   }
 
@@ -75,7 +77,19 @@
       try {
         var raw = localStorage.getItem(storageKey);
         var parsed = safeParse(raw);
-        if (Array.isArray(parsed)) return parsed.map(normalize).filter(function (o) { return o.orderNum; });
+        if (Array.isArray(parsed)) {
+          var cutoff = Date.now() - RETENTION_MS;
+          var kept = parsed.map(normalize)
+            .filter(function (o) { return o.orderNum && o.addedAt >= cutoff; });
+          if (kept.length !== parsed.length) {
+            try { localStorage.setItem(storageKey, JSON.stringify(kept)); } catch (e) {}
+            var cur = localStorage.getItem(storageKey + "_current");
+            if (cur && !kept.some(function (o) { return o.orderNum === cur; })) {
+              localStorage.removeItem(storageKey + "_current");
+            }
+          }
+          return kept;
+        }
       } catch (e) {}
       return [];
     }
@@ -178,7 +192,7 @@
       panel.style.cssText = [
         "position:fixed", "inset:0", "z-index:120", "display:none",
         "align-items:center", "justify-content:center", "padding:16px",
-        "background:rgba(0,0,0,0.72)", "backdrop-filter:blur(4px)"
+        "background:rgba(16,21,31,0.72)", "backdrop-filter:blur(4px)"
       ].join(";");
       panel.innerHTML = [
         '<div id="sohPanelCard" style="width:100%;max-width:26rem;max-height:88vh;overflow-y:auto;border-radius:20px;padding:16px;background:var(--surface, #ffffff);color:var(--text, #0f172a);border:1px solid var(--border, #e2e8f0);box-shadow:0 20px 50px rgba(0,0,0,0.35);">',
@@ -187,7 +201,7 @@
         '    <button type="button" id="sohClosePanel" style="background:transparent;border:1px solid var(--border-2, #cbd5e1);color:inherit;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>',
         '  </div>',
         '  <div id="sohOrderList"></div>',
-        '  <p style="font-size:10px;opacity:0.6;margin:12px 0 0;">Orders are kept on this device until you delete them.</p>',
+        '  <p style="font-size:10px;opacity:0.6;margin:12px 0 0;">Orders are kept on this device for 7 days, or until you delete them.</p>',
         '</div>'
       ].join("");
       document.body.appendChild(panel);
@@ -325,6 +339,9 @@
               if (orders[i].orderNum === updated.orderNum) { idx = i; break; }
             }
             if (idx === -1) return;
+            // Keep the original remember date so live polling doesn't extend
+            // the 7-day retention window indefinitely.
+            updated.addedAt = orders[idx].addedAt || updated.addedAt;
             var changed = orders[idx].status !== updated.status || orders[idx].paymentStatus !== updated.paymentStatus;
             orders[idx] = updated;
             if (changed) {
