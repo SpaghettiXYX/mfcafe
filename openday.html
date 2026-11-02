@@ -64,7 +64,7 @@
     #pausedOverlay[hidden], #pausedOverlay.hidden { display: none !important; }
     /* Stop the browser from re-anchoring the scroll position when the menu
        is swapped for the ticket — that caused the page to jump around. */
-    html, body { overflow-anchor: none; }
+    html, body { overflow-anchor: none; overscroll-behavior-y: none; }
     #barcode { background-color: #ffffff !important; }
 
     /* ===== HOUSE DESIGN RULES ===== */
@@ -592,13 +592,32 @@
       });
     }
 
+    // Pin the ticket to the top of the document. Re-running after the next
+    // frame and after the barcode is drawn defeats late layout and Safari
+    // restoring an old menu scroll offset.
+    function pinTicketToTop() {
+      const reset = () => {
+        try { window.scrollTo(0, 0); } catch (e) {}
+        if (document.documentElement) document.documentElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+        const menu = document.getElementById('orderView');
+        if (menu) menu.scrollTop = 0;
+      };
+      reset();
+      requestAnimationFrame(reset);
+      setTimeout(reset, 150);
+    }
+
     function showTicket(order) {
       state.currentOrder = order;
-      selfOrderHistory.openTicket(order);
-      updateTicketStatusUI(order.status, order.paymentStatus);
+      // Swap the screens before anything else: storage or barcode problems
+      // must never strand the guest on a menu they already submitted.
       document.getElementById('orderView')?.classList.add('hidden');
       document.getElementById('orderFooter')?.classList.add('hidden');
       document.getElementById('qrTicketView')?.classList.remove('hidden');
+      pinTicketToTop();
+      try { selfOrderHistory.openTicket(order); } catch (e) { console.warn('Order history unavailable', e); }
+      updateTicketStatusUI(order.status, order.paymentStatus);
 
       document.getElementById('ticketOrderNum').innerText = `#${order.orderNum}`;
       document.getElementById('ticketGuest').innerText = order.guestName;
@@ -621,7 +640,7 @@
       }
       // Keep the viewport on the ticket instead of staying scrolled down into
       // the (now hidden) menu.
-      window.scrollTo(0, 0);
+      pinTicketToTop();
       if (!window.__sohRestoring) showToast("Order placed! Pay at the 2/F Chill Zone cashier.", "success", 4500);
       startStatusPolling(order.orderNum);
     }
@@ -890,10 +909,17 @@
       document.getElementById('custPickupTime').value = "";
       document.getElementById('submitBtnText').innerText = "Place Order (Pay at Cashier)";
       init();
+      try { window.scrollTo(0, 0); } catch (e) {}
+      const menu = document.getElementById('orderView');
+      if (menu) menu.scrollTop = 0;
     }
 
     selfOrderHistory.restore();
     init();
+    window.addEventListener('pageshow', () => {
+      const ticket = document.getElementById('qrTicketView');
+      if (ticket && !ticket.classList.contains('hidden')) pinTicketToTop();
+    });
   </script>
 </body>
 </html>
