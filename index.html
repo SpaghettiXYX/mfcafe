@@ -1668,13 +1668,14 @@
       const container = document.getElementById('unpaidOrdersContainer');
       if (!container) return;
 
-      // Anything that still owes money must stay visible at the cashier —
-      // including teacher pre-orders that are already READY for pickup.
+      // Anything that still owes money must stay visible at the cashier until
+      // it is paid — READY pre-orders, in-progress drinks, and orders already
+      // served (CLEARED) whose payment was never collected.
       const queueOrders = state.orders.filter(o => {
         const status = (o.status || "").toUpperCase();
-        if (status === "CLEARED") return false;
-        if (status === "UNPAID" || status === "RESERVED") return true;
-        return String(o.paymentStatus || "").toUpperCase() === "UNPAID";
+        const payment = String(o.paymentStatus || "").toUpperCase();
+        if (payment === "UNPAID") return true;
+        return status === "UNPAID" || status === "RESERVED";
       });
       container.innerHTML = queueOrders.length === 0 ? `<p class="text-xs text-slate-500 col-span-3 py-1 font-medium">No unpaid or pre-order queue items right now.</p>` : "";
 
@@ -1682,11 +1683,14 @@
         const status = (o.status || "").toUpperCase();
         const isReserved = status === "RESERVED";
         const isReady = status === "READY";
-        const statusBadge = isReady
-          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">READY · UNPAID</span>`
-          : isReserved
-            ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>`
-            : '';
+        const isServed = status === "CLEARED";
+        const statusBadge = isServed
+          ? `<span class="bg-rose-100 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-rose-300">SERVED · UNPAID</span>`
+          : isReady
+            ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">READY · UNPAID</span>`
+            : isReserved
+              ? `<span class="bg-purple-100 text-purple-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-purple-200">RESERVED (${escapeHtml(o.pickupTime || 'Pre-order')})</span>`
+              : `<span class="bg-rose-100 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-rose-300">UNPAID</span>`;
         const card = document.createElement('div');
         card.className = "flex justify-between items-center bg-white p-3 rounded-2xl border border-amber-200 shadow-sm text-xs";
         card.innerHTML = `

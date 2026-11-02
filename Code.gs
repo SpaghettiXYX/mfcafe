@@ -335,30 +335,35 @@ function getInitialData() {
     }
   }
 
-  // Active orders only (exclude CLEARED) for fast loading
+  // Active orders, plus CLEARED-but-unpaid orders so the cashier can still
+  // collect the outstanding payment after the drink was handed out.
   const ordersSheet = ss.getSheetByName("Orders Log");
   let orders = [];
   if (ordersSheet) {
     const ordersData = ordersSheet.getDataRange().getValues();
+    const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
     for (let i = 1; i < ordersData.length; i++) {
       const row = ordersData[i];
       const status = String(row[9] || "").trim().toUpperCase();
-      if (["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"].includes(status)) {
-        orders.push({
-          orderNum: String(row[0]).trim(),
-          orderTime: row[1] ? String(row[1]) : "",
-          pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
-          cashier: String(row[3] || ""),
-          guestName: String(row[4] || "Guest"),
-          productName: String(row[5] || ""),
-          temp: String(row[6] || ""),
-          customization: String(row[7] || "").replace(/^'/, "").trim(),
-          price: Number(row[8]) || 0,
-          status: status,
-          qrTile: row[10] ? String(row[10]).trim() : "",
-          paymentStatus: String(row[11] || "").trim().toUpperCase() || "PAID"
-        });
-      }
+      const paymentStatus = String(row[11] || "").trim().toUpperCase() || "PAID";
+      // Served-but-unpaid orders must stay visible at the cashier until money
+      // is collected, so CLEARED rows are sent too while payment is outstanding.
+      const isServedUnpaid = status === "CLEARED" && paymentStatus === "UNPAID";
+      if (!ACTIVE_STATUSES.includes(status) && !isServedUnpaid) continue;
+      orders.push({
+        orderNum: String(row[0]).trim(),
+        orderTime: row[1] ? String(row[1]) : "",
+        pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
+        cashier: String(row[3] || ""),
+        guestName: String(row[4] || "Guest"),
+        productName: String(row[5] || ""),
+        temp: String(row[6] || ""),
+        customization: String(row[7] || "").replace(/^'/, "").trim(),
+        price: Number(row[8]) || 0,
+        status: status,
+        qrTile: row[10] ? String(row[10]).trim() : "",
+        paymentStatus: paymentStatus
+      });
     }
   }
 
