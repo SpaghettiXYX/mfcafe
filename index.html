@@ -133,6 +133,25 @@
         0 0 0 5px rgba(245,158,11,0.55),
         0 0 0 9px rgba(245,158,11,0.16) !important;
     }
+    /* POS QR-tile validation: red ring + shake, kept distinct from the
+       neutral focus ring so a missing tile is obvious at a glance. */
+    #posQRTile.pos-tile-invalid,
+    #posQRTile.pos-tile-invalid:focus {
+      border-color: rgba(244, 63, 94, 0.9) !important;
+      box-shadow:
+        0 0 0 2px var(--surface),
+        0 0 0 5px rgba(244, 63, 94, 0.5),
+        0 0 0 9px rgba(244, 63, 94, 0.14) !important;
+    }
+    @keyframes pos-tile-shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
+    .pos-tile-shake { animation: pos-tile-shake 320ms ease; }
+    @media (prefers-reduced-motion: reduce) { .pos-tile-shake { animation: none; } }
     /* 3. Dark mode drops every weight by 40%. */
     [data-theme="dark"] body { font-weight: 300; }
     [data-theme="dark"] .font-black { font-weight: 540 !important; }
@@ -389,6 +408,7 @@
                 </label>
                 <div class="flex gap-2">
                   <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
+                    oninput="clearPosTileError()"
                     onkeydown="if(event.key==='Enter')submitPosOrder()">
                   <button onclick="scanQRTileForOrder()" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Scan QR tile">
                     <i class="fa-solid fa-qrcode"></i>
@@ -1565,6 +1585,39 @@
       if (field) field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
+    var POS_TILE_HINT = "Required — every order must be bound to a QR tile";
+
+    // Persistent, in-place reminder: the toast is easy to miss while typing,
+    // so the field itself turns red and the hint below explains what to do.
+    function setPosTileError(message) {
+      const input = document.getElementById('posQRTile');
+      const statusEl = document.getElementById('posQRTileStatus');
+      if (statusEl) {
+        statusEl.innerText = message;
+        statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold";
+        statusEl.setAttribute('role', 'alert');
+      }
+      if (input) {
+        input.classList.add('pos-tile-invalid');
+        input.classList.remove('pos-tile-shake');
+        void input.offsetWidth; // restart the shake on repeated submits
+        input.classList.add('pos-tile-shake');
+        input.focus({ preventScroll: true });
+        if (input.scrollIntoView) input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+
+    function clearPosTileError() {
+      const input = document.getElementById('posQRTile');
+      const statusEl = document.getElementById('posQRTileStatus');
+      if (input) input.classList.remove('pos-tile-invalid', 'pos-tile-shake');
+      if (statusEl) {
+        statusEl.innerText = POS_TILE_HINT;
+        statusEl.className = "text-[10px] text-slate-400 mt-1";
+        statusEl.removeAttribute('role');
+      }
+    }
+
     function submitPosOrder() {
       if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
       const guestInput = document.getElementById('posGuestName');
@@ -1580,17 +1633,14 @@
       // Every order must be tied to a QR tile now — no more anonymous
       // order-number-only pickups.
       if (!qrTile) {
-        showToast("Please scan or enter the QR tile number for this order.", "warning", 4000);
-        if (qrTileInput) {
-          qrTileInput.focus();
-          qrTileInput.classList.add('ring-2', 'ring-rose-400');
-          setTimeout(() => qrTileInput.classList.remove('ring-2', 'ring-rose-400'), 1600);
-        }
+        showToast("QR Tile is required — scan or type the tile number before submitting.", "warning", 5000);
+        setPosTileError("QR Tile is required. Scan the tile, or type its number, then submit again.");
         return;
       }
       const boundTile = state.qrTiles.find(t => String(t.code) === qrTile && String(t.status || "").toLowerCase() !== "available");
       if (boundTile) {
         showToast(`Tile #${qrTile} is still bound to order #${boundTile.boundOrder}. Clear that order first.`, "error", 4500);
+        setPosTileError(`Tile #${qrTile} is already bound to order #${boundTile.boundOrder}. Clear it before using this tile.`);
         return;
       }
 
@@ -1631,6 +1681,7 @@
           document.getElementById('posSelectionDetails')?.classList.add('hidden');
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
+          clearPosTileError();
           document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
           
           fetchFromSheet();
@@ -1779,6 +1830,7 @@
         if (success) { triggerChime(); stopQRScanner(); }
         else { showToast(`Order #${scanned} not found in unpaid queue.`, "warning"); isProcessingScan = false; }
       } else if (scanMode === "bind") {
+        clearPosTileError();
         const input = document.getElementById('posQRTile');
         if (input) input.value = scanned;
         const tile = state.qrTiles.find(t => String(t.code) === scanned);
