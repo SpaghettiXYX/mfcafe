@@ -278,6 +278,29 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[120] space-y-2 pointer-events-none"></div>
 
+  <!-- CUSTOM CONFIRM DIALOG (replaces browser native confirm()) -->
+  <div id="confirmModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[110] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-start space-x-3">
+        <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3 class="font-black text-slate-800 text-base">Confirm Cancellation</h3>
+          <p id="confirmMessage" class="text-sm text-slate-500 mt-1">Are you sure? This action cannot be undone.</p>
+        </div>
+      </div>
+      <div class="flex space-x-2 pt-2">
+        <button id="confirmYesBtn" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition">
+          Yes, Cancel Order
+        </button>
+        <button id="confirmNoBtn" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs hover:bg-slate-200 transition">
+          Keep Order
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="self-order-history.js"></script>
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
@@ -700,6 +723,9 @@
     }
 
     // ===== CANCEL ORDER BUTTON =====
+    // Allowed to cancel only when the order is UNPAID (not yet prepared,
+    // not yet paid). Once PENDING/ASSIGNED/READY it's in the kitchen
+    // pipeline — show a long explanatory disabled button instead.
     function syncCancelButton() {
       const btn = document.getElementById('btnCancelOrder');
       const label = document.getElementById('btnCancelOrderLabel');
@@ -711,15 +737,25 @@
         return;
       }
       btn.classList.remove('hidden');
+
+      // Priority 1: paid orders — cashier refund only
       if (p === "PAID") {
         btn.disabled = true;
-        btn.title = "已付款订单无法在线取消，请找收银台办理退款";
+        btn.title = "This order has been paid. Please see the cashier for a refund.";
         if (label) label.textContent = "Paid — See Cashier for Refund";
-      } else {
-        btn.disabled = false;
-        btn.title = "确认取消此订单（未付款订单可直接取消）";
-        if (label) label.textContent = "Cancel This Order";
+        return;
       }
+      // Priority 2: order already being prepared — cannot cancel
+      if (s !== "UNPAID") {
+        btn.disabled = true;
+        btn.title = "This order has started preparation and can no longer be cancelled.";
+        if (label) label.textContent = "This order is being prepared and cannot be cancelled.";
+        return;
+      }
+      // Priority 3: UNPAID → cancellable
+      btn.disabled = false;
+      btn.title = "Cancel this unpaid order. This action cannot be undone.";
+      if (label) label.textContent = "Cancel This Order";
     }
 
     async function cancelThisOrder() {
@@ -727,18 +763,26 @@
       const s = String(state.currentOrder.status || "").toUpperCase();
       const p = String(state.currentOrder.paymentStatus || "").toUpperCase();
       if (s === "CANCELLED" || s === "CLEARED") {
-        showToast("此订单已结束", "info");
+        showToast("This order has already been completed or cancelled.", "info");
         return;
       }
       if (p === "PAID") {
-        showToast("已付款订单无法在线取消，请找收银台办理退款", "warning");
+        showToast("This order has been paid. Please see the cashier for a refund.", "warning");
         return;
       }
-      if (!confirm("确定要取消此订单吗？此操作不可撤销。")) return;
+      if (s !== "UNPAID") {
+        showToast("This order has started preparation and can no longer be cancelled.", "warning");
+        return;
+      }
+
+      const confirmed = await showConfirm(
+        "Are you sure you want to cancel order #" + state.currentOrder.orderNum + "? This action cannot be undone."
+      );
+      if (!confirmed) return;
 
       const btn = document.getElementById('btnCancelOrder');
       const label = document.getElementById('btnCancelOrderLabel');
-      const orig = btn?.innerHTML;
+      const origLabel = label?.textContent || "Cancel This Order";
       if (btn) { btn.disabled = true; if (label) label.textContent = "Cancelling..."; }
 
       try {
@@ -753,16 +797,16 @@
           state.currentOrder.status = "CANCELLED";
           selfOrderHistory.openTicket({ ...state.currentOrder, status: "CANCELLED" });
           updateTicketStatusUI("CANCELLED", state.currentOrder.paymentStatus);
-          showToast("订单已取消", "success");
+          showToast("Order cancelled.", "success");
         } else {
-          showToast(data.error || "取消失败，请重试", "error");
-          if (btn && orig) { btn.innerHTML = orig; btn.disabled = false; }
-          if (label) label.textContent = "Cancel This Order";
+          showToast(data.error || "Cancellation failed. Please try again.", "error");
+          if (btn) btn.disabled = false;
+          if (label) label.textContent = origLabel;
         }
       } catch (e) {
-        showToast("网络错误，请检查连接后重试", "error");
-        if (btn && orig) { btn.innerHTML = orig; btn.disabled = false; }
-        if (label) label.textContent = "Cancel This Order";
+        showToast("Network error. Check your connection and try again.", "error");
+        if (btn) btn.disabled = false;
+        if (label) label.textContent = origLabel;
       }
     }
 
@@ -991,6 +1035,26 @@
     }
 
     selfOrderHistory.restore();
+
+    // ===== CUSTOM CONFIRM DIALOG (replaces native confirm()) =====
+    let confirmCallback = null;
+    function showConfirm(message) {
+      return new Promise(resolve => {
+        const modal = document.getElementById("confirmModal");
+        document.getElementById("confirmMessage").innerText = message;
+        modal.classList.remove("hidden");
+        confirmCallback = resolve;
+      });
+    }
+    document.getElementById("confirmYesBtn")?.addEventListener("click", () => {
+      document.getElementById("confirmModal").classList.add("hidden");
+      if (confirmCallback) { confirmCallback(true); confirmCallback = null; }
+    });
+    document.getElementById("confirmNoBtn")?.addEventListener("click", () => {
+      document.getElementById("confirmModal").classList.add("hidden");
+      if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
+    });
+
     init();
     window.addEventListener('pageshow', () => {
       const ticket = document.getElementById('qrTicketView');
