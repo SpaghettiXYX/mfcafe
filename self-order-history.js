@@ -55,6 +55,7 @@
       case "RESERVED": return { bg: "#7c3aed", fg: "#ffffff", label: "RESERVED" };
       case "UNPAID": return { bg: "#e11d48", fg: "#ffffff", label: "UNPAID" };
       case "CLEARED": return { bg: "#64748b", fg: "#ffffff", label: "PICKED UP" };
+      case "CANCELLED": return { bg: "#94a3b8", fg: "#ffffff", label: "CANCELLED" };
       default: return { bg: "#64748b", fg: "#ffffff", label: status || "UNKNOWN" };
     }
   }

@@ -60,6 +60,9 @@
     [data-theme="dark"] .shadow-lg { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important; }
     [data-theme="dark"] .shadow-2xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.6) !important; }
 
+    /* KDS card radius — syncs halo border-radius with card's rounded-3xl */
+    [data-theme="dark"] .kds-unassigned { --kds-card-radius: 1rem; }
+
     /* Inputs & selects */
     [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
       background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important;
@@ -86,14 +89,17 @@
     }
     /* New-order flash: a pseudo-element ring. Box-shadow is stripped by the
        dark theme's .shadow-sm reset, and Safari's outline animation is
-       unreliable, so both are avoided. The ring only animates opacity. */
-    .kds-unassigned { position: relative; }
+       unreliable, so both are avoided. The ring only animates opacity.
+       Border-radius uses a CSS variable so the halo's outer edge perfectly
+       hugs the card's rounded-3xl even in dark mode where the radius shrinks
+       from 1.5rem to 1rem. */
+    .kds-unassigned { position: relative; --kds-card-radius: 1.5rem; }
     .kds-unassigned::after {
       content: "";
       position: absolute;
       inset: -6px;
       border: 4px solid rgba(245, 158, 11, 0.95);
-      border-radius: inherit;
+      border-radius: calc(var(--kds-card-radius) + 6px);
       box-shadow: 0 0 20px 2px rgba(245, 158, 11, 0.35);
       pointer-events: none;
       opacity: 0;
@@ -218,6 +224,67 @@
 
     /* Smooth theme transition */
     *, *::before, *::after { transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
+
+    /* ===== MOBILE RESPONSIVE (<= 1024px) ===== */
+    @media (max-width: 1024px) {
+      /* Header: brand + nav + right must all fit on a cramped viewport */
+      header > div.flex.flex-wrap { flex-wrap: nowrap !important; gap: 0.5rem !important; padding: 0.5rem 0.625rem !important; }
+      /* Hide the tagline block ("MFCafe E-Portal" + sync status) — brand pill is enough */
+      header .space-x-3 > div:last-child { display: none !important; }
+
+      /* Nav tabs → horizontal scroll strip, no wrap, hidden scrollbar */
+      header nav {
+        flex-wrap: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important;
+        scroll-snap-type: x mandatory !important; -webkit-overflow-scrolling: touch !important;
+        gap: 0.25rem !important; padding: 0.25rem !important;
+      }
+      header nav::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+      header nav { scrollbar-width: none !important; }
+      header nav > button {
+        flex-shrink: 0 !important; scroll-snap-align: start !important;
+        padding: 0.375rem 0.625rem !important; font-size: 11px !important;
+      }
+
+      /* Right cluster (clock + sound + theme + user + logout): shrink */
+      header nav + div { gap: 0.25rem !important; flex-shrink: 0 !important; }
+      header nav + div > span#clockBadge { display: none !important; } /* .hidden sm:block already, belt-and-suspenders */
+      header nav + div > button,
+      header nav + div > span#userBadge button { padding: 0.375rem 0.5rem !important; font-size: 11px !important; }
+      /* Collapse user badge on very narrow screens */
+      @media (max-width: 480px) {
+        header nav + div > span#userBadge,
+        header nav + div > button[onclick="logout()"] { display: none !important; }
+      }
+
+      /* Main container padding + card gutters */
+      main { padding: 0.75rem !important; gap: 0.75rem !important; }
+      main > section > .bg-white,
+      main > section > div > .bg-white { padding: 1rem !important; border-radius: 0.875rem !important; }
+
+      /* Pickup lists stack (was hard-coded grid-cols-2) */
+      #pickupPreparingList, #pickupReadyList { grid-template-columns: 1fr !important; gap: 0.5rem !important; }
+
+      /* QR tile grid: tighten */
+      #qrTilesGrid { grid-template-columns: repeat(4, 1fr) !important; }
+      @media (max-width: 480px) {
+        #qrTilesGrid { grid-template-columns: repeat(3, 1fr) !important; }
+      }
+
+      /* KDS cards: tighter padding on small screens */
+      @media (max-width: 640px) {
+        #kdsGrid > div.kds-unassigned,
+        #kdsGrid > div:not(.kds-unassigned) { padding: 0.875rem !important; }
+        #kdsGrid h3 { font-size: 1.125rem !important; }
+        #kdsGrid p.font-extrabold.text-slate-900.text-base { font-size: 0.875rem !important; line-height: 1.2 !important; }
+      }
+
+      /* Admin / Money-counting tables: force horizontal scroll container */
+      .overflow-x-auto { -webkit-overflow-scrolling: touch !important; }
+      table { min-width: 480px !important; }
+
+      /* POS unpaid queue */
+      #unpaidOrdersContainer { gap: 0.5rem !important; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">

@@ -266,6 +266,12 @@
       <span>Download Barcode Receipt to Photos</span>
     </button>
 
+    <button id="btnCancelOrder" onclick="cancelThisOrder()"
+      class="w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:hover:bg-slate-300 disabled:cursor-not-allowed">
+      <i class="fa-solid fa-ban"></i>
+      <span id="btnCancelOrderLabel">Cancel This Order</span>
+    </button>
+
     <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
       Order Another Drink
     </button>
@@ -666,6 +672,7 @@
       pinTicketToTop();
       if (!window.__sohRestoring) showToast("Order submitted! Show this barcode at pickup.", "success");
       startStatusPolling(order.orderNum);
+      syncCancelButton();
     }
 
     function updateTicketStatusUI(status, paymentStatus) {
@@ -681,7 +688,8 @@
         PENDING: { cls: "bg-amber-100 text-amber-800 border-amber-300", icon: "fa-spinner fa-spin-pulse", label: "STATUS: PREPARING" },
         ASSIGNED: { cls: "bg-amber-100 text-amber-800 border-amber-300", icon: "fa-spinner fa-spin-pulse", label: "STATUS: PREPARING" },
         READY: { cls: "bg-emerald-100 text-emerald-800 border-emerald-300", icon: "fa-bell fa-shake", label: "STATUS: READY FOR PICKUP" },
-        CLEARED: { cls: "bg-slate-100 text-slate-600 border-slate-300", icon: "fa-check", label: "STATUS: PICKED UP" }
+        CLEARED: { cls: "bg-slate-100 text-slate-600 border-slate-300", icon: "fa-check", label: "STATUS: PICKED UP" },
+        CANCELLED: { cls: "bg-slate-200 text-slate-600 border-slate-300", icon: "fa-ban", label: "STATUS: CANCELLED" }
       };
       const cfg = configs[s] || configs.RESERVED;
       badge.className = `${cfg.cls} px-3.5 py-1 rounded-full text-xs font-extrabold border`;
@@ -704,6 +712,7 @@
       } else if (unpaidBadge) {
         unpaidBadge.remove();
       }
+      syncCancelButton();
     }
 
     function startStatusPolling() {
@@ -712,6 +721,73 @@
 
     function stopStatusPolling() {
       selfOrderHistory.stopPolling();
+    }
+
+    // ===== CANCEL ORDER BUTTON =====
+    function syncCancelButton() {
+      const btn = document.getElementById('btnCancelOrder');
+      const label = document.getElementById('btnCancelOrderLabel');
+      if (!btn || !state.currentOrder) return;
+      const s = String(state.currentOrder.status || "").toUpperCase();
+      const p = String(state.currentOrder.paymentStatus || "").toUpperCase();
+      if (s === "CANCELLED" || s === "CLEARED") {
+        btn.classList.add('hidden');
+        return;
+      }
+      btn.classList.remove('hidden');
+      if (p === "PAID") {
+        btn.disabled = true;
+        btn.title = "已付款订单无法在线取消，请找收银台办理退款";
+        if (label) label.textContent = "Paid — See Cashier for Refund";
+      } else {
+        btn.disabled = false;
+        btn.title = "确认取消此订单（未付款订单可直接取消）";
+        if (label) label.textContent = "Cancel This Order";
+      }
+    }
+
+    async function cancelThisOrder() {
+      if (!state.currentOrder) return;
+      const s = String(state.currentOrder.status || "").toUpperCase();
+      const p = String(state.currentOrder.paymentStatus || "").toUpperCase();
+      if (s === "CANCELLED" || s === "CLEARED") {
+        showToast("此订单已结束", "info");
+        return;
+      }
+      if (p === "PAID") {
+        showToast("已付款订单无法在线取消，请找收银台办理退款", "warning");
+        return;
+      }
+      if (!confirm("确定要取消此订单吗？此操作不可撤销。")) return;
+
+      const btn = document.getElementById('btnCancelOrder');
+      const label = document.getElementById('btnCancelOrderLabel');
+      const orig = btn?.innerHTML;
+      if (btn) { btn.disabled = true; if (label) label.textContent = "Cancelling..."; }
+
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "cancelOrder", orderNum: state.currentOrder.orderNum })
+        });
+        const data = await res.json();
+        if (data.success) {
+          stopStatusPolling();
+          state.currentOrder.status = "CANCELLED";
+          selfOrderHistory.openTicket({ ...state.currentOrder, status: "CANCELLED" });
+          updateTicketStatusUI("CANCELLED", state.currentOrder.paymentStatus);
+          showToast("订单已取消", "success");
+        } else {
+          showToast(data.error || "取消失败，请重试", "error");
+          if (btn && orig) { btn.innerHTML = orig; btn.disabled = false; }
+          if (label) label.textContent = "Cancel This Order";
+        }
+      } catch (e) {
+        showToast("网络错误，请检查连接后重试", "error");
+        if (btn && orig) { btn.innerHTML = orig; btn.disabled = false; }
+        if (label) label.textContent = "Cancel This Order";
+      }
     }
 
     // ===== DOWNLOADABLE RECEIPT (canvas, printer-slip style) =====

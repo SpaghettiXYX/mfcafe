@@ -669,6 +669,44 @@ function deleteOrder(orderNum) {
   return { success: false, error: "Order not found" };
 }
 
+// Self-serve cancellation: a guest may cancel only their unpaid order.
+// Paid orders must go through the cashier for a refund.
+function cancelOrder(orderNum) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ensureOrdersSheet(ss);
+  const data = sheet.getDataRange().getValues();
+  const target = String(orderNum).trim();
+  const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+
+  let matchIndex = -1;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() !== target) continue;
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    if (ACTIVE_STATUSES.indexOf(status) !== -1) { matchIndex = i; break; }
+    if (matchIndex === -1) matchIndex = i;
+  }
+
+  if (matchIndex === -1) return { success: false, error: "Order not found" };
+
+  const rowStatus = String(data[matchIndex][9] || "").trim().toUpperCase();
+  const paymentStatus = String(data[matchIndex][11] || "").trim().toUpperCase();
+
+  if (paymentStatus === "PAID") {
+    return { success: false, error: "This order is already paid. Please ask the cashier for a refund — orders cannot be cancelled after payment." };
+  }
+  if (rowStatus === "CLEARED" || rowStatus === "CANCELLED") {
+    return { success: false, error: "This order has already been completed or cancelled." };
+  }
+
+  sheet.getRange(matchIndex + 1, 10).setValue("CANCELLED");
+  // Self-serve orders (openday / customer) don't bind a QR tile, but POS orders might.
+  const tile = data[matchIndex][10] ? String(data[matchIndex][10]).trim() : "";
+  if (tile) freeTile(tile);
+  SpreadsheetApp.flush();
+  bumpVersion();
+  return { success: true, orderNum: orderNum, status: "CANCELLED" };
+}
+
 // ==================== QR TILES ====================
 function bindTileToOrder(tileCode, orderNum) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -983,6 +1021,7 @@ function doPost(e) {
     if (action === "clearOrder") return jsonResponse(updateOrderStatus(data.orderNum, "CLEARED"));
     if (action === "clearOrderByTile") return jsonResponse(clearOrderByTile(data.tileCode));
     if (action === "deleteOrder") return jsonResponse(deleteOrder(data.orderNum));
+    if (action === "cancelOrder") return jsonResponse(cancelOrder(data.orderNum));
 
     if (action === "toggleMenuItem") return jsonResponse(toggleMenuItem(data.itemName, data.newStatus));
     if (action === "saveMenuItem") return jsonResponse(saveMenuItem(data.item));
