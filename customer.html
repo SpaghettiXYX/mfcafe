@@ -172,6 +172,22 @@
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time (Pre-order / Teacher)</label>
         <input type="text" id="custPickupTime" placeholder="e.g. 10:30 AM / Recess" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
       </div>
+      <!-- Cup Type — mandatory -->
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">
+          Cup Type <span class="text-amber-500">*</span>
+        </label>
+        <div class="flex space-x-2">
+          <button type="button" onclick="setCustCupType('In-Store')" id="custBtnCupStore"
+            class="flex-1 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 transition">
+            <i class="fa-solid fa-mug-saucer mr-1"></i> In-Store
+          </button>
+          <button type="button" onclick="setCustCupType('Takeaway')" id="custBtnCupTake"
+            class="flex-1 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white text-slate-500 transition">
+            <i class="fa-solid fa-bag-shopping mr-1"></i> Takeaway
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Drink Selection Grid -->
@@ -343,6 +359,7 @@
       selectedCategory: "All",
       selectedItem: null,
       selectedTemp: "Cold",
+      selectedCupType: "",  // "" | "In-Store" | "Takeaway"
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       coldExtra: 2,
       coldPaused: false,
@@ -591,6 +608,15 @@
       if (field) field.value = field.value ? `${field.value}, ${text}` : text;
     }
 
+    function setCustCupType(t) {
+      state.selectedCupType = t;
+      const btnStore = document.getElementById('custBtnCupStore');
+      const btnTake = document.getElementById('custBtnCupTake');
+      const idleCls = 'border-slate-200 bg-white text-slate-500';
+      if (btnStore) btnStore.className = 'flex-1 py-2.5 rounded-xl text-sm font-bold border transition ' + (t === 'In-Store' ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : idleCls);
+      if (btnTake) btnTake.className = 'flex-1 py-2.5 rounded-xl text-sm font-bold border transition ' + (t === 'Takeaway' ? 'border-emerald-400 bg-emerald-100 text-emerald-900 shadow-sm' : idleCls);
+    }
+
     function submitSelfOrder() {
       const nameInput = document.getElementById('custName');
       const pickupInput = document.getElementById('custPickupTime');
@@ -600,6 +626,7 @@
 
       if (!name) return showToast("Please enter your name!", "warning");
       if (!state.selectedItem) return showToast("Please select a drink!", "warning");
+      if (!state.selectedCupType) return showToast("Please select Cup Type: In-Store or Takeaway!", "warning", 4000);
 
       const btnSubmit = document.getElementById('btnSubmit');
       if (btnSubmit) {
@@ -619,7 +646,8 @@
         temp: state.selectedTemp,
         customization: notes,
         price: getItemPrice(state.selectedItem, state.selectedTemp),
-        status: "RESERVED"
+        status: "RESERVED",
+        cupType: state.selectedCupType
       };
 
       fetch(APPS_SCRIPT_URL, {

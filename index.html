@@ -467,6 +467,23 @@
                 <div class="flex space-x-2" id="posTempBtnContainer"></div>
               </div>
 
+              <!-- Cup Type selector — mandatory -->
+              <div>
+                <label class="block text-[11px] font-bold text-slate-400 mb-1">
+                  Cup Type <span class="text-amber-500">(required)</span>
+                </label>
+                <div class="flex space-x-2">
+                  <button type="button" onclick="setPosCupType('In-Store')" id="posBtnCupStore"
+                    class="flex-1 py-2 rounded-xl text-xs font-bold border transition">
+                    <i class="fa-solid fa-mug-saucer mr-1"></i> In-Store
+                  </button>
+                  <button type="button" onclick="setPosCupType('Takeaway')" id="posBtnCupTake"
+                    class="flex-1 py-2 rounded-xl text-xs font-bold border transition">
+                    <i class="fa-solid fa-bag-shopping mr-1"></i> Takeaway
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">Customization / Notes</label>
                 <div class="flex flex-wrap gap-1.5 mb-2" id="posRemarkPillsContainer"></div>
@@ -1021,6 +1038,7 @@
       qrTiles: [],
       selectedPosItem: null,
       selectedPosTemp: "Cold",
+      selectedPosCupType: "",  // "" | "In-Store" | "Takeaway" — empty = not yet chosen
       selectedCategory: "All",
       selectedQRTile: "",
       orderHistory: [],
@@ -1607,6 +1625,8 @@
 
     function selectPosMenuItem(item) {
       state.selectedPosItem = item;
+      state.selectedPosCupType = "";  // reset cup type — must re-choose for each drink
+      setPosCupType("");  // clear visual state (shows both buttons idle)
 
       // Apply category color theming to the selection details panel
       const catColor = state.categoryColors[item.category || "Other"] || "#64748b";
@@ -1675,6 +1695,18 @@
       }
     }
 
+    function setPosCupType(t) {
+      state.selectedPosCupType = t;
+      const btnStore = document.getElementById('posBtnCupStore');
+      const btnTake = document.getElementById('posBtnCupTake');
+      const activeCls = t === 'In-Store'
+        ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm'
+        : 'border-emerald-400 bg-emerald-100 text-emerald-900 shadow-sm';
+      const idleCls = 'border-slate-200 bg-white text-slate-500';
+      if (btnStore) btnStore.className = 'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (t === 'In-Store' ? activeCls : idleCls);
+      if (btnTake) btnTake.className = 'flex-1 py-2 rounded-xl text-xs font-bold border transition ' + (t === 'Takeaway' ? activeCls : idleCls);
+    }
+
     function addNotePill(text) {
       const field = document.getElementById('posNotes');
       if (field) field.value = field.value ? `${field.value}, ${text}` : text;
@@ -1715,6 +1747,7 @@
 
     function submitPosOrder() {
       if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
+      if (!state.selectedPosCupType) return showToast("Please select Cup Type: In-Store or Takeaway!", "warning", 4000);
       const guestInput = document.getElementById('posGuestName');
       const cashierInput = document.getElementById('posCashierName');
       const notesInput = document.getElementById('posNotes');
@@ -1724,6 +1757,7 @@
       const cashier = cashierInput ? cashierInput.value.trim() || state.currentUser || "Staff" : "Staff";
       const notes = notesInput ? notesInput.value : "";
       const qrTile = qrTileInput ? qrTileInput.value.trim() : "";
+      const cupType = state.selectedPosCupType;
 
       // Every order must be tied to a QR tile now — no more anonymous
       // order-number-only pickups.
@@ -1759,7 +1793,8 @@
         customization: notes,
         price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
         status: "PENDING",
-        qrTile: qrTile
+        qrTile: qrTile,
+        cupType: cupType
       };
 
       fetch(APPS_SCRIPT_URL, {
@@ -2218,7 +2253,17 @@
               ` : ''}
 
               <div>
-                <p class="font-extrabold text-slate-900 text-base leading-snug">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
+                <p class="font-extrabold text-slate-900 text-base leading-snug flex items-center gap-2 flex-wrap">
+                  ${escapeHtml(o.productName)} (${escapeHtml(o.temp)})
+                  ${(() => {
+                    const ct = String(o.cupType || "In-Store");
+                    const isTake = ct === "Takeaway";
+                    return `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${isTake ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'}">
+                      <i class="fa-solid ${isTake ? 'fa-bag-shopping' : 'fa-mug-saucer'}"></i>
+                      ${isTake ? 'TAKEAWAY' : 'IN-STORE'}
+                    </span>`;
+                  })()}
+                </p>
               </div>
 
               ${o.customization ? `

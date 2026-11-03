@@ -21,6 +21,56 @@ function bumpVersion() {
   return ver;
 }
 
+// ==================== HARDWARE INTEGRATION (SJ-P3-B Thermal Label Printer) ====================
+// Reserved hook points for future hardware bridge integration.
+//
+// Target hardware: SJ-P3-B (昇界科技) — Bluetooth / Wi-Fi thermal label printer
+// Print volume: 58mm label paper
+// Bridge: Raspberry Pi + Node.js bridge subscribing via MQTT / HTTP webhook
+//
+// WHEN TO PRINK:
+//   - placeOrder() → after row appended → call emitPrintEvent(order, "kitchen")
+//   - updateOrderStatus("READY") → call emitPrintEvent(order, "label")
+//   - clearOrderByTile() → call emitPickupNotify(order)
+//
+// emitPrintEvent(order, "label")  → Pi bridge → ESC/POS → SJ-P3-B
+// emitPrintEvent(order, "kitchen") → Pi bridge → thermal kitchen ticket
+//
+// Implementation is intentionally deferred — deploy SJ-P3-B + Pi first,
+// then wire up UrlFetchApp / MQTT in these functions.
+
+function emitPrintEvent(order, printType) {
+  // printType: "label" (cup sticker for pickup) | "kitchen" (food prep ticket)
+  //
+  // DEFERRED IMPLEMENTATION — coming soon with SJ-P3-B hardware
+  //
+  // Bridge URL (Pi local HTTP endpoint, change after Pi setup):
+  //   const BRIDGE_URL = "http://mfcafe-pi.local:8080/print";
+  //
+  //   try {
+  //     UrlFetchApp.fetch(BRIDGE_URL, {
+  //       method: "POST",
+  //       contentType: "application/json",
+  //       payload: JSON.stringify({
+  //         type: printType,          // "label" | "kitchen"
+  //         order: order,             // full order object with cupType
+  //         categoryColor: getCategoryColors()[order.category || "Other"] || "#64748b",
+  //         timestamp: Date.now()
+  //       }),
+  //       muteHttpExceptions: true,
+  //       timeout: 3000
+  //     });
+  //   } catch (e) { /* bridge offline — non-fatal, log only */ }
+  //
+  // For now this function is a no-op so the system keeps working
+  // without the Pi. It will activate once the hardware is deployed.
+}
+
+function emitPickupNotify(order) {
+  // Pi pickup display "ORDER X001 READY — Tile 5"
+  // DEFERRED — coming soon with Pi hardware
+}
+
 // ==================== CATEGORIES ====================
 function getCategories() {
   const props = PropertiesService.getScriptProperties();
@@ -85,18 +135,27 @@ function ensureOrdersSheet(ss) {
     sheet = ss.insertSheet("Orders Log");
     sheet.appendRow([
       "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
-      "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus"
+      "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus",
+      "CupType"  // NEW: "In-Store" or "Takeaway"
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 12).getValues()[0];
+    const headers = sheet.getRange(1, 1, 1, 13).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
-      // Backfill existing rows: UNPAID/RESERVED -> UNPAID, everything else -> PAID
       const data = sheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         const status = String(data[i][9] || "").trim().toUpperCase();
         const paymentStatus = (status === "UNPAID" || status === "RESERVED") ? "UNPAID" : "PAID";
         sheet.getRange(i + 1, 12).setValue(paymentStatus);
+      }
+    }
+    // CupType column (col 13) — backfill existing rows with "In-Store" as default
+    if (!headers[12] || String(headers[12]).trim() === "") {
+      sheet.getRange(1, 13).setValue("CupType");
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const existing = String(data[i][12] || "").trim();
+        if (!existing) sheet.getRange(i + 1, 13).setValue("In-Store");
       }
     }
   }
@@ -371,7 +430,8 @@ function getInitialData() {
         price: Number(row[8]) || 0,
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
-        paymentStatus: paymentStatus
+        paymentStatus: paymentStatus,
+        cupType: String(row[12] || "In-Store").trim() || "In-Store"
       });
     }
   }
@@ -435,7 +495,8 @@ function getOrderHistory(limit) {
         price: Number(row[8]) || 0,
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
-        paymentStatus: paymentStatus
+        paymentStatus: paymentStatus,
+        cupType: String(row[12] || "In-Store").trim() || "In-Store"
       });
       if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
     }
@@ -522,6 +583,14 @@ function createOrderLocked(order) {
     let rawNote = String(order.customization || "").replace(/[\r\n]+/g, " ").trim();
     if (rawNote.startsWith("+") || rawNote.startsWith("=") || rawNote.startsWith("-")) rawNote = "'" + rawNote;
 
+    // CupType: required. Only "In-Store" or "Takeaway" accepted.
+    let cupType = String(order.cupType || "").trim();
+    if (!cupType) {
+      lock.releaseLock();
+      return { success: false, error: "Cup type is required — please select In-Store or Takeaway." };
+    }
+    cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
+
     const createdOrder = {
       orderNum: assignedOrderNum,
       orderTime: orderTime,
@@ -534,14 +603,15 @@ function createOrderLocked(order) {
       price: Number(order.price) || 0,
       status: status,
       qrTile: qrTile,
-      paymentStatus: paymentStatus
+      paymentStatus: paymentStatus,
+      cupType: cupType
     };
 
     sheet.appendRow([
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus
+      createdOrder.paymentStatus, cupType
     ]);
 
     // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -1012,7 +1082,8 @@ function lookupOrder(rawCode) {
       status: String(row[9] || "").trim().toUpperCase(),
       qrTile: row[10] ? String(row[10]).trim() : "",
       paymentStatus: String(row[11] || "").trim().toUpperCase() || "PAID",
-      category: category
+      category: category,
+      cupType: String(row[12] || "In-Store").trim() || "In-Store"
     },
     categoryColors: getCategoryColors()
   };
