@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Always fetch latest HTML/JS — no stale cached announcements -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>MFCAFE - E-Portal</title>
   
   <!-- Tailwind CSS & FontAwesome -->
@@ -1070,9 +1074,12 @@
     }
 
     // ===== PUSH MESSAGE BROADCAST =====
+    const PUSH_MESSAGE_TTL_MS = 48 * 60 * 60 * 1000;
     function handlePushMessage() {
       const msg = state.pushMessage || {};
-      if (!msg.active || !msg.text) {
+      // Triple guard: server says inactive / no text / older than 48h
+      const age = msg.timestamp ? (Date.now() - Number(msg.timestamp)) : Infinity;
+      if (!msg.active || !msg.text || age >= PUSH_MESSAGE_TTL_MS) {
         document.getElementById("pushMessageModal")?.classList.add("hidden");
         return;
       }

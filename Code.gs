@@ -240,16 +240,25 @@ function setPauseReason(target, reason) {
 }
 
 // Push message broadcast to all portal users
+const PUSH_MESSAGE_TTL_MS = 48 * 60 * 60 * 1000; // 48h auto-expire
+
 function getPushMessage() {
   const raw = PropertiesService.getScriptProperties().getProperty("PUSH_MESSAGE");
   if (!raw) return { active: false, text: "", sender: "", timestamp: 0 };
   try {
     const parsed = JSON.parse(raw);
+    const ts = Number(parsed.timestamp) || 0;
+    const age = Date.now() - ts;
+    // Auto-expire stale push messages — prevents "ghost announcements" that
+    // linger in PropertiesService after an admin forgot to click Clear.
+    const actuallyActive = parsed.active === true
+      && parsed.text
+      && age < PUSH_MESSAGE_TTL_MS;
     return {
-      active: parsed.active === true,
+      active: actuallyActive,
       text: String(parsed.text || ""),
       sender: String(parsed.sender || ""),
-      timestamp: Number(parsed.timestamp) || 0
+      timestamp: ts
     };
   } catch (e) {
     return { active: false, text: "", sender: "", timestamp: 0 };
