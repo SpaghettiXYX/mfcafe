@@ -624,8 +624,20 @@
     </section>
 
     <!-- VIEW 5: ADMIN PANEL -->
-    <section id="view-admin" class="hidden space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <section id="view-admin" class="hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+
+        <!-- ADMIN SIDEBAR (left nav) -->
+        <aside id="adminSidebar" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 lg:sticky lg:top-4 h-fit">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 pt-1 pb-2">Admin Console</p>
+          <nav class="flex flex-col gap-1" id="adminSidebarLinks"></nav>
+        </aside>
+
+        <!-- ADMIN CONTENT AREA (sections filtered by sidebar) -->
+        <div id="adminContentArea" class="space-y-6">
+
+          <!-- DASHBOARD: stats row -->
+          <div data-admin-section="dashboard" class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <p class="text-xs text-slate-400 font-bold uppercase">Total Revenue</p>
           <p id="adminRevenue" class="text-3xl font-black text-emerald-600 mt-1">$0.00</p>
@@ -641,7 +653,7 @@
       </div>
 
       <!-- Global Operation Settings -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="operation" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-sliders text-amber-500 mr-2"></i> Global Operation Settings
         </h3>
@@ -680,7 +692,7 @@
       </div>
 
       <!-- Push Message Broadcast -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="announcement" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-bullhorn text-amber-500 mr-2"></i> Push Message Broadcast
         </h3>
@@ -695,7 +707,7 @@
       </div>
 
       <!-- Configurable Remark Hotkeys Manager -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="operation" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-tags text-amber-500 mr-2"></i> Remark Hotkeys Configuration
         </h3>
@@ -709,7 +721,7 @@
       </div>
 
       <!-- Category Manager -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="categories" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-layer-group text-amber-500 mr-2"></i> Menu Categories
         </h3>
@@ -728,7 +740,7 @@
       </div>
 
       <!-- QR Tile Manager -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="qrtile" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <h3 class="font-black text-slate-800 text-lg">
             <i class="fa-solid fa-qrcode text-amber-500 mr-2"></i> QR Tiles
@@ -745,7 +757,7 @@
       </div>
 
       <!-- User Account Management -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="users" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
             <h3 class="font-black text-slate-800 text-lg">Staff User Management</h3>
@@ -763,6 +775,7 @@
                 <th class="py-2.5 px-3">Username</th>
                 <th class="py-2.5 px-3">Role</th>
                 <th class="py-2.5 px-3">User Code (Prefix)</th>
+                <th class="py-2.5 px-3">🖨️ Can Print</th>
                 <th class="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -772,7 +785,7 @@
       </div>
 
       <!-- Menu Management Table -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="menu" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
             <h3 class="font-black text-slate-800 text-lg">Menu Management</h3>
@@ -801,11 +814,70 @@
       </div>
 
       <!-- Financial & Orders Log -->
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <div data-admin-section="financial" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-file-invoice-dollar text-emerald-600 mr-2"></i> Orders & Financial Log
         </h3>
         <div id="adminFinancialLog" class="space-y-2 max-h-80 overflow-y-auto text-xs"></div>
+      </div>
+
+      <!-- Printer Control & Test Print -->
+      <div data-admin-section="printer" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-print text-amber-500 mr-2"></i> Bluetooth Printer</h3>
+            <p class="text-xs text-slate-400">SJ-P3-B thermal label printer via Web Bluetooth (Chrome/Edge only)</p>
+          </div>
+          <div id="adminPrinterStatusPill" class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500">
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div> Offline
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Connect -->
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Connection</p>
+            <button onclick="connectBluetoothPrinter()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition">
+              <i class="fa-solid fa-bluetooth mr-1"></i> Connect / Reconnect Printer
+            </button>
+            <p class="text-[10px] text-slate-400 leading-relaxed">
+              First time: browser prompts device picker → select your SJ-P3-B. Afterwards auto-reconnects on page load.
+              Web Bluetooth requires <span class="font-bold text-slate-600">Chrome / Edge / Opera</span> (not Safari).
+            </p>
+          </div>
+
+          <!-- Permission -->
+          <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Who Can Print?</p>
+            <div id="adminPrinterPermissionHint" class="text-[11px] text-slate-500 leading-relaxed">
+              Only staff with <span class="font-bold text-slate-700">Can Print</span> permission can use Bluetooth printing.
+              Admin → Users table → toggle the Can Print switch for each account.
+            </div>
+          </div>
+        </div>
+
+        <!-- Test Print -->
+        <div class="bg-gradient-to-br from-amber-50 to-emerald-50 rounded-2xl p-5 border border-amber-200/60 space-y-3">
+          <p class="text-[10px] font-black uppercase tracking-wider text-amber-700">Test Print</p>
+          <p class="text-xs font-bold text-slate-700">
+            Print a sample label to verify ESC/POS + paper size + category colours are correct.
+          </p>
+          <div class="flex gap-2">
+            <button onclick="testBluetoothLabel()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
+              🧪 Test Label Print
+            </button>
+            <button onclick="testBluetoothKitchen()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
+              🍳 Test Kitchen Ticket
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-500">
+            Paper: 58mm thermal. In-Store labels use amber 🥤. Takeaway labels use emerald 🧺.
+          </p>
+        </div>
+      </div>
+
+        <!-- close adminContentArea + sidebar grid -->
+        </div>
       </div>
     </section>
 
@@ -985,6 +1057,13 @@
 
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
+
+  <!-- Floating Bluetooth Printer status bar (bottom-right, all views) -->
+  <div id="printerBar" class="fixed bottom-4 right-4 z-[99] flex items-center gap-2 bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-full shadow-lg border border-slate-700 hidden">
+    <div id="printerDot" class="w-2 h-2 rounded-full bg-slate-500"></div>
+    <span id="printerStatusText">Printer Offline</span>
+    <button onclick="connectBluetoothPrinter()" class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded ml-1 text-[10px] hover:bg-amber-400">Connect</button>
+  </div>
 
   <!-- PUSH MESSAGE MODAL -->
   <div id="pushMessageModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[95] flex items-center justify-center hidden p-4">
@@ -2455,7 +2534,313 @@
       }
     }
 
+    // ==================== BLUETOOTH THERMAL PRINTER (SJ-P3-B) ====================
+    // Web Bluetooth API → ESC/POS → SJ-P3-B 58mm thermal label printer
+    // Requires Chrome / Edge / Opera (not Safari / Firefox)
+    //
+    // Hook points:
+    //   - KDS markOrderReady(): printBluetoothLabel(order) → cup sticker
+    //   - Admin Panel → 🖨️ Printer Control → 🧪 Test Label / 🍳 Test Kitchen
+    //   - Both gated by canUserPrint() — non-Admins need Can Print permission
+
+    const PRINTER_BLE_SERVICE   = "0000ffe0-0000-1000-8000-00805f9b34fb";
+    const PRINTER_BLE_CHAR_TX   = "0000ffe1-0000-1000-8000-00805f9b34fb";
+    const PRINTER_DEVICE_NAME   = "SJ-P3-B";
+
+    let btDevice = null;
+    let btCharTx = null;
+    let btBusy   = false;
+
+    // Tiny string → byte helper (Latin-1 only; SJ-P3-B handles GB2312 internally)
+    function esc(str) {
+      const bytes = [];
+      for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i) & 0xff);
+      return bytes;
+    }
+
+    // Build ESC/POS byte buffer for a single cup label
+    function buildLabelESCpos(order) {
+      const buf = [];
+      buf.push(0x1b, 0x40);                  // ESC @ — reset
+      buf.push(0x1d, 0x21, 0x22);            // GS ! — double width + height header
+      buf.push(0x1b, 0x61, 0x01);             // ESC a 1 — center
+      buf.push(...esc("ORDER #" + order.orderNum));
+      buf.push(0x0a, 0x0a);
+      buf.push(0x1d, 0x21, 0x33);             // GS ! — triple size for drink name
+      buf.push(...esc(String(order.productName || "").toUpperCase()));
+      buf.push(0x0a);
+      buf.push(0x1d, 0x21, 0x00);             // back to normal
+      buf.push(0x1b, 0x61, 0x00);             // left
+      const ct = (order.cupType || "In-Store").toUpperCase();
+      const isTake = ct === "TAKEAWAY";
+      buf.push(...esc((order.temp || "") + "   " + (isTake ? "🧺 TAKEAWAY" : "🥤 IN-STORE")));
+      buf.push(0x0a);
+      buf.push(...esc("Guest: " + (order.guestName || "Guest")));
+      buf.push(0x0a);
+      if (order.qrTile) {
+        buf.push(...esc("Tile: " + order.qrTile));
+        buf.push(0x0a);
+      }
+      if (order.customization) {
+        buf.push(0x0a);
+        buf.push(0x1b, 0x61, 0x01);
+        buf.push(...esc("─ " + order.customization + " ─"));
+        buf.push(0x0a);
+      }
+      buf.push(0x0a, 0x1b, 0x61, 0x01);
+      buf.push(...esc("PICKUP AT TILE " + (order.qrTile || "-")));
+      buf.push(0x0a, 0x0a, 0x0a);
+      buf.push(0x1d, 0x56, 0x01);              // GS V 1 — partial cut
+      return new Uint8Array(buf);
+    }
+
+    // Write BLE bytes in chunks with back-pressure
+    async function btWrite(data) {
+      if (!btCharTx) throw new Error("No printer connected");
+      const CHUNK = 128;
+      for (let i = 0; i < data.length; i += CHUNK) {
+        await btCharTx.writeValueWithoutResponse(data.slice(i, i + CHUNK));
+      }
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    // Public API: print one cup label
+    async function printBluetoothLabel(order) {
+      if (!("bluetooth" in navigator)) {
+        showToast("Web Bluetooth not supported — use Chrome/Edge", "error");
+        return false;
+      }
+      if (!canUserPrint()) {
+        showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000);
+        return false;
+      }
+      if (!btCharTx) { showToast("Printer not connected — click Connect first", "warning"); return false; }
+      if (btBusy) { showToast("Printer busy, retrying...", "info", 1500); setTimeout(() => printBluetoothLabel(order), 800); return true; }
+      btBusy = true;
+      try {
+        await btWrite(buildLabelESCpos(order));
+        showToast(`🖨️  Printed label for #${order.orderNum}`, "success", 1500);
+        updatePrinterBar("online", "Printed #"+order.orderNum);
+        renderAdminPrinterStatus();
+        return true;
+      } catch (e) {
+        showToast("Print failed: " + e.message, "error");
+        updatePrinterBar("offline", e.message);
+        return false;
+      } finally { btBusy = false; }
+    }
+
+    // Connect once → auto-reconnect forever
+    async function connectBluetoothPrinter() {
+      if (!canUserPrint()) { showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000); return false; }
+      if (!("bluetooth" in navigator)) { showToast("Web Bluetooth not supported — use Chrome/Edge", "error"); return false; }
+      updatePrinterBar("connecting", "Scanning...");
+      renderAdminPrinterStatus();
+      try {
+        let device = null;
+        // Try pre-paired devices first (silent, no user dialog)
+        const paired = await navigator.bluetooth.getDevices();
+        device = paired.find(d => d.name && d.name.includes(PRINTER_DEVICE_NAME));
+        if (!device) {
+          device = await navigator.bluetooth.requestDevice({
+            filters: [
+              { namePrefix: PRINTER_DEVICE_NAME },
+              { services: [PRINTER_BLE_SERVICE] }
+            ],
+            optionalServices: [PRINTER_BLE_SERVICE]
+          });
+        }
+        btDevice = device;
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
+        btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
+
+        device.addEventListener('gattserverdisconnected', () => {
+          updatePrinterBar("offline", "Disconnected — will auto-reconnect");
+          renderAdminPrinterStatus();
+          setTimeout(autoReconnect, 2500);
+        });
+
+        updatePrinterBar("online", "Connected: " + (device.name || PRINTER_DEVICE_NAME));
+        renderAdminPrinterStatus();
+        return true;
+      } catch (e) {
+        updatePrinterBar("offline", "Failed: " + e.message);
+        renderAdminPrinterStatus();
+        return false;
+      }
+    }
+
+    async function autoReconnect() {
+      if (!btDevice || btDevice.gatt.connected) return;
+      try {
+        const server = await btDevice.gatt.connect();
+        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
+        btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
+        updatePrinterBar("online", "Reconnected: " + btDevice.name);
+        renderAdminPrinterStatus();
+      } catch (e) { setTimeout(autoReconnect, 5000); }
+    }
+
+    // Floating bottom-right status bar (visible on every view, not just Admin)
+    function updatePrinterBar(state, text) {
+      const bar = document.getElementById("printerBar");
+      if (!bar) return;
+      bar.classList.remove("hidden");
+      const dot = document.getElementById("printerDot");
+      const textEl = document.getElementById("printerStatusText");
+      const colors = {
+        online: "bg-emerald-500",
+        offline: "bg-rose-500",
+        connecting: "bg-amber-500 animate-pulse"
+      };
+      dot.className = "w-2 h-2 rounded-full " + (colors[state] || "bg-slate-500");
+      textEl.innerText = text || "Printer Offline";
+    }
+
+    // ==================== ADMIN SIDEBAR NAV ====================
+    // Categorises all existing admin sections under a left-hand side nav.
+    // Clicking a link hides every section that doesn't match data-admin-section=<key>.
+    const ADMIN_SECTIONS = [
+      { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
+      { key: "operation",    label: "Operation",          icon: "fa-sliders" },
+      { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
+      { key: "categories",   label: "Categories",          icon: "fa-tags" },
+      { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
+      { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
+      { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
+      { key: "printer",      label: "🖨️ Printer Control", icon: "fa-print" },
+      { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
+    ];
+
+    let activeAdminSection = "dashboard";
+
+    function renderAdminSidebar() {
+      const nav = document.getElementById("adminSidebarLinks");
+      if (!nav) return;
+      nav.innerHTML = ADMIN_SECTIONS.map(s => `
+        <button type="button" onclick="switchAdminSection('${s.key}')"
+          data-admin-link="${s.key}"
+          class="flex items-center gap-2 w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition">
+          <i class="fa-solid ${s.icon} w-3.5 text-center"></i>
+          <span>${s.label}</span>
+        </button>
+      `).join("");
+      switchAdminSection(activeAdminSection);
+    }
+
+    function switchAdminSection(key) {
+      activeAdminSection = key;
+      // Update link highlight
+      document.querySelectorAll("[data-admin-link]").forEach(link => {
+        const isActive = link.dataset.adminLink === key;
+        link.className = `flex items-center gap-2 w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition ${
+          isActive ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+        }`;
+      });
+      // Filter sections
+      document.querySelectorAll("[data-admin-section]").forEach(sec => {
+        const show = sec.dataset.adminSection === key;
+        sec.classList.toggle("hidden", !show);
+      });
+    }
+
+    // ==================== PRINTER: TEST PRINT ====================
+    // Sample orders to validate label + kitchen templates.
+    function testBluetoothLabel() {
+      if (!canUserPrint()) { showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000); return; }
+      if (!btCharTx) { showToast("Printer not connected — click Connect first", "warning"); return; }
+      const sample = {
+        orderNum: "TEST-001",
+        productName: "Iced Latte",
+        temp: "Cold",
+        cupType: "Takeaway",
+        guestName: "Sample Customer",
+        qrTile: "5",
+        customization: "+ Oat Milk, No Sugar",
+        categoryColor: "#0ea5e9"
+      };
+      printBluetoothLabel(sample);
+    }
+
+    function testBluetoothKitchen() {
+      if (!canUserPrint()) { showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000); return; }
+      if (!btCharTx) { showToast("Printer not connected — click Connect first", "warning"); return; }
+      const sample = {
+        orderNum: "TEST-002",
+        productName: "Hot Americano",
+        temp: "Hot",
+        cupType: "In-Store",
+        guestName: "Mr. Wong",
+        qrTile: "3",
+        customization: "+ Extra Shot"
+      };
+      printBluetoothKitchen(sample);
+    }
+
+    function printBluetoothKitchen(order) {
+      if (!btCharTx) { showToast("Printer not connected", "warning"); return; }
+      const buf = [];
+      buf.push(0x1b, 0x40);              // ESC @ reset
+      buf.push(0x1b, 0x61, 0x01);         // center
+      buf.push(0x1d, 0x21, 0x22);         // double size
+      buf.push(...esc("═══ KITCHEN ═══"));
+      buf.push(0x0a, 0x0a);
+      buf.push(0x1d, 0x21, 0x00);
+      buf.push(0x1b, 0x61, 0x00);         // left
+      buf.push(...esc("Order #" + order.orderNum + "  " + new Date().toLocaleTimeString()));
+      buf.push(0x0a);
+      buf.push(...esc("Guest: " + (order.guestName || "Guest")));
+      buf.push(0x0a);
+      buf.push(0x1b, 0x61, 0x01);
+      buf.push(0x1d, 0x21, 0x33);         // triple size for drink name
+      buf.push(...esc(String(order.productName).toUpperCase()));
+      buf.push(0x0a);
+      buf.push(0x1d, 0x21, 0x00);
+      buf.push(0x1b, 0x61, 0x00);
+      buf.push(...esc("  " + (order.temp || "") + "   " + (order.cupType || "In-Store").toUpperCase()));
+      buf.push(0x0a);
+      buf.push(...esc("  Tile: " + (order.qrTile || "-")));
+      buf.push(0x0a);
+      if (order.customization) {
+        buf.push(0x0a);
+        buf.push(...esc("  Notes: " + order.customization));
+        buf.push(0x0a);
+      }
+      buf.push(0x0a, 0x0a, 0x0a);
+      buf.push(0x1d, 0x56, 0x01);         // cut
+      btWrite(new Uint8Array(buf)).then(() => showToast("🍳 Kitchen ticket printed", "success"))
+        .catch(e => showToast("Kitchen print failed: " + e.message, "error"));
+    }
+
+    // ==================== PRINT PERMISSION CHECK ====================
+    function canUserPrint() {
+      const user = state.currentUser || state.loggedInUser;
+      if (!user) return false;
+      if (String(user.role || "").toLowerCase() === "admin") return true;
+      return !!user.canPrint;
+    }
+
+    function renderAdminPrinterStatus() {
+      const pill = document.getElementById("adminPrinterStatusPill");
+      if (!pill) return;
+      const dot = pill.querySelector("div");
+      if (btDevice && btDevice.gatt && btDevice.gatt.connected) {
+        pill.className = "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800";
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+        pill.querySelector("span").innerText = "Online: " + (btDevice.name || "SJ-P3-B");
+      } else {
+        pill.className = "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500";
+        dot.className = "w-2 h-2 rounded-full bg-slate-400";
+        pill.appendChild(pill.querySelector("span") || pill.appendChild(document.createElement("span")));
+      }
+    }
+
     function renderAdmin() {
+      // Ensure sidebar + printer status pill exist and reflect current state
+      renderAdminSidebar();
+      renderAdminPrinterStatus();
+
       // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
       const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
       const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
@@ -2541,11 +2926,20 @@
       if (usersTbody) {
         let html = "";
         state.users.forEach(u => {
+          const adminForcedOn = String(u.role || "").toLowerCase() === "admin";
+          const canPrint = adminForcedOn ? true : !!u.canPrint;
+          const toggleHtml = adminForcedOn
+            ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">🔒 ADMIN</span>`
+            : `<label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" ${canPrint ? "checked" : ""} onchange="toggleUserCanPrint('${escapeHtml(u.username)}', this.checked)" class="sr-only peer">
+                <div class="w-9 h-5 bg-slate-200 peer-checked:bg-amber-500 rounded-full peer after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+              </label>`;
           html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
               <td class="py-3 px-3 font-bold text-amber-600">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
+              <td class="py-3 px-3">${toggleHtml}</td>
               <td class="py-3 px-3 text-right">
                 <button onclick="deleteUserSubmit('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
                   Delete
@@ -2940,6 +3334,23 @@
         }
       })
       .catch(() => showToast("Network error adding user", "error"));
+    }
+
+    // Toggle Can Print permission for a staff user (not for Admins — they always can)
+    function toggleUserCanPrint(username, canPrint) {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setUserCanPrint", username, canPrint })
+      }).then(r => r.json()).then(res => {
+        if (res.success) {
+          showToast(`${username}: Can Print → ${canPrint ? "✅ ON" : "❌ OFF"}`, "success", 2000);
+          fetchFromSheet();  // re-fetch to bump version + refresh state.users
+        } else {
+          showToast(res.error || "Failed", "error");
+          fetchFromSheet();  // rollback UI
+        }
+      }).catch(() => showToast("Network error", "error"));
     }
 
     function deleteUserSubmit(username) {

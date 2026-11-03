@@ -112,18 +112,24 @@ function ensureUsersSheet(ss) {
   let usersSheet = ss.getSheetByName("Users");
   if (!usersSheet) {
     usersSheet = ss.insertSheet("Users");
-    usersSheet.appendRow(["Username", "Password", "Role", "UserCode"]);
-    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1"]);
-    usersSheet.appendRow(["tl.li", "123456", "Admin", "2"]);
-    usersSheet.appendRow(["ky.wong", "123456", "Admin", "3"]);
-    usersSheet.appendRow(["ku", "123456", "Staff", "4"]);
+    usersSheet.appendRow(["Username", "Password", "Role", "UserCode", "CanPrint"]);
+    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1", "FALSE"]);
+    usersSheet.appendRow(["tl.li", "123456", "Admin", "2", "TRUE"]);
+    usersSheet.appendRow(["ky.wong", "123456", "Admin", "3", "TRUE"]);
+    usersSheet.appendRow(["ku", "123456", "Staff", "4", "FALSE"]);
   } else {
-    const headers = usersSheet.getRange(1, 1, 1, 4).getValues()[0];
-    if (!headers[2] || String(headers[2]).trim() === "") {
-      usersSheet.getRange(1, 3).setValue("Role");
-    }
-    if (!headers[3] || String(headers[3]).trim() === "") {
-      usersSheet.getRange(1, 4).setValue("UserCode");
+    const headers = usersSheet.getRange(1, 1, 1, 5).getValues()[0];
+    if (!headers[2] || String(headers[2]).trim() === "") usersSheet.getRange(1, 3).setValue("Role");
+    if (!headers[3] || String(headers[3]).trim() === "") usersSheet.getRange(1, 4).setValue("UserCode");
+    // CanPrint column (col 5) — auto-grant Admins, deny Staff by default
+    if (!headers[4] || String(headers[4]).trim() === "") {
+      usersSheet.getRange(1, 5).setValue("CanPrint");
+      const data = usersSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const role = String(data[i][2] || "Staff").trim().toLowerCase();
+        const existing = String(data[i][4] || "").trim();
+        if (!existing) usersSheet.getRange(i + 1, 5).setValue(role === "admin" ? "TRUE" : "FALSE");
+      }
     }
   }
   return usersSheet;
@@ -199,7 +205,7 @@ function authenticateUser(username, password) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase() &&
         String(data[i][1]).trim() === String(password).trim()) {
-      return { success: true, username: String(data[i][0]).trim(), role: String(data[i][2] || "Staff").trim(), userCode: String(data[i][3] || "1").trim() };
+      return { success: true, username: String(data[i][0]).trim(), role: String(data[i][2] || "Staff").trim(), userCode: String(data[i][3] || "1").trim(), canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE" };
     }
   }
   return { success: false, error: "Invalid username or password" };
@@ -208,9 +214,24 @@ function authenticateUser(username, password) {
 function addUser(username, password, role, userCode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
-  usersSheet.appendRow([username, password, role || "Staff", userCode || "1"]);
+  const canPrint = (role || "Staff").toLowerCase() === "Admin" ? "TRUE" : "FALSE";
+  usersSheet.appendRow([username, password, role || "Staff", userCode || "1", canPrint]);
   bumpVersion();
   return { success: true };
+}
+
+function setUserCanPrint(username, canPrint) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+      usersSheet.getRange(i + 1, 5).setValue(canPrint ? "TRUE" : "FALSE");
+      bumpVersion();
+      return { success: true };
+    }
+  }
+  return { success: false, error: "User not found" };
 }
 
 function deleteUser(username) {
@@ -346,7 +367,7 @@ function getInitialData() {
   let users = [];
   for (let i = 1; i < usersData.length; i++) {
     if (usersData[i][0]) {
-      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim() });
+      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim(), canPrint: String(usersData[i][4] || "").trim().toUpperCase() === "TRUE" });
     }
   }
 
@@ -1120,6 +1141,7 @@ function doPost(e) {
     if (action === "login") return jsonResponse(authenticateUser(data.username, data.password));
     if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
+    if (action === "setUserCanPrint") return jsonResponse(setUserCanPrint(data.username, !!data.canPrint));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));
     if (action === "saveCategories") return jsonResponse(saveCategories(data.categories));
     if (action === "saveCategoryColor") return jsonResponse(saveCategoryColor(data.category, data.color));
