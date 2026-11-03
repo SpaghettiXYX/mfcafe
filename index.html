@@ -480,7 +480,8 @@
                 <div class="flex gap-2">
                   <input type="text" id="posQRTile" placeholder="e.g. 5" class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800"
                     oninput="clearPosTileError()"
-                    onkeydown="if(event.key==='Enter')submitPosOrder()">
+                    onkeydown="if(event.key==='Enter')submitPosOrder()"
+                    autofocus autocomplete="off">
                   <button onclick="scanQRTileForOrder()" class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Scan QR tile">
                     <i class="fa-solid fa-qrcode"></i>
                   </button>
@@ -1784,6 +1785,11 @@
           document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
           
           fetchFromSheet();
+
+          // Keep focus on the QR tile input for the next scan — the Sunmi
+          // desktop scanner acts like a keyboard (types + Enter), so as soon
+          // as focus is restored the cashier can scan the next tile.
+          setTimeout(() => qrTileInput?.focus(), 300);
         } else {
           showToast("Order failed: " + (res.error || "Unknown error"), "error");
         }
