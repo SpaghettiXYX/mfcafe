@@ -1573,13 +1573,21 @@
 
       filtered.forEach(item => {
         const isSelected = state.selectedPosItem?.name === item.name;
+        const catColor = state.categoryColors[item.category || "Other"] || "#64748b";
         const btn = document.createElement('button');
-        btn.className = `p-4 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
+        btn.className = `p-4 rounded-2xl border-l-4 border text-left transition shadow-sm ${isSelected ? 'ring-2 ring-offset-2' : 'border-slate-200 bg-white hover:border-slate-300'}`;
+        if (isSelected) {
+          btn.style.borderColor = catColor;
+          btn.style.backgroundColor = catColor + "18"; // 9% opacity tint
+          btn.style.boxShadow = `0 0 0 2px #fff, 0 0 0 4px ${catColor}50`; // ring-offset + ring
+        } else {
+          btn.style.borderLeftColor = catColor;
+        }
         btn.onclick = () => selectPosMenuItem(item);
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-sm mt-2">${fmtPrice(item.price)}</p>
+          <p class="font-black text-sm mt-2" style="color: ${catColor};">${fmtPrice(item.price)}</p>
         `;
         grid.appendChild(btn);
       });
@@ -1598,7 +1606,19 @@
 
     function selectPosMenuItem(item) {
       state.selectedPosItem = item;
-      document.getElementById('posSelectionDetails')?.classList.remove('hidden');
+
+      // Apply category color theming to the selection details panel
+      const catColor = state.categoryColors[item.category || "Other"] || "#64748b";
+      const details = document.getElementById('posSelectionDetails');
+      details?.classList.remove('hidden');
+      if (details) {
+        details.style.borderColor = catColor + "60";      // 37% opacity border
+        details.style.backgroundColor = catColor + "10"; // 6% opacity tint
+      }
+      const nameEl = document.getElementById('posSelectedItemName');
+      if (nameEl) nameEl.style.color = catColor;
+      const priceEl = document.getElementById('posSelectedItemPrice');
+      if (priceEl) priceEl.style.color = catColor;
 
       const opts = item.tempOptions || "Hot & Cold";
       const coldAllowed = opts.includes("Cold") && !state.coldPaused && !item.coldPaused;
@@ -1606,8 +1626,8 @@
       // Default to hot if cold is paused, otherwise keep cold default
       state.selectedPosTemp = (opts.includes("Hot") && !coldAllowed) ? "Hot" : "Cold";
 
-      document.getElementById('posSelectedItemName').innerText = item.name;
-      document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
+      if (nameEl) nameEl.innerText = item.name;
+      if (priceEl) priceEl.innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
       document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
 
       const tempContainer = document.getElementById('posTempBtnContainer');
