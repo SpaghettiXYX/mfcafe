@@ -1704,10 +1704,15 @@
         setPosTileError("QR Tile is required. Scan the tile, or type its number, then submit again.");
         return;
       }
-      const boundTile = state.qrTiles.find(t => String(t.code) === qrTile && String(t.status || "").toLowerCase() !== "available");
-      if (boundTile) {
-        showToast(`Tile #${qrTile} is still bound to order #${boundTile.boundOrder}. Clear that order first.`, "error", 4500);
-        setPosTileError(`Tile #${qrTile} is already bound to order #${boundTile.boundOrder}. Clear it before using this tile.`);
+      const matchedTile = state.qrTiles.find(t => String(t.code) === qrTile);
+      if (!matchedTile) {
+        showToast(`Tile #${qrTile} does not exist. Check the QR Tiles list or add it in Admin.`, "error", 5000);
+        setPosTileError(`Tile #${qrTile} is not registered in the QR Tiles sheet. Contact admin.`);
+        return;
+      }
+      if (String(matchedTile.status || "").toLowerCase() !== "available") {
+        showToast(`Tile #${qrTile} is still bound to order #${matchedTile.boundOrder}. Clear that order first.`, "error", 4500);
+        setPosTileError(`Tile #${qrTile} is already bound to order #${matchedTile.boundOrder}. Clear it before using this tile.`);
         return;
       }
 

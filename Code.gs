@@ -535,9 +535,14 @@ function createOrderLocked(order) {
       createdOrder.paymentStatus
     ]);
 
-    // Bind QR tile if provided
+    // Bind QR tile if provided — reject unknown tiles so we never end up
+    // with an order that has a dangling qrTile no cashier can clear.
     if (qrTile) {
-      bindTileToOrder(qrTile, assignedOrderNum);
+      const bind = bindTileToOrder(qrTile, assignedOrderNum);
+      if (!bind.success) {
+        lock.releaseLock();
+        return { success: false, error: bind.error + " (tile '" + qrTile + "' does not exist in QR Tiles sheet)" };
+      }
     }
 
     SpreadsheetApp.flush();
@@ -619,26 +624,55 @@ function clearOrderByTile(scannedCode) {
   const target = String(scannedCode).trim().replace(/^#/, "");
   const CLEARABLE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
 
-  // 1) QR tile: newest READY order bound to this tile
-  for (let i = data.length - 1; i >= 1; i--) {
-    const tile = data[i][10] ? String(data[i][10]).trim() : "";
-    const status = String(data[i][9] || "").trim().toUpperCase();
-    if (tile === target && status === "READY") {
-      const orderNum = String(data[i][0]).trim();
-      const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
-      sheet.getRange(i + 1, 10).setValue("CLEARED");
-      if (rowTile) freeTile(rowTile);
-      SpreadsheetApp.flush();
-      bumpVersion();
-      return { success: true, orderNum: orderNum, status: "CLEARED", via: "tile" };
+  // --- First, figure out what the scanned code is ---
+  const tilesSheet = ss.getSheetByName("QR Tiles");
+  let tileRow = -1;
+  let tileBoundOrder = "";
+  let tileStatusText = "";
+  if (tilesSheet) {
+    const tilesData = tilesSheet.getDataRange().getValues();
+    for (let i = 1; i < tilesData.length; i++) {
+      if (String(tilesData[i][0]).trim() === target) {
+        tileRow = i;
+        tileStatusText = String(tilesData[i][1] || "").trim();
+        tileBoundOrder = String(tilesData[i][2] || "").trim();
+        break;
+      }
     }
   }
 
-  // 2) Guest's pre-order barcode: newest live order carrying this order number
+  // --- Branch 1: scanned code is a known QR tile ---
+  if (tileRow !== -1) {
+    if (!tileBoundOrder) {
+      return { success: false, error: "Tile '" + target + "' exists but is not bound to any order." };
+    }
+    // Find the bound order in Orders Log
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (String(data[i][0]).trim() !== tileBoundOrder) continue;
+      const status = String(data[i][9] || "").trim().toUpperCase();
+      if (status === "READY") {
+        sheet.getRange(i + 1, 10).setValue("CLEARED");
+        freeTile(target);
+        SpreadsheetApp.flush();
+        bumpVersion();
+        return { success: true, orderNum: tileBoundOrder, status: "CLEARED", via: "tile" };
+      } else if (status === "CLEARED" || status === "CANCELLED") {
+        return { success: false, error: "Tile '" + target + "' is bound to order " + tileBoundOrder + " which is already " + status + "." };
+      } else {
+        return { success: false, error: "Tile '" + target + "' is bound to order " + tileBoundOrder + " which is still " + status + " (not ready for pickup)." };
+      }
+    }
+    // Tile says bound but the order row is missing — data inconsistency
+    return { success: false, error: "Tile '" + target + "' is marked as bound to " + tileBoundOrder + " but that order is missing from Orders Log." };
+  }
+
+  // --- Branch 2: scanned code is NOT a tile — try as an order number ---
   for (let i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]).trim() !== target) continue;
     const status = String(data[i][9] || "").trim().toUpperCase();
-    if (CLEARABLE.indexOf(status) === -1) continue;
+    if (CLEARABLE.indexOf(status) === -1) {
+      return { success: false, error: "Order " + target + " exists but is " + status + " — not clearable." };
+    }
     const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
     sheet.getRange(i + 1, 10).setValue("CLEARED");
     if (rowTile) freeTile(rowTile);
@@ -647,7 +681,7 @@ function clearOrderByTile(scannedCode) {
     return { success: true, orderNum: target, status: "CLEARED", via: "orderNum" };
   }
 
-  return { success: false, error: "No matching order found for this code" };
+  return { success: false, error: "'" + target + "' is neither a known QR tile code nor a valid order number." };
 }
 
 function deleteOrder(orderNum) {
@@ -903,13 +937,15 @@ function lookupOrder(rawCode) {
 
   // 3) Match by QR tile binding
   let tileStatus = "";
+  let tileExists = false;
+  let boundOrder = "";
   if (foundIndex === -1) {
     const tilesSheet = ss.getSheetByName("QR Tiles");
     if (tilesSheet) {
       const tilesData = tilesSheet.getDataRange().getValues();
-      let boundOrder = "";
       for (let i = 1; i < tilesData.length; i++) {
         if (String(tilesData[i][0]).trim() === code) {
+          tileExists = true;
           tileStatus = String(tilesData[i][1] || "").trim();
           boundOrder = String(tilesData[i][2] || "").trim();
           break;
@@ -924,7 +960,15 @@ function lookupOrder(rawCode) {
   }
 
   if (foundIndex === -1) {
-    return { success: false, error: "Order not found", scannedCode: code, tileStatus: tileStatus };
+    let err = "Order not found";
+    if (tileExists && !boundOrder) {
+      err = "Tile '" + code + "' exists but is Available — not bound to any order yet.";
+    } else if (tileExists && boundOrder) {
+      err = "Tile '" + code + "' is bound to order " + boundOrder + " but that order is missing from Orders Log.";
+    } else {
+      err = "'" + code + "' is neither a known QR tile code nor a valid order number.";
+    }
+    return { success: false, error: err, scannedCode: code, tileStatus: tileStatus };
   }
 
   const row = data[foundIndex];
