@@ -829,6 +829,7 @@
                 <th class="py-2.5 px-3">Role</th>
                 <th class="py-2.5 px-3">User Code (Prefix)</th>
                 <th class="py-2.5 px-3"><i class="fa-solid fa-print mr-1"></i>Can Print</th>
+                <th class="py-2.5 px-3"><i class="fa-brands fa-google mr-1"></i>Google Account</th>
                 <th class="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -1037,6 +1038,39 @@
           Save User
         </button>
         <button onclick="closeAddUserModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL — password change & Google account linking -->
+  <div id="userEditModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="font-black text-slate-800 text-base">Edit User</h3>
+        <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <p id="editUserTitle" class="text-xs font-extrabold text-amber-600 -mt-2"></p>
+
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">New Password</label>
+          <input type="password" id="editUserPassword" placeholder="Leave blank to keep current" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Google Account</label>
+          <input type="email" id="editUserGoogle" placeholder="name@gmail.com" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          <p class="text-[10px] font-semibold text-slate-400 mt-1">Only linked accounts can sign in with Google — there is no sign-up. Clear this field and save to unlink.</p>
+        </div>
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="saveUserEdit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
+          Save Changes
+        </button>
+        <button onclick="closeEditUserModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
           Cancel
         </button>
       </div>
@@ -3920,7 +3954,15 @@
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
               <td class="py-3 px-3 font-bold text-amber-600">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
               <td class="py-3 px-3">${toggleHtml}</td>
-              <td class="py-3 px-3 text-right">
+              <td class="py-3 px-3">
+                ${u.googleEmail
+                  ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-sky-100 text-sky-700"><i class="fa-brands fa-google mr-0.5"></i>${escapeHtml(u.googleEmail)}</span>`
+                  : `<span class="text-[10px] font-bold text-slate-400">Not linked</span>`}
+              </td>
+              <td class="py-3 px-3 text-right space-x-1">
+                <button onclick="openEditUserModal('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                  Edit
+                </button>
                 <button onclick="deleteUserSubmit('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
                   Delete
                 </button>
@@ -4340,6 +4382,47 @@
       } catch (e) {
         showToast("Network error: " + (e.message || "request failed"), "error", 4000);
         renderAll();
+      }
+    }
+
+    // ===== EDIT USER: password change + Google account link/unlink =====
+    let editUserTarget = null;
+
+    function openEditUserModal(username) {
+      const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(username).toLowerCase());
+      if (!u) return showToast("User not found", "error");
+      editUserTarget = u.username;
+      document.getElementById("editUserTitle").innerText = u.username + "  ·  " + (u.role || "Staff");
+      document.getElementById("editUserPassword").value = "";
+      document.getElementById("editUserGoogle").value = u.googleEmail || "";
+      document.getElementById("userEditModal").classList.remove("hidden");
+    }
+
+    function closeEditUserModal() {
+      document.getElementById("userEditModal").classList.add("hidden");
+      editUserTarget = null;
+    }
+
+    async function saveUserEdit() {
+      if (!editUserTarget) return;
+      const pwd = document.getElementById("editUserPassword").value.trim();
+      const email = document.getElementById("editUserGoogle").value.trim();
+      if (pwd && pwd.length < 4) return showToast("Password must be at least 4 characters", "warning");
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("Invalid Google email format", "warning");
+      try {
+        if (pwd) {
+          const r1 = await apiPost({ action: "changeUserPassword", username: editUserTarget, password: pwd });
+          if (!r1 || !r1.success) return showToast((r1 && r1.error) || "Failed to change password", "error");
+        }
+        const r2 = await apiPost({ action: "setUserGoogleEmail", username: editUserTarget, email: email });
+        if (!r2 || !r2.success) return showToast((r2 && r2.error) || "Failed to update Google link", "error");
+        const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(editUserTarget).toLowerCase());
+        if (u) u.googleEmail = email;
+        renderAll();
+        closeEditUserModal();
+        showToast("User updated" + (pwd ? " — new password active" : ""), "success", 2200);
+      } catch (e) {
+        showToast("Network error: " + (e.message || "request failed"), "error", 4000);
       }
     }
 

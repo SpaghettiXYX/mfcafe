@@ -259,7 +259,7 @@ function authenticateGoogle(credential) {
       return { success: true, username: uname, role: String(data[i][2] || "Staff").trim(), userCode: String(data[i][3] || "1").trim(), canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE" };
     }
   }
-  return { success: false, error: "Google account not linked — ask Admin to put '" + email + "' in the GoogleEmail column of the Users sheet" };
+  return { success: false, error: "Google account not linked — ask Admin to link it in Admin Panel → Users (no sign-up via Google)" };
 }
 
 function addUser(username, password, role, userCode) {
@@ -297,6 +297,45 @@ function deleteUser(username) {
     }
   }
   return { success: false, error: "User not found" };
+}
+
+function changeUserPassword(username, password) {
+  const pwd = String(password || "").trim();
+  if (pwd.length < 4) return { success: false, error: "Password must be at least 4 characters" };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+      usersSheet.getRange(i + 1, 2).setValue(pwd);
+      bumpVersion();
+      return { success: true };
+    }
+  }
+  return { success: false, error: "User not found" };
+}
+
+// email "" = unlink the Google account. Sign-in only ever matches a linked
+// email — there is no self-registration via Google.
+function setUserGoogleEmail(username, email) {
+  const val = String(email || "").trim();
+  if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+    return { success: false, error: "Invalid email format" };
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  let targetRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) targetRow = i + 1;
+    else if (val && String(data[i][5] || "").trim().toLowerCase() === val.toLowerCase()) {
+      return { success: false, error: "That Google account is already linked to '" + String(data[i][0]).trim() + "'" };
+    }
+  }
+  if (targetRow < 0) return { success: false, error: "User not found" };
+  usersSheet.getRange(targetRow, 6).setValue(val);
+  bumpVersion();
+  return { success: true, googleEmail: val };
 }
 
 function saveHotkeys(hotkeysStr) {
@@ -418,7 +457,7 @@ function getInitialData() {
   let users = [];
   for (let i = 1; i < usersData.length; i++) {
     if (usersData[i][0]) {
-      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim(), canPrint: String(usersData[i][4] || "").trim().toUpperCase() === "TRUE" });
+      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim(), canPrint: String(usersData[i][4] || "").trim().toUpperCase() === "TRUE", googleEmail: String(usersData[i][5] || "").trim() });
     }
   }
 
@@ -1362,6 +1401,8 @@ function doPost(e) {
     if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "setUserCanPrint") return jsonResponse(setUserCanPrint(data.username, !!data.canPrint));
+    if (action === "changeUserPassword") return jsonResponse(changeUserPassword(data.username, data.password));
+    if (action === "setUserGoogleEmail") return jsonResponse(setUserGoogleEmail(data.username, data.email));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));
     if (action === "saveCategories") return jsonResponse(saveCategories(data.categories));
     if (action === "saveCategoryColor") return jsonResponse(saveCategoryColor(data.category, data.color));
