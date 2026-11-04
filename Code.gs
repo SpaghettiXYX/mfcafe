@@ -264,7 +264,14 @@ function authenticateGoogle(credential) {
     }
     info = JSON.parse(resp.getContentText());
   } catch (err) {
-    return { success: false, error: "Google token verification failed (exception): " + String(err.message || err) };
+    const msg = String(err.message || err);
+    if (/permission|scope|external_request|UrlFetchApp/i.test(msg)) {
+      return {
+        success: false,
+        error: "Google sign-in needs the script.external_request permission. In the Apps Script editor open appsscript.json, add \"https://www.googleapis.com/auth/script.external_request\", then run any function once and approve access, and deploy a new version."
+      };
+    }
+    return { success: false, error: "Google token verification failed (exception): " + msg };
   }
   if (String(info.aud || "") !== clientId) {
     return { success: false, error: "Google token audience mismatch (got " + String(info.aud) + ", expected " + clientId + ")" };
