@@ -1211,7 +1211,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzCS3FLHJhRRAAtfxs-DhJ_CmBxCtFRNlq-oGk0rYbHbp3CT4jG__sGFk-bbkpar4m4HA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQHqkq3x1-ZFCWnO9KhGQ9fWEugWG7cRiWFX7-IOyHEv3T6O7OHxN-j0upRJ183Yq26w/exec";
 
     let state = {
       menu: [],
@@ -2817,8 +2817,19 @@
       ["customization", "Notes"], ["time", "Time"], ["price", "Price"]
     ];
 
+    // Keep a device-local copy so the layout still works (and previews
+    // correctly) before the server round-trip — and when it can't be reached.
+    const RECEIPT_LOCAL_KEY = "mfcafe_receipt_layout_v1";
+
     function ensureReceiptLayout() {
       if (!Array.isArray(state.receiptLayout) || !state.receiptLayout.length) {
+        try {
+          const raw = localStorage.getItem(RECEIPT_LOCAL_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) { state.receiptLayout = parsed; return state.receiptLayout; }
+          }
+        } catch (e) { /* corrupted local copy — fall back to defaults */ }
         state.receiptLayout = JSON.parse(JSON.stringify(DEFAULT_RECEIPT_LAYOUT));
       }
       return state.receiptLayout;
@@ -2999,17 +3010,28 @@
         return;
       }
       const layout = ensureReceiptLayout();
+      // Always persist locally first — the editor is usable even when the
+      // Apps Script endpoint is unreachable.
+      try { localStorage.setItem(RECEIPT_LOCAL_KEY, JSON.stringify(layout)); } catch (e) {}
       try {
         const res = await apiPost({ action: "saveReceiptLayout", layout });
         if (res && res.success) {
-          if (Array.isArray(res.layout)) state.receiptLayout = res.layout;
+          if (Array.isArray(res.layout)) {
+            state.receiptLayout = res.layout;
+            try { localStorage.setItem(RECEIPT_LOCAL_KEY, JSON.stringify(res.layout)); } catch (e) {}
+          }
           renderLayoutEditor();
           showToast("Receipt layout saved", "success", 2000);
         } else {
-          showToast((res && res.error) || "Save failed", "error", 4000);
+          renderLayoutEditor();
+          showToast("Saved on this device only — " + ((res && res.error) || "server did not accept it"), "warning", 5000);
         }
       } catch (e) {
-        showToast("Save failed: " + (e.message || "network error"), "error", 5000);
+        renderLayoutEditor();
+        const msg = /failed to fetch|load failed|networkerror/i.test(e.message || "")
+          ? "server unreachable — saved on this device only"
+          : e.message;
+        showToast("Saved on this device only — " + msg, "warning", 6000);
       }
     }
 
@@ -3136,7 +3158,17 @@
           signal: ctrl ? ctrl.signal : undefined
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        return await res.json();
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (parseErr) {
+          // Apps Script answers with an HTML sign-in page when the deployment
+          // isn't public — surface that instead of a cryptic parse failure.
+          if (/accounts\.google|<html|<!DOCTYPE/i.test(text)) {
+            throw new Error("Apps Script returned a sign-in page — set deployment access to 'Anyone'");
+          }
+          throw new Error("Unexpected response from Apps Script");
+        }
       } finally { if (timer) clearTimeout(timer); }
     }
 
