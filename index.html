@@ -2748,7 +2748,11 @@
 
     const PRINTER_BLE_SERVICE   = "0000ffe0-0000-1000-8000-00805f9b34fb";
     const PRINTER_BLE_CHAR_TX   = "0000ffe1-0000-1000-8000-00805f9b34fb";
-    const PRINTER_DEVICE_NAME   = "SJ-P3-B";
+    // The SJ-P3-B advertises as "Printer_2511180367", not by model name, so
+    // filtering on "SJ-P3-B" hid it from the picker entirely.
+    const PRINTER_NAME_PREFIXES = ["Printer_", "SJ-P3"];
+    const PRINTER_DEVICE_NAME   = "Printer_";
+    let btScanAll = false;   // true after a filtered scan finds nothing
 
     let btDevice = null;
     let btCharTx = null;
@@ -3265,22 +3269,27 @@
         if (typeof navigator.bluetooth.getDevices === "function") {
           try {
             const paired = await navigator.bluetooth.getDevices();
-            device = paired.find(d => d.name && d.name.includes(PRINTER_DEVICE_NAME)) || null;
+            device = paired.find(d => d.name &&
+              PRINTER_NAME_PREFIXES.some(p => d.name.startsWith(p))) || null;
           } catch (e) { /* permission not granted yet — fall through to picker */ }
         }
         if (!device) {
-          device = await navigator.bluetooth.requestDevice({
-            filters: [
-              { namePrefix: PRINTER_DEVICE_NAME },
-              { services: [PRINTER_BLE_SERVICE] }
-            ],
-            optionalServices: [PRINTER_BLE_SERVICE]
-          });
+          // A filtered scan keeps the picker short; if the printer advertises an
+          // unexpected name, fall back to listing every nearby BLE device.
+          device = await navigator.bluetooth.requestDevice(btScanAll
+            ? { acceptAllDevices: true, optionalServices: [PRINTER_BLE_SERVICE] }
+            : {
+                filters: [
+                  ...PRINTER_NAME_PREFIXES.map(namePrefix => ({ namePrefix })),
+                  { services: [PRINTER_BLE_SERVICE] }
+                ],
+                optionalServices: [PRINTER_BLE_SERVICE]
+              });
+          btScanAll = false;
         }
         btDevice = device;
         const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
-        btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
+        btCharTx = await resolvePrinterCharacteristic(server);
 
         device.addEventListener('gattserverdisconnected', () => {
           stopPrintHub();
@@ -3294,7 +3303,12 @@
         renderAdminPrinterStatus();
         return true;
       } catch (e) {
-        updatePrinterBar("offline", "Failed: " + e.message);
+        if (e && e.name === "NotFoundError" && !btScanAll) {
+          btScanAll = true;
+          updatePrinterBar("offline", "Not found — press Connect to list all devices");
+        } else {
+          updatePrinterBar("offline", "Failed: " + e.message);
+        }
         renderAdminPrinterStatus();
         return false;
       }
@@ -3304,15 +3318,32 @@
       if (!btDevice || btDevice.gatt.connected) return;
       try {
         const server = await btDevice.gatt.connect();
-        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
-        btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
+        btCharTx = await resolvePrinterCharacteristic(server);
         startPrintHub();
         updatePrinterBar("online", btDevice.name || PRINTER_DEVICE_NAME);
         renderAdminPrinterStatus();
       } catch (e) { setTimeout(autoReconnect, 5000); }
     }
 
-    // Floating bottom-right status bar (visible on every view, not just Admin)
+    // Printers vary in which GATT service they expose, so try the documented
+    // pair first, then accept any writable characteristic.
+    async function resolvePrinterCharacteristic(server) {
+      try {
+        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
+        return await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
+      } catch (e) { /* different firmware — scan below */ }
+      const services = await server.getPrimaryServices();
+      for (const svc of services) {
+        let chars = [];
+        try { chars = await svc.getCharacteristics(); } catch (e) { continue; }
+        for (const c of chars) {
+          if (c.properties && (c.properties.write || c.properties.writeWithoutResponse)) return c;
+        }
+      }
+      throw new Error("No writable characteristic — device is not a printer?");
+    }
+
+
     // ==================== PRINT: FLOATING STATUS CARD ====================
     // Always visible on every view — the operator's source of truth for whether
     // a label can actually come out.
