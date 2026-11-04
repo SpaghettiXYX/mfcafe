@@ -1248,8 +1248,9 @@ const RECEIPT_LAYOUT_KEY = "RECEIPT_LAYOUT_V1";
 
 function defaultReceiptLayout() {
   return [
-    { type: "logo" },
     { type: "field", field: "orderNum", prefix: "#", align: "center", size: 3, bold: true },
+    { type: "field", field: "reserved", align: "center", size: 2, bold: true },
+    { type: "field", field: "pickupTime", prefix: "Pickup: ", align: "center", size: 2, bold: true },
     { type: "divider", align: "center", size: 1, bold: false },
     { type: "field", field: "productName", align: "center", size: 2, bold: true },
     { type: "field", field: "cupType", align: "center", size: 1, bold: true },
@@ -1276,10 +1277,10 @@ function saveReceiptLayout(layout) {
   if (!Array.isArray(layout) || layout.length === 0 || layout.length > 30) {
     return { success: false, error: "Invalid layout (1-30 blocks required)" };
   }
-  const fields = ["orderNum", "productName", "temp", "cupType", "guestName",
-    "qrTile", "customization", "time", "price"];
+  const fields = ["orderNum", "reserved", "pickupTime", "productName", "temp", "cupType",
+    "guestName", "qrTile", "customization", "time", "price"];
   const clean = layout.map(b => {
-    const type = ["logo", "field", "text", "divider", "feed"].indexOf(String(b.type)) >= 0
+    const type = ["field", "text", "divider", "feed"].indexOf(String(b.type)) >= 0
       ? String(b.type) : "text";
     return {
       type: type,

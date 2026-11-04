@@ -2810,6 +2810,8 @@
     // Properties so every terminal prints the same template.
     const DEFAULT_RECEIPT_LAYOUT = [
       { type: "field", field: "orderNum", prefix: "#", align: "center", size: 3, bold: true },
+      { type: "field", field: "reserved", align: "center", size: 2, bold: true },
+      { type: "field", field: "pickupTime", prefix: "Pickup: ", align: "center", size: 2, bold: true },
       { type: "divider", align: "center", size: 1, bold: false },
       { type: "field", field: "productName", align: "center", size: 2, bold: true },
       { type: "field", field: "cupType", align: "center", size: 1, bold: true },
@@ -2821,7 +2823,8 @@
     ];
 
     const RECEIPT_FIELDS = [
-      ["orderNum", "Order #"], ["productName", "Drink"], ["temp", "Temp"],
+      ["orderNum", "Order #"], ["reserved", "Pre-order tag"], ["pickupTime", "Pickup time"],
+      ["productName", "Drink"], ["temp", "Temp"],
       ["cupType", "Cup type"], ["guestName", "Guest"], ["qrTile", "QR tile"],
       ["customization", "Notes"], ["time", "Time"], ["price", "Price"]
     ];
@@ -2845,11 +2848,41 @@
         try { local = JSON.parse(localStorage.getItem(RECEIPT_LOCAL_KEY) || "null"); } catch (e) { /* corrupted */ }
         if (!apply(local)) state.receiptLayout = JSON.parse(JSON.stringify(DEFAULT_RECEIPT_LAYOUT));
       }
-      return state.receiptLayout;
+      return migrateReceiptLayout(state.receiptLayout);
+    }
+
+    // Layouts saved before pick-up times existed get the two reservation
+    // blocks injected once, right after the order number.
+    const RECEIPT_MIGRATED_KEY = "mfcafe_receipt_layout_v2";
+
+    function migrateReceiptLayout(blocks) {
+      let done = false;
+      try { done = localStorage.getItem(RECEIPT_MIGRATED_KEY) === "1"; } catch (e) { /* storage disabled */ }
+      if (done) return blocks;
+      try { localStorage.setItem(RECEIPT_MIGRATED_KEY, "1"); } catch (e) { /* ignore */ }
+      if (blocks.some(b => b && b.field === "pickupTime")) return blocks;
+      const extras = [
+        { type: "field", field: "reserved", align: "center", size: 2, bold: true },
+        { type: "field", field: "pickupTime", prefix: "Pickup: ", align: "center", size: 2, bold: true }
+      ];
+      const idx = blocks.findIndex(b => b && b.field === "orderNum");
+      const out = blocks.slice();
+      out.splice(idx >= 0 ? idx + 1 : 0, 0, ...extras);
+      state.receiptLayout = out;
+      return out;
+    }
+
+    function isPreOrder(order) {
+      const status = String(order.status || "").toUpperCase();
+      return status === "RESERVED" || !!String(order.pickupTime || "").trim();
     }
 
     function layoutFieldValue(order, field) {
       if (field === "orderNum") return String(order.orderNum || "");
+      // Pre-order tag and pickup time only print for reservations — walk-in
+      // orders return "" so the whole line is skipped.
+      if (field === "reserved") return isPreOrder(order) ? "PRE-ORDER" : "";
+      if (field === "pickupTime") return isPreOrder(order) ? String(order.pickupTime || "").trim() : "";
       if (field === "productName") return String(order.productName || "");
       if (field === "temp") return String(order.temp || "");
       if (field === "cupType") return String(order.cupType || "In-Store");
@@ -2909,7 +2942,8 @@
     function previewOrderSample() {
       return {
         orderNum: "A123", productName: "Iced Latte", temp: "Cold", cupType: "In-Store",
-        guestName: "Guest", qrTile: "12", customization: "Less ice", price: "3.50"
+        guestName: "Guest", qrTile: "12", customization: "Less ice", price: "3.50",
+        status: "RESERVED", pickupTime: "14:30"
       };
     }
 
