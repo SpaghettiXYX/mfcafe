@@ -909,14 +909,21 @@
           <p class="text-xs font-bold text-slate-700">
             Print a sample label to verify ESC/POS + paper size + category colours are correct.
           </p>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <button onclick="testBluetoothLabel()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
               <i class="fa-solid fa-flask mr-1"></i>Test Label Print
             </button>
+            <button onclick="testTextOnly()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2.5 rounded-xl transition">
+              <i class="fa-solid fa-font mr-1"></i>Text-Only Test
+            </button>
+            <button onclick="probePrinter()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2.5 rounded-xl transition">
+              <i class="fa-solid fa-list-check mr-1"></i>Probe GATT
+            </button>
           </div>
           <p class="text-[10px] text-slate-500">
-            Paper: 58mm thermal continuous. Layout is editable in Receipt Layout.
+            Paper: 48mm thermal continuous. Layout is editable in Receipt Layout.
           </p>
+          <pre id="printerProbe" class="hidden mt-1 text-[10px] leading-relaxed text-slate-600 bg-slate-100 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap"></pre>
         </div>
       </div>
 
@@ -3085,25 +3092,31 @@
     // Write BLE bytes in chunks with back-pressure
     async function btWrite(data) {
       if (!btCharTx) throw new Error("No printer connected");
-      // BLE default ATT payload is 20 bytes; a 128-byte write is rejected or
-      // half-written on Android, which shows up as truncated, garbled paper.
+      // BLE default ATT payload is 20 bytes. On macOS, writeValueWithoutResponse
+      // resolves immediately and macOS silently drops packets once its queue is
+      // full — the paper then stops mid-image, which looks like "printer froze".
+      // So: prefer acknowledged writes (real flow control) and pace every chunk.
       const CHUNK = 20;
-      const noResponse = !!(btCharTx.properties && btCharTx.properties.writeWithoutResponse);
+      const props = btCharTx.properties || {};
+      let ack = !!props.write;                      // writeValue = with response
+      const pause = ack ? 2 : 9;
       for (let i = 0; i < data.length; i += CHUNK) {
         const slice = data.slice(i, i + CHUNK);
         try {
-          if (noResponse) await btCharTx.writeValueWithoutResponse(slice);
-          else await btCharTx.writeValue(slice);
+          if (ack) await btCharTx.writeValue(slice);
+          else await btCharTx.writeValueWithoutResponse(slice);
         } catch (e) {
-          // Firmware/OS disagreement on which write mode is allowed — retry
-          // the same chunk with the other one instead of dropping it.
-          if (/not permitted|not supported|GATT/i.test(e.name + " " + e.message)) {
-            if (noResponse) await btCharTx.writeValue(slice);
+          // Firmware disagrees with the advertised properties — flip the mode
+          // once and retry this same chunk rather than dropping it.
+          ack = !ack;
+          try {
+            if (ack) await btCharTx.writeValue(slice);
             else await btCharTx.writeValueWithoutResponse(slice);
-          } else throw e;
+          } catch (e2) { throw e; }
         }
+        await new Promise(r => setTimeout(r, ack ? 2 : 9));
       }
-      await new Promise(r => setTimeout(r, 60));
+      await new Promise(r => setTimeout(r, 120));   // let the last block flush
     }
 
     // ==================== REMOTE PRINT HUB ====================
@@ -3309,6 +3322,7 @@
         btDevice = device;
         const server = await device.gatt.connect();
         btCharTx = await resolvePrinterCharacteristic(server);
+        console.log("[printer] writing via", btCharTx.uuid, btCharTx.properties);
 
         device.addEventListener('gattserverdisconnected', () => {
           stopPrintHub();
@@ -3360,6 +3374,61 @@
         }
       }
       throw new Error("No writable characteristic — device is not a printer?");
+    }
+
+    // ==================== PRINTER DIAGNOSTICS ====================
+    // Dumps the GATT tree so we can verify which service/characteristic the
+    // firmware actually exposes, instead of guessing from the model name.
+    async function probePrinter() {
+      const out = document.getElementById("printerProbe");
+      if (!out) return;
+      if (!connectionIsLive()) {
+        showToast("Connect the printer first", "error", 3000);
+        return;
+      }
+      out.classList.remove("hidden");
+      out.innerText = "Reading GATT tree…";
+      try {
+        const services = await btDevice.gatt.getPrimaryServices();
+        const lines = ["Device: " + (btDevice.name || "?")];
+        for (const svc of services) {
+          lines.push("SERVICE " + svc.uuid);
+          let chars = [];
+          try { chars = await svc.getCharacteristics(); } catch (e) { continue; }
+          for (const c of chars) {
+            const p = c.properties || {};
+            const flags = ["read", "write", "writeWithoutResponse", "notify", "indicate"]
+              .filter(k => p[k]).join(", ");
+            const used = btCharTx && c.uuid === btCharTx.uuid ? "   <-- printing here" : "";
+            lines.push("   CHAR " + c.uuid + "  [" + flags + "]" + used);
+          }
+        }
+        out.innerText = lines.join("\n");
+        console.log(lines.join("\n"));
+        showToast("GATT tree copied to the box below + Console", "success", 3000);
+      } catch (e) {
+        out.innerText = "Probe failed: " + e.message;
+      }
+    }
+
+    // Text-only test: isolates "is the write path working" from "is the raster
+    // payload too big / malformed". No image bytes are involved.
+    async function testTextOnly() {
+      if (!canUserPrint()) {
+        showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000);
+        return;
+      }
+      if (!connectionIsLive()) { showPrinterNotConnectedModal(); return; }
+      try {
+        const buf = [0x1b, 0x40, 0x1b, 0x61, 0x01, 0x1d, 0x21, 0x11];
+        for (const ch of "BLE OK 12345") buf.push(ch.charCodeAt(0));
+        buf.push(0x0a, 0x0a, 0x0a);
+        const t0 = Date.now();
+        await btWrite(new Uint8Array(buf));
+        showToast("Text test sent in " + (Date.now() - t0) + " ms", "success", 3000);
+      } catch (e) {
+        showToast("Text test failed: " + e.message, "error", 5000);
+      }
     }
 
 
