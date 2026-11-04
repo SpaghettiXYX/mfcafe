@@ -2766,7 +2766,11 @@
     function pushLogo(buf) {
       const raw = atob(LOGO_BITMAP.b64);
       const bytesPerRow = LOGO_BITMAP.w / 8;
-      buf.push(0x1d, 0x76, 0x30, 0x00, 0x00, bytesPerRow, 0x00,
+      // GS v 0 m xL xH yL yH — m=0, width in BYTES, height in DOTS.
+      // The previous header wrote xL=0/xH=bytesPerRow and shifted yL/yH by a
+      // byte, so the printer read the following receipt lines as image data.
+      buf.push(0x1d, 0x76, 0x30, 0x00,
+               bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
                LOGO_BITMAP.h & 0xff, (LOGO_BITMAP.h >> 8) & 0xff);
       for (let i = 0; i < raw.length; i++) buf.push(raw.charCodeAt(i));
     }
@@ -2900,7 +2904,8 @@
         buf.push(0x0a);
       }
       buf.push(0x0a, 0x0a);
-      buf.push(0x1d, 0x56, 0x01);              // GS V 1 — partial cut
+      // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
+      // don't own a cutter it can stall the buffer for the next job.
       return new Uint8Array(buf);
     }
 
@@ -3080,9 +3085,23 @@
     // Write BLE bytes in chunks with back-pressure
     async function btWrite(data) {
       if (!btCharTx) throw new Error("No printer connected");
-      const CHUNK = 128;
+      // BLE default ATT payload is 20 bytes; a 128-byte write is rejected or
+      // half-written on Android, which shows up as truncated, garbled paper.
+      const CHUNK = 20;
+      const noResponse = !!(btCharTx.properties && btCharTx.properties.writeWithoutResponse);
       for (let i = 0; i < data.length; i += CHUNK) {
-        await btCharTx.writeValueWithoutResponse(data.slice(i, i + CHUNK));
+        const slice = data.slice(i, i + CHUNK);
+        try {
+          if (noResponse) await btCharTx.writeValueWithoutResponse(slice);
+          else await btCharTx.writeValue(slice);
+        } catch (e) {
+          // Firmware/OS disagreement on which write mode is allowed — retry
+          // the same chunk with the other one instead of dropping it.
+          if (/not permitted|not supported|GATT/i.test(e.name + " " + e.message)) {
+            if (noResponse) await btCharTx.writeValue(slice);
+            else await btCharTx.writeValueWithoutResponse(slice);
+          } else throw e;
+        }
       }
       await new Promise(r => setTimeout(r, 60));
     }
