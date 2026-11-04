@@ -112,13 +112,13 @@ function ensureUsersSheet(ss) {
   let usersSheet = ss.getSheetByName("Users");
   if (!usersSheet) {
     usersSheet = ss.insertSheet("Users");
-    usersSheet.appendRow(["Username", "Password", "Role", "UserCode", "CanPrint"]);
-    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1", "FALSE"]);
+    usersSheet.appendRow(["Username", "Password", "Role", "UserCode", "CanPrint", "GoogleEmail"]);
+    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1", "FALSE", ""]);
     usersSheet.appendRow(["tl.li", "123456", "Admin", "2", "TRUE"]);
     usersSheet.appendRow(["ky.wong", "123456", "Admin", "3", "TRUE"]);
     usersSheet.appendRow(["ku", "123456", "Staff", "4", "FALSE"]);
   } else {
-    const headers = usersSheet.getRange(1, 1, 1, 5).getValues()[0];
+    const headers = usersSheet.getRange(1, 1, 1, 6).getValues()[0];
     if (!headers[2] || String(headers[2]).trim() === "") usersSheet.getRange(1, 3).setValue("Role");
     if (!headers[3] || String(headers[3]).trim() === "") usersSheet.getRange(1, 4).setValue("UserCode");
     // CanPrint column (col 5) — auto-grant Admins, deny Staff by default
@@ -130,6 +130,10 @@ function ensureUsersSheet(ss) {
         const existing = String(data[i][4] || "").trim();
         if (!existing) usersSheet.getRange(i + 1, 5).setValue(role === "admin" ? "TRUE" : "FALSE");
       }
+    }
+    // GoogleEmail column (col 6) — link a Google account for one-tap login
+    if (!headers[5] || String(headers[5]).trim() === "") {
+      usersSheet.getRange(1, 6).setValue("GoogleEmail");
     }
   }
   return usersSheet;
@@ -209,6 +213,53 @@ function authenticateUser(username, password) {
     }
   }
   return { success: false, error: "Invalid username or password" };
+}
+
+// ==================== GOOGLE SIGN-IN ====================
+// One-time setup (free):
+//   1. console.cloud.google.com -> create a project
+//   2. OAuth consent screen -> External -> fill app name + your email
+//   3. Credentials -> Create OAuth Client ID -> Web application
+//      Authorized JavaScript origins: https://<your-github-pages-host>
+//   4. In the Apps Script editor run:  setGoogleClientId("xxxx.apps.googleusercontent.com")
+// The client ID is public by design; security comes from verifying the token
+// audience server-side and matching the email against the Users sheet.
+function setGoogleClientId(id) {
+  PropertiesService.getScriptProperties().setProperty("GOOGLE_CLIENT_ID", String(id || "").trim());
+  return { success: true, googleClientId: String(id || "").trim() };
+}
+
+function authenticateGoogle(credential) {
+  const clientId = PropertiesService.getScriptProperties().getProperty("GOOGLE_CLIENT_ID");
+  if (!clientId) return { success: false, error: "Google login is not configured yet" };
+  if (!credential) return { success: false, error: "Missing Google credential" };
+  let info;
+  try {
+    const resp = UrlFetchApp.fetch(
+      "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential),
+      { muteHttpExceptions: true });
+    if (resp.getResponseCode() !== 200) return { success: false, error: "Google token verification failed" };
+    info = JSON.parse(resp.getContentText());
+  } catch (err) {
+    return { success: false, error: "Google token verification failed" };
+  }
+  if (String(info.aud || "") !== clientId) return { success: false, error: "Google token audience mismatch" };
+  if (String(info.email_verified || "") !== "true") return { success: false, error: "Google email is not verified" };
+  const email = String(info.email || "").trim().toLowerCase();
+  if (!email) return { success: false, error: "Google account has no email" };
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const linked = String(data[i][5] || "").trim().toLowerCase();   // col F GoogleEmail
+    const uname = String(data[i][0] || "").trim();
+    const unameAsEmail = uname.indexOf("@") >= 0 ? uname.toLowerCase() : "";
+    if ((linked && linked === email) || (unameAsEmail && unameAsEmail === email)) {
+      return { success: true, username: uname, role: String(data[i][2] || "Staff").trim(), userCode: String(data[i][3] || "1").trim(), canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE" };
+    }
+  }
+  return { success: false, error: "Google account not linked — ask Admin to put '" + email + "' in the GoogleEmail column of the Users sheet" };
 }
 
 function addUser(username, password, role, userCode) {
@@ -1307,6 +1358,7 @@ function doPost(e) {
     const action = data.action;
 
     if (action === "login") return jsonResponse(authenticateUser(data.username, data.password));
+    if (action === "loginGoogle") return jsonResponse(authenticateGoogle(data.credential));
     if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "setUserCanPrint") return jsonResponse(setUserCanPrint(data.username, !!data.canPrint));

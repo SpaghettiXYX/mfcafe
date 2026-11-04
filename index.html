@@ -16,6 +16,8 @@
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
     onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Google Identity Services — free Google sign-in (loaded async, used only when configured) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -363,6 +365,13 @@
       <button onclick="attemptLogin()" id="btnLogin" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition">
         Log In to Portal
       </button>
+
+      <div id="googleLoginSection" class="hidden">
+        <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <span class="flex-1 h-px bg-slate-200"></span>or<span class="flex-1 h-px bg-slate-200"></span>
+        </div>
+        <div id="googleBtn" class="flex justify-center"></div>
+      </div>
     </div>
   </div>
 
@@ -1497,6 +1506,78 @@
       }
     }
 
+    // Paste your OAuth Web-client ID here (console.cloud.google.com).
+    // Leave "" to hide the Google button entirely. The ID is public by design;
+    // security is enforced server-side (token audience + email whitelist).
+    const GOOGLE_CLIENT_ID = "";
+
+    function whenGsiReady(cb, tries) {
+      if (window.google && google.accounts && google.accounts.id) cb();
+      else if (tries > 0) setTimeout(() => whenGsiReady(cb, tries - 1), 200);
+    }
+
+    function initGoogleSignIn() {
+      const section = document.getElementById("googleLoginSection");
+      if (!section) return;
+      if (!GOOGLE_CLIENT_ID) { section.classList.add("hidden"); return; }
+      section.classList.remove("hidden");
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false
+      });
+      google.accounts.id.renderButton(document.getElementById("googleBtn"), {
+        theme: "outline", size: "large", shape: "pill",
+        text: "signin_with", width: 280
+      });
+    }
+    whenGsiReady(initGoogleSignIn, 60);
+
+    function handleGoogleCredential(response) {
+      const errEl = document.getElementById("loginError");
+      if (!response || !response.credential) {
+        errEl.innerText = "Google sign-in was cancelled.";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      errEl.classList.add("hidden");
+      apiPost({ action: "loginGoogle", credential: response.credential })
+        .then(res => {
+          if (res && res.success) completeLogin(res);
+          else {
+            errEl.innerText = (res && res.error) || "Google sign-in failed.";
+            errEl.classList.remove("hidden");
+          }
+        })
+        .catch(() => {
+          errEl.innerText = "Network error authenticating with Google.";
+          errEl.classList.remove("hidden");
+        });
+    }
+
+    function completeLogin(res) {
+      state.currentUser = res.username;
+      state.currentUserRole = res.role || "Staff";
+      state.currentUserCanPrint = !!res.canPrint;
+      setCookie("mfcafe_user", res.username, 7);
+      setCookie("mfcafe_role", state.currentUserRole, 7);
+      setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 7);
+      localStorage.setItem("mfcafe_user", res.username);
+      localStorage.setItem("mfcafe_role", state.currentUserRole);
+      localStorage.setItem("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0");
+      document.getElementById("lblUsername").innerText = res.username;
+      document.getElementById("posCashierName").value = res.username;
+      updateRoleLabel(state.currentUserRole);
+      document.getElementById("loginOverlay").classList.add("hidden");
+      const errEl = document.getElementById("loginError");
+      if (errEl) errEl.classList.add("hidden");
+      applyRoleVisibility();
+      // Keep the boot screen up until the first data load completes, then
+      // drop the user straight into the POS.
+      bootStart("Signing in…");
+      fetchFromSheet({ boot: true });
+    }
+
     function attemptLogin() {
       const u = document.getElementById("loginUsername").value.trim();
       const p = document.getElementById("loginPassword").value.trim();
@@ -1516,25 +1597,7 @@
       .then(res => res.json())
       .then(res => {
         if (res.success) {
-          state.currentUser = res.username;
-          state.currentUserRole = res.role || "Staff";
-          state.currentUserCanPrint = !!res.canPrint;
-          setCookie("mfcafe_user", res.username, 7);
-          setCookie("mfcafe_role", state.currentUserRole, 7);
-          setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 7);
-          localStorage.setItem("mfcafe_user", res.username);
-          localStorage.setItem("mfcafe_role", state.currentUserRole);
-          localStorage.setItem("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0");
-          document.getElementById("lblUsername").innerText = res.username;
-          document.getElementById("posCashierName").value = res.username;
-          updateRoleLabel(state.currentUserRole);
-          document.getElementById("loginOverlay").classList.add("hidden");
-          errEl.classList.add("hidden");
-          applyRoleVisibility();
-          // Keep the boot screen up until the first data load completes, then
-          // drop the user straight into the POS.
-          bootStart("Signing in…");
-          fetchFromSheet({ boot: true });
+          completeLogin(res);
         } else {
           errEl.innerText = res.error || "Invalid username or password.";
           errEl.classList.remove("hidden");
