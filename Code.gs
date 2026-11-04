@@ -224,13 +224,18 @@ function authenticateUser(username, password) {
 //   4. In the Apps Script editor run:  setGoogleClientId("xxxx.apps.googleusercontent.com")
 // The client ID is public by design; security comes from verifying the token
 // audience server-side and matching the email against the Users sheet.
+const DEFAULT_GOOGLE_CLIENT_ID = "406055726787-9f7upjseefhfdam3j5e41bd22dvjnd91.apps.googleusercontent.com";
+// Fallback so a fresh deployment works without running setGoogleClientId().
+function getGoogleClientId() {
+  return (PropertiesService.getScriptProperties().getProperty("GOOGLE_CLIENT_ID") || DEFAULT_GOOGLE_CLIENT_ID).trim();
+}
 function setGoogleClientId(id) {
   PropertiesService.getScriptProperties().setProperty("GOOGLE_CLIENT_ID", String(id || "").trim());
-  return { success: true, googleClientId: String(id || "").trim() };
+  return { success: true, googleClientId: getGoogleClientId() };
 }
 
 function authenticateGoogle(credential) {
-  const clientId = PropertiesService.getScriptProperties().getProperty("GOOGLE_CLIENT_ID");
+  const clientId = getGoogleClientId();
   if (!clientId) return { success: false, error: "Google login is not configured yet" };
   if (!credential) return { success: false, error: "Missing Google credential" };
   let info;
