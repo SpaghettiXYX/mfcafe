@@ -149,17 +149,20 @@
     .sd-reveal { animation: sd-reveal 1s cubic-bezier(.22,.61,.36,1) .2s both; }
     @media (prefers-reduced-motion: reduce) { .sd-loader-mark::after, .sd-loader-bar span, .sd-reveal { animation: none !important; } }
 
-    /* ===== ORDERING TUTORIAL (auto-opens after an order is submitted) ===== */
+    /* ===== ORDERING TUTORIAL (opens with the menu, visible during the fade-in) ===== */
     #orderTutorialModal.hidden { display: none !important; }
     #orderTutorialModal { background: rgba(16,21,31,.72); text-wrap: pretty; font-variant-numeric: tabular-nums; }
     #orderTutorialModal > div { max-height: 90dvh; overflow-y: auto; border: 0; }
     #hideOrderTutorial:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px rgba(245,158,11,.55), 0 0 0 9px rgba(245,158,11,.16); }
+    @keyframes tut-card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+    #orderTutorialModal.is-open > div { animation: tut-card-in 420ms cubic-bezier(.22,.61,.36,1) both; }
     #orderTutorialModal.is-open #tutTitle,
     #orderTutorialModal.is-open .tut-step { animation: soh-stream-in 120ms ease-out both; }
     #orderTutorialModal.is-open .tut-step:nth-child(2) { animation-delay: 30ms; }
     #orderTutorialModal.is-open .tut-step:nth-child(3) { animation-delay: 60ms; }
     #orderTutorialModal.is-open .tut-step:nth-child(4) { animation-delay: 90ms; }
     @media (prefers-reduced-motion: reduce) {
+      #orderTutorialModal.is-open > div,
       #orderTutorialModal.is-open #tutTitle,
       #orderTutorialModal.is-open .tut-step { animation: none !important; }
     }
@@ -546,8 +549,8 @@
           if (data.orderGuides && data.orderGuides.customer) applyOrderGuide(data.orderGuides.customer);
           applyReservationState();
           renderMenu();
+          showOrderTutorial();
           hideSelfOrderLoader();
-          scheduleOrderTutorial();
         })
         .catch(() => {
           hideSelfOrderLoader();
@@ -1212,9 +1215,6 @@
     }
 
     let orderTutorialShown = false;
-    function scheduleOrderTutorial() {
-      setTimeout(showOrderTutorial, 1400);
-    }
 
     function showOrderTutorial() {
       if (orderTutorialShown) return;
