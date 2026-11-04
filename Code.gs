@@ -243,12 +243,18 @@ function authenticateGoogle(credential) {
     const resp = UrlFetchApp.fetch(
       "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential),
       { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) return { success: false, error: "Google token verification failed" };
+    const code = resp.getResponseCode();
+    if (code !== 200) {
+      const body = resp.getContentText();
+      return { success: false, error: "Google token verification failed (HTTP " + code + "): " + body.slice(0, 300) };
+    }
     info = JSON.parse(resp.getContentText());
   } catch (err) {
-    return { success: false, error: "Google token verification failed" };
+    return { success: false, error: "Google token verification failed (exception): " + String(err.message || err) };
   }
-  if (String(info.aud || "") !== clientId) return { success: false, error: "Google token audience mismatch" };
+  if (String(info.aud || "") !== clientId) {
+    return { success: false, error: "Google token audience mismatch (got " + String(info.aud) + ", expected " + clientId + ")" };
+  }
   if (String(info.email_verified || "") !== "true") return { success: false, error: "Google email is not verified" };
   const email = String(info.email || "").trim().toLowerCase();
   if (!email) return { success: false, error: "Google account has no email" };
