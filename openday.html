@@ -148,6 +148,18 @@
     @keyframes sd-reveal { from { opacity: 0; transform: translateY(6px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
     .sd-reveal { animation: sd-reveal .42s cubic-bezier(.22,.61,.36,1) both; }
     @media (prefers-reduced-motion: reduce) { .sd-loader-mark::after, .sd-loader-bar span, .sd-reveal { animation: none !important; } }
+
+    /* ===== ORDERING TUTORIAL (auto-opens after an order is submitted) ===== */
+    #orderTutorialModal.hidden { display: none !important; }
+    #orderTutorialModal.is-open #tutTitle,
+    #orderTutorialModal.is-open .tut-step { animation: soh-stream-in 120ms ease-out both; }
+    #orderTutorialModal.is-open .tut-step:nth-child(2) { animation-delay: 30ms; }
+    #orderTutorialModal.is-open .tut-step:nth-child(3) { animation-delay: 60ms; }
+    #orderTutorialModal.is-open .tut-step:nth-child(4) { animation-delay: 90ms; }
+    @media (prefers-reduced-motion: reduce) {
+      #orderTutorialModal.is-open #tutTitle,
+      #orderTutorialModal.is-open .tut-step { animation: none !important; }
+    }
   </style>
   <script>
     (function(){
@@ -300,6 +312,60 @@
     <button onclick="resetCustomerForm()" class="text-xs font-bold text-slate-400 hover:text-slate-600 underline pt-2">
       Order Another Drink
     </button>
+  </div>
+
+  <!-- ORDERING TUTORIAL (auto-opens once an order is submitted) -->
+  <div id="orderTutorialModal" class="hidden fixed inset-0 z-[115] bg-black/75 flex items-end sm:items-center justify-center p-4"
+    role="dialog" aria-modal="true" aria-labelledby="tutTitle"
+    onclick="if (event.target === this) closeOrderTutorial()">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-5 border border-slate-200 shadow-md">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">How self-ordering works</p>
+          <h3 id="tutTitle" class="text-xl font-black text-slate-800 mt-1">Almost there</h3>
+        </div>
+        <button type="button" onclick="closeOrderTutorial()" aria-label="Close guide"
+          class="w-8 h-8 shrink-0 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-3">
+        <div class="tut-step flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+          <span class="w-8 h-8 shrink-0 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">1</span>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Show the barcode to pay</p>
+            <p class="text-xs text-slate-500 leading-snug mt-0.5">Take this ticket to the 2/F Chill Zone cashier. Scanning it confirms your payment.</p>
+          </div>
+        </div>
+        <div class="tut-step flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+          <span class="w-8 h-8 shrink-0 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">2</span>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Payment comes first</p>
+            <p class="text-xs text-slate-500 leading-snug mt-0.5">Drinks are only crafted after payment is confirmed. No payment, no drink.</p>
+          </div>
+        </div>
+        <div class="tut-step flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+          <span class="w-8 h-8 shrink-0 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">3</span>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Watch for your number</p>
+            <p class="text-xs text-slate-500 leading-snug mt-0.5">The pickup screen calls your order number once your drink is ready.</p>
+          </div>
+        </div>
+        <div class="tut-step flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+          <span class="w-8 h-8 shrink-0 rounded-xl bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">4</span>
+          <div>
+            <p class="text-sm font-bold text-slate-800">Collect and enjoy</p>
+            <p class="text-xs text-slate-500 leading-snug mt-0.5">Grab your drink at the service counter. Keep this page open to track the order.</p>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" onclick="closeOrderTutorial()"
+        class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">
+        <i class="fa-solid fa-check mr-1"></i> Got it
+      </button>
+    </div>
   </div>
 
   <!-- RECEIPT PREVIEW MODAL -->
@@ -689,6 +755,8 @@
         }
         if (res.success && res.order) {
           showTicket({ ...res.order, orderTime: res.order.orderTime || orderPayload.orderTime });
+          // Let the guest see the ticket first, then fade the guide in over it.
+          setTimeout(showOrderTutorial, 450);
         } else {
           showToast(res.error || "Order creation failed.", "error");
         }
@@ -754,6 +822,22 @@
       if (!window.__sohRestoring) showToast("Order placed! Pay at the 2/F Chill Zone cashier.", "success", 4500);
       startStatusPolling(order.orderNum);
       syncCancelButton();
+    }
+
+    // Post-order guide: only shown right after a fresh submission, never when
+    // an old ticket is restored from history.
+    function showOrderTutorial() {
+      const modal = document.getElementById('orderTutorialModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('is-open');
+    }
+
+    function closeOrderTutorial() {
+      const modal = document.getElementById('orderTutorialModal');
+      if (!modal) return;
+      modal.classList.remove('is-open');
+      modal.classList.add('hidden');
     }
 
     function updateTicketStatusUI(status, paymentStatus) {
