@@ -1798,12 +1798,17 @@
       return `${mins}:${secs}`;
     }
 
+    // KDS count-up starts when payment is cleared, not when the pre-order was
+    // placed — Open Day guests often pay well after submitting the ticket.
+    function orderTimerStart(order) {
+      if (String(order.paymentStatus || "").toUpperCase() === "UNPAID") return "";
+      return String(order.paidTime || order.orderTime || "");
+    }
+
     function updateTimers() {
       document.querySelectorAll('.kds-timer').forEach(el => {
-        const orderTime = el.getAttribute('data-ordertime');
-        if (orderTime) {
-          el.innerText = getElapsedTimeStr(orderTime);
-        }
+        const start = el.getAttribute('data-ordertime');
+        el.innerText = start ? getElapsedTimeStr(start) : "—";
       });
     }
 
@@ -2627,7 +2632,8 @@
       let html = "";
       activeOrders.forEach(o => {
         const status = (o.status || "").toUpperCase();
-        const timeAgo = getElapsedTimeStr(o.orderTime);
+        const timerStart = orderTimerStart(o);
+        const timeAgo = timerStart ? getElapsedTimeStr(timerStart) : "—";
         const isReserved = status === "RESERVED";
         const isAssigned = status === "ASSIGNED";
         const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
@@ -2643,7 +2649,7 @@
                   <p class="text-xs text-slate-400 font-semibold mt-0.5">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
                 </div>
                 <div class="flex flex-col items-end gap-1.5">
-                  <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
+                  <span class="${timerStart ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'} font-bold px-2.5 py-1 rounded-full text-xs kds-timer border" data-ordertime="${timerStart}" title="${timerStart ? 'Time since payment' : 'Starts counting after payment'}">
                     ${timeAgo}
                   </span>
                   <span class="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background-color: ${color};">

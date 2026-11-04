@@ -146,10 +146,11 @@ function ensureOrdersSheet(ss) {
     sheet.appendRow([
       "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
       "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus",
-      "CupType"  // NEW: "In-Store" or "Takeaway"
+      "CupType",  // "In-Store" or "Takeaway"
+      "PaidTime"  // when payment cleared — KDS count-up starts here
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 13).getValues()[0];
+    const headers = sheet.getRange(1, 1, 1, 14).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -166,6 +167,19 @@ function ensureOrdersSheet(ss) {
       for (let i = 1; i < data.length; i++) {
         const existing = String(data[i][12] || "").trim();
         if (!existing) sheet.getRange(i + 1, 13).setValue("In-Store");
+      }
+    }
+    // PaidTime column (col 14) — existing paid rows are treated as paid at
+    // order time so their KDS timers keep working after the migration.
+    if (!headers[13] || String(headers[13]).trim() === "") {
+      sheet.getRange(1, 14).setValue("PaidTime");
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const pay = String(data[i][11] || "").trim().toUpperCase();
+        const orderTime = data[i][1];
+        if (pay === "PAID" && orderTime) {
+          sheet.getRange(i + 1, 14).setValue(orderTime instanceof Date ? orderTime.toISOString() : String(orderTime));
+        }
       }
     }
   }
@@ -553,7 +567,8 @@ function getInitialData() {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store"
+        cupType: String(row[12] || "In-Store").trim() || "In-Store",
+        paidTime: row[13] ? String(row[13]) : ""
       });
     }
   }
@@ -619,7 +634,8 @@ function getOrderHistory(limit) {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store"
+        cupType: String(row[12] || "In-Store").trim() || "In-Store",
+        paidTime: row[13] ? String(row[13]) : ""
       });
       if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
     }
@@ -727,14 +743,15 @@ function createOrderLocked(order) {
       status: status,
       qrTile: qrTile,
       paymentStatus: paymentStatus,
-      cupType: cupType
+      cupType: cupType,
+      paidTime: paymentStatus === "PAID" ? orderTime : ""
     };
 
     sheet.appendRow([
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus, cupType
+      createdOrder.paymentStatus, cupType, createdOrder.paidTime
     ]);
 
     // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -807,11 +824,13 @@ function confirmPaymentStatus(orderNum) {
 
   const currentStatus = String(data[matchIndex][9] || "").trim().toUpperCase();
   const nextStatus = currentStatus === "UNPAID" ? "PENDING" : currentStatus;
+  const paidAt = new Date().toISOString();
   sheet.getRange(matchIndex + 1, 10).setValue(nextStatus);
   sheet.getRange(matchIndex + 1, 12).setValue("PAID");
+  sheet.getRange(matchIndex + 1, 14).setValue(paidAt);
   SpreadsheetApp.flush();
   bumpVersion();
-  return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID" };
+  return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID", paidTime: paidAt };
 }
 
 // Clear an order from a scanned code. The scanner may read either:
