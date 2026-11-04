@@ -1522,10 +1522,41 @@
         : "bg-slate-200 text-slate-600");
     }
 
+    // Sessions expire after 24 hours — the user must sign in again.
+    const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+    function sessionAgeMs() {
+      const ts = Number(getCookie("mfcafe_login_ts") || localStorage.getItem("mfcafe_login_ts") || 0);
+      return ts ? Date.now() - ts : Infinity;
+    }
+
+    function clearStoredSession() {
+      setCookie("mfcafe_user", "", -1);
+      setCookie("mfcafe_role", "", -1);
+      setCookie("mfcafe_canprint", "", -1);
+      setCookie("mfcafe_login_ts", "", -1);
+      localStorage.removeItem("mfcafe_user");
+      localStorage.removeItem("mfcafe_role");
+      localStorage.removeItem("mfcafe_canprint");
+      localStorage.removeItem("mfcafe_login_ts");
+    }
+
+    // Mid-shift watchdog: once the 24h window elapses, drop back to the
+    // login screen even if the tab has stayed open the whole time.
+    function startSessionWatch() {
+      if (startSessionWatch._timer) clearInterval(startSessionWatch._timer);
+      startSessionWatch._timer = setInterval(() => {
+        if (state.currentUser && sessionAgeMs() > SESSION_TTL_MS) {
+          logout();
+          showToast("Session expired after 24 hours — please sign in again.", "warning");
+        }
+      }, 30000);
+    }
+
     function checkAuth() {
       const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
       const savedRole = getCookie("mfcafe_role") || localStorage.getItem("mfcafe_role");
-      if (savedUser) {
+      if (savedUser && sessionAgeMs() <= SESSION_TTL_MS) {
         state.currentUser = savedUser;
         state.currentUserRole = savedRole || "Staff";
         const savedCanPrint = getCookie("mfcafe_canprint") || localStorage.getItem("mfcafe_canprint");
@@ -1535,7 +1566,9 @@
         updateRoleLabel(state.currentUserRole);
         document.getElementById("loginOverlay").classList.add("hidden");
         applyRoleVisibility();
+        startSessionWatch();
       } else {
+        if (savedUser) clearStoredSession(); // expired — force relogin
         document.getElementById("loginOverlay").classList.remove("hidden");
       }
     }
@@ -1593,12 +1626,15 @@
       state.currentUser = res.username;
       state.currentUserRole = res.role || "Staff";
       state.currentUserCanPrint = !!res.canPrint;
-      setCookie("mfcafe_user", res.username, 7);
-      setCookie("mfcafe_role", state.currentUserRole, 7);
-      setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 7);
+      const loginTs = String(Date.now());
+      setCookie("mfcafe_user", res.username, 1);
+      setCookie("mfcafe_role", state.currentUserRole, 1);
+      setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 1);
+      setCookie("mfcafe_login_ts", loginTs, 1);
       localStorage.setItem("mfcafe_user", res.username);
       localStorage.setItem("mfcafe_role", state.currentUserRole);
       localStorage.setItem("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0");
+      localStorage.setItem("mfcafe_login_ts", loginTs);
       document.getElementById("lblUsername").innerText = res.username;
       document.getElementById("posCashierName").value = res.username;
       updateRoleLabel(state.currentUserRole);
@@ -1606,6 +1642,7 @@
       const errEl = document.getElementById("loginError");
       if (errEl) errEl.classList.add("hidden");
       applyRoleVisibility();
+      startSessionWatch();
       // Keep the boot screen up until the first data load completes, then
       // drop the user straight into the POS.
       bootStart("Signing in…");
@@ -1644,12 +1681,7 @@
     }
 
     function logout() {
-      setCookie("mfcafe_user", "", -1);
-      setCookie("mfcafe_role", "", -1);
-      setCookie("mfcafe_canprint", "", -1);
-      localStorage.removeItem("mfcafe_user");
-      localStorage.removeItem("mfcafe_role");
-      localStorage.removeItem("mfcafe_canprint");
+      clearStoredSession();
       state.currentUser = null;
       state.currentUserRole = "Staff";
       state.currentUserCanPrint = false;
