@@ -1131,6 +1131,108 @@ function doGet(e) {
   return jsonResponse(getInitialData());
 }
 
+// ==================== REMOTE PRINT HUB ====================
+// A single browser owns the BLE connection and becomes the "hub". Every other
+// account (anywhere) queues a print job via Apps Script; the hub polls every
+// 2s and prints it, then marks done. Hub status is refreshed every 15s so a
+// dead hub (closed tab / lost connection) times out gracefully.
+
+const PRINT_QUEUE_KEY = "PRINT_QUEUE";
+const PRINT_HUB_KEY   = "PRINT_HUB";
+const HUB_LEASE_MS    = 20000;  // heartbeat within this window keeps the hub valid
+
+function _getQueue() {
+  const raw = PropertiesService.getScriptProperties().getProperty(PRINT_QUEUE_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch (e) { return []; }
+}
+
+function _saveQueue(queue) {
+  PropertiesService.getScriptProperties().setProperty(PRINT_QUEUE_KEY, JSON.stringify(queue.slice(-100)));
+}
+
+function queuePrintJob(orderNum, order) {
+  const queue = _getQueue();
+  // De-dupe: same order already queued → don't double
+  if (queue.some(j => j.orderNum === orderNum && j.status === "pending")) {
+    return { success: true, id: null, queued: false };
+  }
+  const job = {
+    id: Utilities.getUuid(),
+    orderNum: String(orderNum || ""),
+    order: order || null,
+    status: "pending",
+    createdAt: Date.now(),
+    startedAt: null,
+    doneAt: null,
+    error: null
+  };
+  queue.push(job);
+  _saveQueue(queue);
+  return { success: true, id: job.id, queued: true };
+}
+
+function pollPrintJobs() {
+  const queue = _getQueue();
+  const now = Date.now();
+  // Re-queue anything stuck in "printing" for > 60s
+  let changed = false;
+  for (const j of queue) {
+    if (j.status === "printing" && j.startedAt && (now - j.startedAt) > 60000) {
+      j.status = "pending";
+      j.startedAt = null;
+      j.error = "timed out — requeued";
+      changed = true;
+    }
+  }
+  if (changed) _saveQueue(queue);
+  return { success: true, jobs: queue.filter(j => j.status !== "done").slice(-10) };
+}
+
+function markPrintJobDone(id, error) {
+  const queue = _getQueue();
+  const now = Date.now();
+  let found = false;
+  for (const j of queue) {
+    if (j.id === id) {
+      j.status = error ? "pending" : "done";
+      j.error = error || null;
+      j.doneAt = now;
+      // If failed, bump createdAt so it bubbles to the front again
+      if (error) j.createdAt = now;
+      found = true;
+      break;
+    }
+  }
+  _saveQueue(queue);
+  return { success: true, found };
+}
+
+function setHub(hubId, printerName) {
+  const props = PropertiesService.getScriptProperties();
+  const now = Date.now();
+  let cur = null;
+  try { cur = JSON.parse(props.getProperty(PRINT_HUB_KEY) || "null"); } catch (e) {}
+  if (cur && cur.id !== hubId && (now - cur.lastSeen) < HUB_LEASE_MS) {
+    return { success: false, error: "Another printer is already online — wait for it to drop" };
+  }
+  const hub = { id: hubId, printerName: printerName || "Unknown", lastSeen: now };
+  props.setProperty(PRINT_HUB_KEY, JSON.stringify(hub));
+  return { success: true, hub };
+}
+
+function getHubInfo() {
+  const props = PropertiesService.getScriptProperties();
+  let hub = null;
+  try { hub = JSON.parse(props.getProperty(PRINT_HUB_KEY) || "null"); } catch (e) {}
+  const now = Date.now();
+  const alive = hub && (now - hub.lastSeen) < HUB_LEASE_MS;
+  return {
+    success: true,
+    hub: alive ? { id: hub.id, printerName: hub.printerName, age: now - hub.lastSeen } : null
+  };
+}
+
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -1176,6 +1278,15 @@ function doPost(e) {
 
     if (action === "addQRTile") return jsonResponse(addQRTile(data.tileCode));
     if (action === "deleteQRTile") return jsonResponse(deleteQRTile(data.tileCode));
+
+    // ----- Print Hub / Queue -----
+    // Anyone can queue a job; the browser that holds the BLE connection
+    // (the "print hub") polls these every ~2 seconds, prints, and marks done.
+    if (action === "queuePrintJob") return jsonResponse(queuePrintJob(data.orderNum, data.order));
+    if (action === "pollPrintJobs")  return jsonResponse(pollPrintJobs());
+    if (action === "markPrintJobDone") return jsonResponse(markPrintJobDone(data.id));
+    if (action === "hubHeartbeat")  return jsonResponse(setHub(data.hubId, data.printerName));
+    if (action === "getHub")         return jsonResponse(getHubInfo());
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });

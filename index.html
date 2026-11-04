@@ -84,6 +84,16 @@
     [data-theme="dark"] .bg-rose-50 { background-color: #4c0519 !important; }
     [data-theme="dark"] .border-emerald-300 { border-color: #065f46 !important; }
     [data-theme="dark"] .border-rose-300 { border-color: #7f1d1d !important; }
+    /* Gradient cards that read as "amber+emerald" in light mode — neutralise
+       their warm tint so they don't fight the cool dark-mode surface stack. */
+    [data-theme="dark"] [class*="from-amber-50"] {
+      background-image: linear-gradient(135deg, rgba(51,65,85,0.55) 0%, rgba(30,41,59,0.55) 100%) !important;
+    }
+    [data-theme="dark"] [class*="border-amber-200"] { border-color: rgba(148,163,184,0.2) !important; }
+    [data-theme="dark"] .text-amber-700 { color: var(--text-3) !important; }
+    [data-theme="dark"] .text-amber-800 { color: var(--text-2) !important; }
+    [data-theme="dark"] .bg-amber-100 { background-color: #3a2d0a !important; color: #fcd34d !important; }
+    [data-theme="dark"] .bg-emerald-100 { background-color: #063429 !important; color: #6ee7b7 !important; }
 
     /* KDS marquee alert for unassigned incoming orders */
     @keyframes kds-marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
@@ -775,7 +785,7 @@
                 <th class="py-2.5 px-3">Username</th>
                 <th class="py-2.5 px-3">Role</th>
                 <th class="py-2.5 px-3">User Code (Prefix)</th>
-                <th class="py-2.5 px-3">🖨️ Can Print</th>
+                <th class="py-2.5 px-3"><i class="fa-solid fa-print mr-1"></i>Can Print</th>
                 <th class="py-2.5 px-3 text-right">Actions</th>
               </tr>
             </thead>
@@ -864,14 +874,14 @@
           </p>
           <div class="flex gap-2">
             <button onclick="testBluetoothLabel()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
-              🧪 Test Label Print
+              <i class="fa-solid fa-flask mr-1"></i>Test Label Print
             </button>
             <button onclick="testBluetoothKitchen()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
-              🍳 Test Kitchen Ticket
+              <i class="fa-solid fa-utensils mr-1"></i>Test Kitchen Ticket
             </button>
           </div>
           <p class="text-[10px] text-slate-500">
-            Paper: 58mm thermal. In-Store labels use amber 🥤. Takeaway labels use emerald 🧺.
+            Paper: 58mm thermal. In-Store = amber (cup). Takeaway = emerald (bag).
           </p>
         </div>
       </div>
@@ -1735,16 +1745,16 @@
 
       if (opts.includes("Cold") && opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
-          <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+          <button type="button" onclick="setPosTemp('Cold')" id="posBtnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold <i class="fa-solid fa-snowflake"></i></button>
+          <button type="button" onclick="setPosTemp('Hot')" id="posBtnHot" class="flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot <i class="fa-solid fa-mug-hot"></i></button>
         `;
       } else if (opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" id="posBtnHot" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+          <button type="button" id="posBtnHot" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only <i class="fa-solid fa-mug-hot"></i></button>
         `;
       } else {
         tempContainer.innerHTML = `
-          <button type="button" id="posBtnCold" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+          <button type="button" id="posBtnCold" class="w-full py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only <i class="fa-solid fa-snowflake"></i></button>
         `;
       }
 
@@ -2055,7 +2065,7 @@
         const tile = state.qrTiles.find(t => String(t.code) === scanned);
         const statusEl = document.getElementById('posQRTileStatus');
         if (tile && tile.status === "Available") {
-          if (statusEl) { statusEl.innerText = `Tile #${scanned} available ✓`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
+          if (statusEl) { statusEl.innerText = `Tile #${scanned} available`; statusEl.className = "text-[10px] text-emerald-500 mt-1 font-bold"; }
         } else if (tile) {
           if (statusEl) { statusEl.innerText = `Tile #${scanned} is currently bound to order ${tile.boundOrder}`; statusEl.className = "text-[10px] text-rose-500 mt-1 font-bold"; }
         } else {
@@ -2562,10 +2572,21 @@
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
+      // ----- BLMCSS LOGO (text version, horizontal) -----
+      buf.push(0x1d, 0x21, 0x11);            // GS ! 0x11 — 2w x 2h
+      buf.push(0x1b, 0x61, 0x01);             // center
+      buf.push(...esc("BLMCSS"));
+      buf.push(0x0a);
+      buf.push(0x1d, 0x21, 0x00);             // normal size
+      buf.push(0x1b, 0x61, 0x01);             // center
+      buf.push(...esc("Coffee & Lifestyle"));
+      buf.push(0x0a, 0x0a);
+      // ----- ORDER HEADER -----
       buf.push(0x1d, 0x21, 0x22);            // GS ! — double width + height header
       buf.push(0x1b, 0x61, 0x01);             // ESC a 1 — center
       buf.push(...esc("ORDER #" + order.orderNum));
       buf.push(0x0a, 0x0a);
+      // ----- DRINK NAME (triple size) -----
       buf.push(0x1d, 0x21, 0x33);             // GS ! — triple size for drink name
       buf.push(...esc(String(order.productName || "").toUpperCase()));
       buf.push(0x0a);
@@ -2573,7 +2594,7 @@
       buf.push(0x1b, 0x61, 0x00);             // left
       const ct = (order.cupType || "In-Store").toUpperCase();
       const isTake = ct === "TAKEAWAY";
-      buf.push(...esc((order.temp || "") + "   " + (isTake ? "🧺 TAKEAWAY" : "🥤 IN-STORE")));
+      buf.push(...esc((order.temp || "") + "   " + (isTake ? "TAKEAWAY" : "IN-STORE")));
       buf.push(0x0a);
       buf.push(...esc("Guest: " + (order.guestName || "Guest")));
       buf.push(0x0a);
@@ -2584,7 +2605,7 @@
       if (order.customization) {
         buf.push(0x0a);
         buf.push(0x1b, 0x61, 0x01);
-        buf.push(...esc("─ " + order.customization + " ─"));
+        buf.push(...esc("- " + order.customization + " -"));
         buf.push(0x0a);
       }
       buf.push(0x0a, 0x1b, 0x61, 0x01);
@@ -2604,30 +2625,124 @@
       await new Promise(r => setTimeout(r, 60));
     }
 
-    // Public API: print one cup label
-    async function printBluetoothLabel(order) {
-      if (!("bluetooth" in navigator)) {
-        showToast("Web Bluetooth not supported — use Chrome/Edge", "error");
+    // ==================== REMOTE PRINT HUB ====================
+    // One browser at a time owns the Bluetooth connection and becomes the "hub".
+    // Every other staff account queues a job via Apps Script — the hub polls
+    // every 2s, prints, and marks done. Hub ownership is refreshed every 15s
+    // so a dead tab times out gracefully.
+    const PRINTER_HUB_ID_KEY = "mfcafe_print_hub_id";
+    let PRINTER_HUB_ID = null;
+    let hubHeartbeatTimer = null;
+    let hubPollTimer = null;
+    let hubRunning = false;
+
+    function getOrCreateHubId() {
+      if (!PRINTER_HUB_ID) {
+        PRINTER_HUB_ID = localStorage.getItem(PRINTER_HUB_ID_KEY);
+        if (!PRINTER_HUB_ID) {
+          PRINTER_HUB_ID = "hub-" + Math.random().toString(36).slice(2, 10) + "-" + Date.now().toString(36);
+          localStorage.setItem(PRINTER_HUB_ID_KEY, PRINTER_HUB_ID);
+        }
+      }
+      return PRINTER_HUB_ID;
+    }
+
+    async function hubHeartbeat() {
+      if (!connectionIsLive() || !hubRunning) return;
+      try {
+        await apiPost({
+          action: "hubHeartbeat",
+          hubId: getOrCreateHubId(),
+          printerName: btDevice.name || PRINTER_DEVICE_NAME
+        });
+      } catch (e) { /* ignore — next tick retries */ }
+    }
+
+    async function hubPollAndPrint() {
+      if (!connectionIsLive() || !hubRunning) return;
+      try {
+        const res = await apiPost({ action: "pollPrintJobs" });
+        if (!res || !res.jobs) return;
+        for (const job of res.jobs) {
+          if (job.status !== "pending") continue;
+          await apiPost({ action: "markPrintJobDone", id: job.id }); // mark re-queue first in case of failure
+          try {
+            const order = job.order || state.orders.find(o => String(o.orderNum) === String(job.orderNum));
+            if (!order) { await apiPost({ action: "markPrintJobDone", id: job.id, error: "order not found" }); continue; }
+            await btWrite(buildLabelESCpos(order));
+            showToast(`Remote: printed #${order.orderNum}`, "success", 1200);
+          } catch (e) {
+            await apiPost({ action: "markPrintJobDone", id: job.id, error: String(e.message) });
+            showToast(`Remote print failed: ${e.message}`, "error");
+          }
+        }
+      } catch (e) { /* network hiccup — try again next tick */ }
+    }
+
+    function startPrintHub() {
+      if (hubRunning) return;
+      hubRunning = true;
+      hubHeartbeat();
+      hubPollAndPrint();
+      hubHeartbeatTimer = setInterval(hubHeartbeat, 15000);
+      hubPollTimer = setInterval(hubPollAndPrint, 2000);
+    }
+
+    function stopPrintHub() {
+      hubRunning = false;
+      clearInterval(hubHeartbeatTimer);
+      clearInterval(hubPollTimer);
+      hubHeartbeatTimer = null;
+      hubPollTimer = null;
+    }
+
+    // Queue a print job on Apps Script. Any browser can call this — the actual
+    // printing happens in whatever browser currently has the hub role.
+    async function queueRemotePrint(orderNum, order) {
+      try {
+        const res = await apiPost({
+          action: "queuePrintJob",
+          orderNum,
+          order: order || state.orders.find(o => String(o.orderNum) === String(orderNum)) || null
+        });
+        return !!(res && res.success);
+      } catch (e) {
+        console.warn("queueRemotePrint failed:", e);
         return false;
       }
+    }
+
+    // Public API: print one cup label. Routes locally if this browser owns the
+    // BLE connection, otherwise pushes to the shared Apps Script queue.
+    async function printBluetoothLabel(order) {
       if (!canUserPrint()) {
         showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000);
         return false;
       }
-      if (!btCharTx) { showToast("Printer not connected — click Connect first", "warning"); return false; }
-      if (btBusy) { showToast("Printer busy, retrying...", "info", 1500); setTimeout(() => printBluetoothLabel(order), 800); return true; }
-      btBusy = true;
-      try {
-        await btWrite(buildLabelESCpos(order));
-        showToast(`🖨️  Printed label for #${order.orderNum}`, "success", 1500);
-        updatePrinterBar("online", "Printed #"+order.orderNum);
-        renderAdminPrinterStatus();
+      // ---- LOCAL HUB PATH ----
+      if (connectionIsLive()) {
+        if (btBusy) { showToast("Printer busy, retrying...", "info", 1500); setTimeout(() => printBluetoothLabel(order), 800); return true; }
+        btBusy = true;
+        try {
+          await btWrite(buildLabelESCpos(order));
+          showToast(`Label printed for #${order.orderNum}`, "success", 1500);
+          updatePrinterBar("online", "Printed #" + order.orderNum, true);
+          renderAdminPrinterStatus();
+          return true;
+        } catch (e) {
+          showToast("Print failed: " + e.message, "error");
+          updatePrinterBar("offline", e.message);
+          return false;
+        } finally { btBusy = false; }
+      }
+      // ---- REMOTE QUEUE PATH ----
+      const queued = await queueRemotePrint(order.orderNum, order);
+      if (queued) {
+        showToast(`Queued #${order.orderNum} — hub printer will print`, "success", 2000);
         return true;
-      } catch (e) {
-        showToast("Print failed: " + e.message, "error");
-        updatePrinterBar("offline", e.message);
-        return false;
-      } finally { btBusy = false; }
+      }
+      showToast("No printer online and queue is unavailable", "error", 3000);
+      return false;
     }
 
     // Connect once → auto-reconnect forever
@@ -2656,12 +2771,14 @@
         btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
 
         device.addEventListener('gattserverdisconnected', () => {
+          stopPrintHub();
           updatePrinterBar("offline", "Disconnected — will auto-reconnect");
           renderAdminPrinterStatus();
           setTimeout(autoReconnect, 2500);
         });
 
-        updatePrinterBar("online", "Connected: " + (device.name || PRINTER_DEVICE_NAME));
+        startPrintHub();
+        updatePrinterBar("online", device.name || PRINTER_DEVICE_NAME);
         renderAdminPrinterStatus();
         return true;
       } catch (e) {
@@ -2677,7 +2794,8 @@
         const server = await btDevice.gatt.connect();
         const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
         btCharTx = await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
-        updatePrinterBar("online", "Reconnected: " + btDevice.name);
+        startPrintHub();
+        updatePrinterBar("online", btDevice.name || PRINTER_DEVICE_NAME);
         renderAdminPrinterStatus();
       } catch (e) { setTimeout(autoReconnect, 5000); }
     }
@@ -2709,7 +2827,7 @@
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
       { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
-      { key: "printer",      label: "🖨️ Printer Control", icon: "fa-print" },
+      { key: "printer",      label: "Printer Control",    icon: "fa-print" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
     ];
 
@@ -2809,7 +2927,7 @@
       }
       buf.push(0x0a, 0x0a, 0x0a);
       buf.push(0x1d, 0x56, 0x01);         // cut
-      btWrite(new Uint8Array(buf)).then(() => showToast("🍳 Kitchen ticket printed", "success"))
+      btWrite(new Uint8Array(buf)).then(() => showToast("Kitchen ticket printed", "success"))
         .catch(e => showToast("Kitchen print failed: " + e.message, "error"));
     }
 
@@ -2929,7 +3047,7 @@
           const adminForcedOn = String(u.role || "").toLowerCase() === "admin";
           const canPrint = adminForcedOn ? true : !!u.canPrint;
           const toggleHtml = adminForcedOn
-            ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300">🔒 ADMIN</span>`
+            ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock mr-1"></i>ADMIN</span>`
             : `<label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" ${canPrint ? "checked" : ""} onchange="toggleUserCanPrint('${escapeHtml(u.username)}', this.checked)" class="sr-only peer">
                 <div class="w-9 h-5 bg-slate-200 peer-checked:bg-amber-500 rounded-full peer after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
@@ -3344,7 +3462,7 @@
         body: JSON.stringify({ action: "setUserCanPrint", username, canPrint })
       }).then(r => r.json()).then(res => {
         if (res.success) {
-          showToast(`${username}: Can Print → ${canPrint ? "✅ ON" : "❌ OFF"}`, "success", 2000);
+          showToast(`${username}: Can Print → ${canPrint ? "ON" : "OFF"}`, "success", 2000);
           fetchFromSheet();  // re-fetch to bump version + refresh state.users
         } else {
           showToast(res.error || "Failed", "error");
