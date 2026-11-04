@@ -241,6 +241,10 @@ function authenticateGoogle(credential) {
     if (resp.getResponseCode() !== 200) return { success: false, error: "Google token verification failed" };
     info = JSON.parse(resp.getContentText());
   } catch (err) {
+    const msg = String((err && err.message) || err || "");
+    if (/permission|scope|external_request|UrlFetchApp/i.test(msg)) {
+      return { success: false, error: "Apps Script lacks the external-request permission. Open appsscript.json in the editor, keep the script.external_request scope, run any function once to approve access, then deploy a new version." };
+    }
     return { success: false, error: "Google token verification failed" };
   }
   if (String(info.aud || "") !== clientId) return { success: false, error: "Google token audience mismatch" };
