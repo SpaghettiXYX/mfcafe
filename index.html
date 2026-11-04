@@ -388,7 +388,8 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
         <div class="bg-amber-500 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
-          <i class="fa-solid fa-store"></i>
+          <img id="brandPillLogo" alt="MFCafe logo" draggable="false"
+               class="w-[18px] h-[18px] object-contain select-none">
           <span>MFCafe Portal</span>
         </div>
         <div>
@@ -1273,6 +1274,13 @@
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyA6pc2pUxE9SXiG_zLsERAYSseYZYm5BUA5nx__BvOok6C7QEGAkBJCt9j8hXta1ZY/exec";
+
+    // Reuse the boot-screen logo (already embedded as a data URI) for the header pill.
+    (function () {
+      const pill = document.getElementById("brandPillLogo");
+      const bootLogo = document.querySelector(".boot-logo");
+      if (pill && bootLogo) pill.src = bootLogo.src;
+    })();
 
     let state = {
       menu: [],
