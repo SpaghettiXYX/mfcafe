@@ -304,6 +304,14 @@
       /* POS unpaid queue */
       #unpaidOrdersContainer { gap: 0.5rem !important; }
     }
+
+    /* 9. Once the boot screen clears, let the app itself fade in. */
+    @keyframes pos-reveal {
+      from { opacity: 0; transform: translateY(6px); filter: blur(6px); }
+      to { opacity: 1; transform: none; filter: blur(0); }
+    }
+    body.pos-reveal > *:not(#bootScreen) { animation: pos-reveal 420ms cubic-bezier(.22,.61,.36,1) both; }
+    @media (prefers-reduced-motion: reduce) { body.pos-reveal > * { animation: none !important; } }
   </style>
 
   <!-- Apply the saved theme before first paint so the boot screen never
@@ -1873,6 +1881,7 @@
       setTimeout(() => {
         const screen = document.getElementById("bootScreen");
         if (screen) {
+          document.body.classList.add("pos-reveal");
           screen.style.opacity = "0";
           setTimeout(() => { screen.style.display = "none"; }, 320);
         }

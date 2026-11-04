@@ -131,6 +131,23 @@
       .stream-char { animation: none; opacity: 1; filter: none; }
       #itemOptions { transition: none; }
     }
+
+    /* ===== SELF-ORDER LOADER ===== */
+    #sdLoader { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: var(--bg); transition: opacity .3s ease, visibility .3s ease; }
+    #sdLoader.sd-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+    .sd-loader-inner { text-align: center; }
+    .sd-loader-mark { position: relative; width: 68px; height: 68px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; border-radius: 20px; background: var(--surface); color: #f59e0b; font-size: 26px; box-shadow: 0 12px 32px -14px rgba(15,23,42,.3); }
+    .sd-loader-mark::after { content: ""; position: absolute; inset: -7px; border-radius: 26px; border: 2px solid rgba(245,158,11,.16); border-top-color: #f59e0b; animation: sd-spin 1s linear infinite; }
+    @keyframes sd-spin { to { transform: rotate(360deg); } }
+    .sd-loader-title { font-size: 15px; font-weight: 900; letter-spacing: .22em; text-transform: uppercase; color: var(--text); }
+    .sd-loader-sub { margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--text-3); }
+    .sd-loader-bar { width: 176px; height: 6px; margin: 16px auto 0; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+    .sd-loader-bar span { display: block; width: 42%; height: 100%; border-radius: 999px; background: #f59e0b; animation: sd-slide 1.2s ease-in-out infinite; }
+    @keyframes sd-slide { from { transform: translateX(-110%); } to { transform: translateX(360%); } }
+    /* Page content fades in once the menu has landed. */
+    @keyframes sd-reveal { from { opacity: 0; transform: translateY(6px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+    .sd-reveal { animation: sd-reveal .42s cubic-bezier(.22,.61,.36,1) both; }
+    @media (prefers-reduced-motion: reduce) { .sd-loader-mark::after, .sd-loader-bar span, .sd-reveal { animation: none !important; } }
   </style>
   <script>
     (function(){
@@ -141,6 +158,16 @@
   </script>
 </head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+
+  <!-- MENU LOADER — fades out once the first menu payload lands -->
+  <div id="sdLoader" role="status" aria-live="polite">
+    <div class="sd-loader-inner">
+      <div class="sd-loader-mark"><i class="fa-solid fa-mug-hot"></i></div>
+      <p class="sd-loader-title">MFCafe</p>
+      <p class="sd-loader-sub">Preparing the menu…</p>
+      <div class="sd-loader-bar"><span></span></div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
@@ -390,8 +417,26 @@
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
+    let sdLoaderFinished = false;
+    // Reveal the page once the first menu payload lands; the overlay fades out
+    // so there is never a flash of an empty menu.
+    function hideSelfOrderLoader() {
+      if (sdLoaderFinished) return;
+      sdLoaderFinished = true;
+      document.querySelectorAll("header, #orderView, #orderFooter, #pausedOverlay")
+        .forEach(el => el.classList.add("sd-reveal"));
+      const loader = document.getElementById("sdLoader");
+      if (loader) {
+        loader.classList.add("sd-hide");
+        setTimeout(() => loader.remove(), 320);
+      }
+    }
+
     function init() {
-      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        hideSelfOrderLoader();
+        return;
+      }
 
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
         .then(res => res.json())
@@ -405,8 +450,12 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           applyReservationState();
           renderMenu();
+          hideSelfOrderLoader();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+        .catch(() => {
+          hideSelfOrderLoader();
+          showToast("Failed to load menu. Please refresh.", "error");
+        });
 
       // Poll for menu updates every 15s (so paused items disappear)
       if (menuPollingStarted) return;
