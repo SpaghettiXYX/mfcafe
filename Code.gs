@@ -601,7 +601,8 @@ function getInitialData() {
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
     categoryColors: getCategoryColors(),
-    receiptLayout: getReceiptLayout()
+    receiptLayout: getReceiptLayout(),
+    orderGuides: getOrderGuides()
   };
 }
 
@@ -1419,6 +1420,81 @@ function saveReceiptLayout(layout) {
   return { success: true, layout: clean };
 }
 
+// ==================== SELF-ORDER GUIDE ====================
+// Copy for the "How self-ordering works" pop-up. One guide per portal so the
+// teacher counter and Open Day can explain themselves differently.
+const ORDER_GUIDE_KEY = "ORDER_GUIDE";
+
+const DEFAULT_ORDER_GUIDES = {
+  customer: {
+    kicker: "How self-ordering works",
+    heading: "You're all set",
+    steps: [
+      { title: "Keep this ticket", body: "Your barcode is the proof of this order. Staff will scan it when you pick up." },
+      { title: "Show it at 2/F Chill Zone", body: "Hand the barcode to the counter so we can confirm your drink and pickup time." },
+      { title: "Watch for your number", body: "Your order number is called on the pickup screen as soon as it's ready." },
+      { title: "Collect and enjoy", body: "Pick your drink up at the service counter. Keep this page open to check status." }
+    ]
+  },
+  openday: {
+    kicker: "How self-ordering works",
+    heading: "Almost there",
+    steps: [
+      { title: "Show the barcode to pay", body: "Take this ticket to the 2/F Chill Zone cashier. Scanning it confirms your payment." },
+      { title: "Payment comes first", body: "Drinks are only crafted after payment is confirmed. No payment, no drink." },
+      { title: "Watch for your number", body: "The pickup screen calls your order number once your drink is ready." },
+      { title: "Collect and enjoy", body: "Grab your drink at the service counter. Keep this page open to track the order." }
+    ]
+  }
+};
+
+function normalizeOrderGuide(saved, fallback) {
+  const src = saved || {};
+  const savedSteps = Array.isArray(src.steps) ? src.steps : [];
+  return {
+    kicker: String(src.kicker || fallback.kicker).trim().slice(0, 40) || fallback.kicker,
+    heading: String(src.heading || fallback.heading).trim().slice(0, 40) || fallback.heading,
+    steps: fallback.steps.map((def, i) => {
+      const s = savedSteps[i] || {};
+      return {
+        title: String(s.title || "").trim().slice(0, 60) || def.title,
+        body: String(s.body || "").trim().slice(0, 220) || def.body
+      };
+    })
+  };
+}
+
+function getOrderGuides() {
+  let saved = {};
+  try {
+    saved = JSON.parse(PropertiesService.getScriptProperties().getProperty(ORDER_GUIDE_KEY) || "{}");
+  } catch (e) {
+    saved = {};
+  }
+  return {
+    customer: normalizeOrderGuide(saved.customer, DEFAULT_ORDER_GUIDES.customer),
+    openday: normalizeOrderGuide(saved.openday, DEFAULT_ORDER_GUIDES.openday)
+  };
+}
+
+function saveOrderGuide(mode, guide) {
+  if (mode !== "customer" && mode !== "openday") {
+    return { success: false, error: "Unknown guide: " + mode };
+  }
+  const props = PropertiesService.getScriptProperties();
+  let all = {};
+  try {
+    all = JSON.parse(props.getProperty(ORDER_GUIDE_KEY) || "{}");
+  } catch (e) {
+    all = {};
+  }
+  // An empty guide resets that portal back to the shipped defaults.
+  all[mode] = normalizeOrderGuide(guide || {}, DEFAULT_ORDER_GUIDES[mode]);
+  props.setProperty(ORDER_GUIDE_KEY, JSON.stringify(all));
+  bumpVersion();
+  return { success: true, orderGuides: getOrderGuides() };
+}
+
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -1477,6 +1553,7 @@ function doPost(e) {
     if (action === "hubHeartbeat")  return jsonResponse(setHub(data.hubId, data.printerName));
     if (action === "getHub")         return jsonResponse(getHubInfo());
     if (action === "saveReceiptLayout") return jsonResponse(saveReceiptLayout(data.layout));
+    if (action === "saveOrderGuide") return jsonResponse(saveOrderGuide(data.mode, data.guide));
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });

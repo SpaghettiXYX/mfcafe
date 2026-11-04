@@ -949,6 +949,47 @@
         </div>
       </div>
 
+      <!-- ===== SELF-ORDER GUIDE EDITOR ===== -->
+      <div data-admin-section="guide" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-book-open text-amber-500 mr-2"></i>Order Guide</h3>
+            <p class="text-xs text-slate-400">Wording for the “How self-ordering works” pop-up shown after an order is placed.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="resetOrderGuide()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[11px] px-3 py-2 rounded-xl transition">
+              Reset to default
+            </button>
+            <button onclick="saveOrderGuideAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i>Save Guide
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2" id="guidePortalTabs">
+          <button type="button" data-guide-tab="customer" onclick="switchGuidePortal('customer')"
+            class="px-3 py-2 rounded-xl text-[11px] font-extrabold transition">Teacher / Pre-Order</button>
+          <button type="button" data-guide-tab="openday" onclick="switchGuidePortal('openday')"
+            class="px-3 py-2 rounded-xl text-[11px] font-extrabold transition">Open Day</button>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Small label</label>
+            <input id="guideKicker" maxlength="40" placeholder="How self-ordering works"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Heading</label>
+            <input id="guideHeading" maxlength="40" placeholder="You're all set"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div id="guideSteps" class="space-y-3"></div>
+        </div>
+
+        <p class="text-[11px] text-slate-400">Leave any field empty to fall back to the original wording. Changes appear on the portal within 15&nbsp;seconds.</p>
+      </div>
+
       <!-- ===== RECEIPT LAYOUT EDITOR ===== -->
       <div data-admin-section="layout" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -1307,7 +1348,8 @@
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       categoryColors: {},
-      receiptLayout: null     // editable block list, loaded from Apps Script
+      receiptLayout: null,    // editable block list, loaded from Apps Script
+      orderGuides: null       // editable tutorial copy per self-order portal
     };
 
     let html5QrcodeScanner = null;
@@ -1938,6 +1980,7 @@
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
+          if (data.orderGuides && typeof data.orderGuides === "object") state.orderGuides = data.orderGuides;
 
           // Show any active push message from the server
           handlePushMessage();
@@ -3756,6 +3799,91 @@
     updatePrinterBar("offline", "Not connected");
     setInterval(syncPrinterBar, 1500);
 
+    // ==================== ORDER GUIDE EDITOR ====================
+    // Edits the pop-up copy for each self-order portal. Saves to the Apps Script
+    // ORDER_GUIDE script property; the portals pick it up on their 15s poll.
+    let guidePortal = "customer";
+
+    function renderGuideTabs() {
+      document.querySelectorAll("[data-guide-tab]").forEach(btn => {
+        const active = btn.dataset.guideTab === guidePortal;
+        btn.className = `px-3 py-2 rounded-xl text-[11px] font-extrabold transition ${
+          active ? "bg-amber-500 text-slate-950 shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+        }`;
+      });
+    }
+
+    function renderGuideEditor() {
+      const stepsEl = document.getElementById("guideSteps");
+      if (!stepsEl) return;
+      renderGuideTabs();
+      const guides = state.orderGuides || {};
+      const g = guides[guidePortal] || { kicker: "", heading: "", steps: [] };
+      document.getElementById("guideKicker").value = g.kicker || "";
+      document.getElementById("guideHeading").value = g.heading || "";
+      const steps = Array.isArray(g.steps) ? g.steps : [];
+      stepsEl.innerHTML = steps.map((s, i) => `
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Step ${i + 1}</p>
+          <input id="guideStepTitle${i}" maxlength="60" placeholder="Step title"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          <textarea id="guideStepBody${i}" rows="2" maxlength="220" placeholder="Step description"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700"></textarea>
+        </div>
+      `).join("");
+      steps.forEach((s, i) => {
+        const t = document.getElementById(`guideStepTitle${i}`);
+        const b = document.getElementById(`guideStepBody${i}`);
+        if (t) t.value = s.title || "";
+        if (b) b.value = s.body || "";
+      });
+    }
+
+    function switchGuidePortal(portal) {
+      guidePortal = portal === "openday" ? "openday" : "customer";
+      renderGuideEditor();
+    }
+
+    function collectGuideFromEditor() {
+      const steps = [];
+      for (let i = 0; i < 4; i++) {
+        const t = document.getElementById(`guideStepTitle${i}`);
+        const b = document.getElementById(`guideStepBody${i}`);
+        if (!t || !b) continue;
+        steps.push({ title: t.value.trim(), body: b.value.trim() });
+      }
+      return {
+        kicker: document.getElementById("guideKicker").value.trim(),
+        heading: document.getElementById("guideHeading").value.trim(),
+        steps: steps
+      };
+    }
+
+    async function saveOrderGuideAdmin() {
+      const res = await apiPost({ action: "saveOrderGuide", mode: guidePortal, guide: collectGuideFromEditor() });
+      if (res && res.success) {
+        state.orderGuides = res.orderGuides || state.orderGuides;
+        renderGuideEditor();
+        showToast("Order guide saved", "success");
+      } else {
+        showToast((res && res.error) || "Could not save the order guide", "error");
+      }
+    }
+
+    async function resetOrderGuide() {
+      const label = guidePortal === "openday" ? "Open Day" : "Teacher / Pre-Order";
+      const ok = await showConfirm(`Reset the ${label} guide back to the original wording?`);
+      if (!ok) return;
+      const res = await apiPost({ action: "saveOrderGuide", mode: guidePortal, guide: {} });
+      if (res && res.success) {
+        state.orderGuides = res.orderGuides || state.orderGuides;
+        renderGuideEditor();
+        showToast("Guide reset to default wording", "success");
+      } else {
+        showToast((res && res.error) || "Could not reset the order guide", "error");
+      }
+    }
+
     // ==================== ADMIN SIDEBAR NAV ====================
     // Categorises all existing admin sections under a left-hand side nav.
     // Clicking a link hides every section that doesn't match data-admin-section=<key>.
@@ -3768,6 +3896,7 @@
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
       { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
       { key: "printer",      label: "Printer Control",    icon: "fa-print" },
+      { key: "guide",        label: "Order Guide",        icon: "fa-book-open" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
     ];
@@ -3803,6 +3932,7 @@
         sec.classList.toggle("hidden", !show);
       });
       if (key === "layout") renderLayoutEditor();
+      if (key === "guide") renderGuideEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================
