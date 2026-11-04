@@ -1227,6 +1227,7 @@
       orderHistory: [],
       currentUser: null,
       currentUserRole: "Staff",
+      currentUserCanPrint: false,   // from login / Users sheet (Admins always true)
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       serverVersion: null,
       coldExtra: 2,
@@ -1474,6 +1475,8 @@
       if (savedUser) {
         state.currentUser = savedUser;
         state.currentUserRole = savedRole || "Staff";
+        const savedCanPrint = getCookie("mfcafe_canprint") || localStorage.getItem("mfcafe_canprint");
+        state.currentUserCanPrint = savedCanPrint === "1" || savedCanPrint === "true";
         document.getElementById("lblUsername").innerText = savedUser;
         document.getElementById("posCashierName").value = savedUser;
         updateRoleLabel(state.currentUserRole);
@@ -1505,10 +1508,13 @@
         if (res.success) {
           state.currentUser = res.username;
           state.currentUserRole = res.role || "Staff";
+          state.currentUserCanPrint = !!res.canPrint;
           setCookie("mfcafe_user", res.username, 7);
           setCookie("mfcafe_role", state.currentUserRole, 7);
+          setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 7);
           localStorage.setItem("mfcafe_user", res.username);
           localStorage.setItem("mfcafe_role", state.currentUserRole);
+          localStorage.setItem("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0");
           document.getElementById("lblUsername").innerText = res.username;
           document.getElementById("posCashierName").value = res.username;
           updateRoleLabel(state.currentUserRole);
@@ -1533,10 +1539,13 @@
     function logout() {
       setCookie("mfcafe_user", "", -1);
       setCookie("mfcafe_role", "", -1);
+      setCookie("mfcafe_canprint", "", -1);
       localStorage.removeItem("mfcafe_user");
       localStorage.removeItem("mfcafe_role");
+      localStorage.removeItem("mfcafe_canprint");
       state.currentUser = null;
       state.currentUserRole = "Staff";
+      state.currentUserCanPrint = false;
       updateRoleLabel("Staff");
       document.getElementById("loginOverlay").classList.remove("hidden");
       applyRoleVisibility();
@@ -3504,10 +3513,18 @@
 
     // ==================== PRINT PERMISSION CHECK ====================
     function canUserPrint() {
-      const user = state.currentUser || state.loggedInUser;
-      if (!user) return false;
-      if (String(user.role || "").toLowerCase() === "admin") return true;
-      return !!user.canPrint;
+      // Admins can always print.
+      if (String(state.currentUserRole || "").toLowerCase() === "admin") return true;
+      // currentUser is a plain username string in this build, so the flag lives
+      // on the Users list (or the value cached at login) — never on the user object.
+      const name = String(
+        state.currentUser && typeof state.currentUser === "object"
+          ? (state.currentUser.username || "")
+          : (state.currentUser || "")
+      ).trim().toLowerCase();
+      const match = (state.users || []).find(u => String(u.username || "").trim().toLowerCase() === name);
+      if (match && typeof match.canPrint === "boolean") return match.canPrint;
+      return !!state.currentUserCanPrint;
     }
 
     function renderAdminPrinterStatus() {
@@ -4026,20 +4043,30 @@
     }
 
     // Toggle Can Print permission for a staff user (not for Admins — they always can)
-    function toggleUserCanPrint(username, canPrint) {
-      fetch(APPS_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "setUserCanPrint", username, canPrint })
-      }).then(r => r.json()).then(res => {
-        if (res.success) {
+    async function toggleUserCanPrint(username, canPrint) {
+      // text/plain (via apiPost) avoids the CORS preflight that
+      // application/json triggers on Apps Script.
+      try {
+        const res = await apiPost({ action: "setUserCanPrint", username, canPrint });
+        if (res && res.success) {
+          const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(username).toLowerCase());
+          if (u) u.canPrint = !!canPrint;
+          // If the admin is editing their own row, keep the cached flag in sync.
+          if (String(state.currentUser || "").toLowerCase() === String(username).toLowerCase()) {
+            state.currentUserCanPrint = !!canPrint;
+            localStorage.setItem("mfcafe_canprint", canPrint ? "1" : "0");
+            setCookie("mfcafe_canprint", canPrint ? "1" : "0", 7);
+          }
+          renderAll();
           showToast(`${username}: Can Print → ${canPrint ? "ON" : "OFF"}`, "success", 2000);
-          fetchFromSheet();  // re-fetch to bump version + refresh state.users
         } else {
-          showToast(res.error || "Failed", "error");
-          fetchFromSheet();  // rollback UI
+          showToast((res && res.error) || "Failed", "error");
+          renderAll();
         }
-      }).catch(() => showToast("Network error", "error"));
+      } catch (e) {
+        showToast("Network error: " + (e.message || "request failed"), "error", 4000);
+        renderAll();
+      }
     }
 
     function deleteUserSubmit(username) {
