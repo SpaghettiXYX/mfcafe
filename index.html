@@ -307,10 +307,10 @@
 
     /* 9. Once the boot screen clears, let the app itself fade in. */
     @keyframes pos-reveal {
-      from { opacity: 0; transform: translateY(6px); filter: blur(6px); }
+      from { opacity: 0; transform: translateY(10px); filter: blur(8px); }
       to { opacity: 1; transform: none; filter: blur(0); }
     }
-    body.pos-reveal > *:not(#bootScreen) { animation: pos-reveal 420ms cubic-bezier(.22,.61,.36,1) both; }
+    body.pos-reveal > *:not(#bootScreen) { animation: pos-reveal 1s cubic-bezier(.22,.61,.36,1) .2s both; }
     @media (prefers-reduced-motion: reduce) { body.pos-reveal > * { animation: none !important; } }
   </style>
 

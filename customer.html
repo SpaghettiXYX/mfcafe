@@ -145,8 +145,8 @@
     .sd-loader-bar span { display: block; width: 42%; height: 100%; border-radius: 999px; background: #f59e0b; animation: sd-slide 1.2s ease-in-out infinite; }
     @keyframes sd-slide { from { transform: translateX(-110%); } to { transform: translateX(360%); } }
     /* Page content fades in once the menu has landed. */
-    @keyframes sd-reveal { from { opacity: 0; transform: translateY(6px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
-    .sd-reveal { animation: sd-reveal .42s cubic-bezier(.22,.61,.36,1) both; }
+    @keyframes sd-reveal { from { opacity: 0; transform: translateY(10px); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+    .sd-reveal { animation: sd-reveal 1s cubic-bezier(.22,.61,.36,1) .2s both; }
     @media (prefers-reduced-motion: reduce) { .sd-loader-mark::after, .sd-loader-bar span, .sd-reveal { animation: none !important; } }
 
     /* ===== ORDERING TUTORIAL (auto-opens after an order is submitted) ===== */
