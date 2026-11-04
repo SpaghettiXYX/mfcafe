@@ -82,6 +82,7 @@
     /* QR tile cards — readable in both modes */
     [data-theme="dark"] .bg-emerald-50 { background-color: #064e3b !important; }
     [data-theme="dark"] .bg-rose-50 { background-color: #4c0519 !important; }
+    [data-theme="dark"] .bg-amber-50 { background-color: #3d2a08 !important; }
     [data-theme="dark"] .border-emerald-300 { border-color: #065f46 !important; }
     [data-theme="dark"] .border-rose-300 { border-color: #7f1d1d !important; }
     /* Gradient cards that read as "amber+emerald" in light mode — neutralise
@@ -300,8 +301,40 @@
       #unpaidOrdersContainer { gap: 0.5rem !important; }
     }
   </style>
+
+  <!-- Apply the saved theme before first paint so the boot screen never
+       flashes white in dark mode -->
+  <script>
+    try {
+      var t0 = localStorage.getItem("mfcafe_theme");
+      if (t0 === "dark" || (!t0 && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body class="min-h-screen flex flex-col">
+
+  <!-- BOOT / LOADING SCREEN — covers everything until initial data has landed -->
+  <div id="bootScreen"
+       style="position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:var(--bg,#f3f6fa);opacity:1;transition:opacity .3s ease;">
+    <div class="w-full max-w-[17rem] px-6 text-center">
+      <div class="w-14 h-14 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/25">
+        <i class="fa-solid fa-mug-hot text-xl"></i>
+      </div>
+      <div class="mt-5 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">MFCafe</div>
+      <h1 class="mt-1 text-base font-black text-slate-800">Preparing your POS</h1>
+
+      <div class="mt-5 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+        <div id="bootProgress" class="h-full bg-amber-500" style="width:0%;transition:width .5s ease;"></div>
+      </div>
+      <p id="bootStatus" class="mt-3 text-[11px] font-bold text-slate-500">Connecting to server…</p>
+      <button id="bootRetry" onclick="bootRetry()"
+              class="hidden mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2 rounded-xl transition">
+        <i class="fa-solid fa-rotate-right mr-1"></i>Retry
+      </button>
+    </div>
+  </div>
 
   <!-- LOGIN MODAL / OVERLAY -->
   <div id="loginOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -356,7 +389,7 @@
           <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
             <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
           </button>
-          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition relative">
+          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative">
             <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
             <span id="badge-kds" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
@@ -419,7 +452,7 @@
             <input type="text" id="payScanInput" placeholder="Scan order #"
               class="w-32 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
               onkeydown="payScanKeydown(event)">
-            <button onclick="startQRScanner()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
+            <button onclick="startQRScanner()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
               <i class="fa-solid fa-camera text-amber-400"></i>
               <span>Camera</span>
             </button>
@@ -672,7 +705,7 @@
             <label class="block text-xs font-bold text-slate-500 mb-1">Cold Drink Extra ($)</label>
             <div class="flex items-center gap-2">
               <input type="number" step="0.5" id="adminColdExtraInput" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-              <button onclick="saveColdExtraSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
+              <button onclick="saveColdExtraSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
             </div>
           </div>
           <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
@@ -698,7 +731,7 @@
             <textarea id="adminOpenDayPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when Open Day pre-order is paused..."></textarea>
           </div>
         </div>
-        <button onclick="savePauseReasonsSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
+        <button onclick="savePauseReasonsSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
       </div>
 
       <!-- Push Message Broadcast -->
@@ -725,7 +758,7 @@
           <label class="block text-xs font-bold text-slate-500 mb-1">Custom Remark Hotkeys (Comma separated)</label>
           <input type="text" id="adminHotkeysInput" placeholder="+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
         </div>
-        <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+        <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">
           Save Remark Hotkeys
         </button>
       </div>
@@ -739,7 +772,7 @@
           <label class="block text-xs font-bold text-slate-500 mb-1">Categories (Comma separated)</label>
           <input type="text" id="adminCategoriesInput" placeholder="Hot Drinks, Cold Drinks, Snacks" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
         </div>
-        <button onclick="saveCategoriesSubmit()" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">
+        <button onclick="saveCategoriesSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">
           Save Categories
         </button>
         <div>
@@ -847,8 +880,11 @@
           <!-- Connect -->
           <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-3">
             <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Connection</p>
-            <button onclick="connectBluetoothPrinter()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition">
-              <i class="fa-solid fa-bluetooth mr-1"></i> Connect / Reconnect Printer
+            <button onclick="connectBluetoothPrinter()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 7V2M15 7V2M6 7h12v4a6 6 0 0 1-12 0V7zM12 17v5"/>
+              </svg>
+              Connect / Reconnect Printer
             </button>
             <p class="text-[10px] text-slate-400 leading-relaxed">
               First time: browser prompts device picker → select your SJ-P3-B. Afterwards auto-reconnects on page load.
@@ -910,7 +946,7 @@
         <p><strong class="text-slate-400">Amount Paid:</strong> <span id="modalPrice" class="font-black text-emerald-600">$0.00</span></p>
       </div>
 
-      <button onclick="closeSuccessModal()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold py-3 rounded-xl text-xs transition">
+      <button onclick="closeSuccessModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-3 rounded-xl text-xs transition">
         Done (Next Order)
       </button>
     </div>
@@ -1068,11 +1104,31 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
 
-  <!-- Floating Bluetooth Printer status bar (bottom-right, all views) -->
-  <div id="printerBar" class="fixed bottom-4 right-4 z-[99] flex items-center gap-2 bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-full shadow-lg border border-slate-700 hidden">
-    <div id="printerDot" class="w-2 h-2 rounded-full bg-slate-500"></div>
-    <span id="printerStatusText">Printer Offline</span>
-    <button onclick="connectBluetoothPrinter()" class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded ml-1 text-[10px] hover:bg-amber-400">Connect</button>
+  <!-- Floating Bluetooth Printer card — permanently visible, below dialogs -->
+  <div id="printerBar" role="status" aria-live="polite"
+       class="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[45] w-[15rem] sm:w-[16.5rem] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
+    <div class="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
+      <div id="printerIconWrap" class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>
+        </svg>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Printer</div>
+        <div id="printerStatusText" class="text-[11px] font-extrabold text-slate-700 truncate">Not connected</div>
+      </div>
+      <div id="printerDot" class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></div>
+    </div>
+    <div class="px-3 pb-2.5 flex items-center gap-1.5">
+      <button id="printerPrimaryBtn" onclick="printerPrimaryAction()"
+              class="flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition bg-amber-500 hover:bg-amber-400 text-slate-950">
+        <span id="printerPrimaryLabel">Connect</span>
+      </button>
+      <button onclick="gotoPrinterControl()"
+              class="text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded-lg transition">
+        Manage
+      </button>
+    </div>
   </div>
 
   <!-- PUSH MESSAGE MODAL -->
@@ -1088,7 +1144,7 @@
           <p id="pushMessageSender" class="text-[10px] text-slate-400 mt-2"></p>
         </div>
       </div>
-      <button onclick="dismissPushMessage()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm transition">Dismiss</button>
+      <button onclick="dismissPushMessage()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition">Dismiss</button>
     </div>
   </div>
 
@@ -1420,7 +1476,10 @@
           document.getElementById("loginOverlay").classList.add("hidden");
           errEl.classList.add("hidden");
           applyRoleVisibility();
-          fetchFromSheet();
+          // Keep the boot screen up until the first data load completes, then
+          // drop the user straight into the POS.
+          bootStart("Signing in…");
+          fetchFromSheet({ boot: true });
         } else {
           errEl.innerText = res.error || "Invalid username or password.";
           errEl.classList.remove("hidden");
@@ -1461,14 +1520,16 @@
         if (viewEl) viewEl.classList.add('hidden');
         
         const tab = document.getElementById(`tab-${v}`);
-        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition";
+        // Keep `relative` — the unread badges are absolutely positioned inside
+        // these buttons; dropping it made them anchor to the page corner.
+        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative";
       });
 
       const activeView = document.getElementById(`view-${viewName}`);
       if (activeView) activeView.classList.remove('hidden');
 
       const activeTab = document.getElementById(`tab-${viewName}`);
-      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl text-white bg-slate-800 shadow-sm transition";
+      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative";
       
       if (viewName === 'money') initMoneyCounter();
       if (viewName === 'admin') fetchOrderHistory();
@@ -1577,8 +1638,76 @@
         });
     }
 
-    function fetchFromSheet() {
-      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+    // ==================== BOOT / LOADING SCREEN ====================
+    // Keeps the POS hidden until the first getInitialData round-trip is applied,
+    // or fails with a Retry path.
+    let bootActive = true;
+    let bootTimeoutId = null;
+    let bootStageId = null;
+
+    function bootSet(statusText, pct, tone) {
+      const status = document.getElementById("bootStatus");
+      const bar = document.getElementById("bootProgress");
+      const retry = document.getElementById("bootRetry");
+      if (status) status.innerText = statusText;
+      if (bar) {
+        bar.style.width = pct + "%";
+        bar.style.background = tone === "error" ? "#f43f5e" : "#f59e0b";
+      }
+      if (retry) retry.classList.toggle("hidden", tone !== "error");
+    }
+
+    function bootStart(statusText) {
+      bootActive = true;
+      const screen = document.getElementById("bootScreen");
+      if (screen) { screen.style.display = "flex"; screen.style.opacity = "1"; }
+      bootSet(statusText || "Connecting to server…", 10);
+      clearTimeout(bootTimeoutId);
+      clearTimeout(bootStageId);
+      bootStageId = setTimeout(() => {
+        if (bootActive) bootSet("Loading menu, users & orders…", 55);
+      }, 700);
+      bootTimeoutId = setTimeout(() => {
+        if (bootActive) bootFail("Server is taking too long — tap Retry");
+      }, 15000);
+    }
+
+    function bootDone() {
+      if (!bootActive) return;
+      bootActive = false;
+      clearTimeout(bootTimeoutId);
+      clearTimeout(bootStageId);
+      bootSet("Ready", 100);
+      setTimeout(() => {
+        const screen = document.getElementById("bootScreen");
+        if (screen) {
+          screen.style.opacity = "0";
+          setTimeout(() => { screen.style.display = "none"; }, 320);
+        }
+        // Signed in → straight into the POS; otherwise the login overlay
+        // underneath takes over.
+        if (state.currentUser) switchView("cashier");
+      }, 360);
+    }
+
+    function bootFail(message) {
+      if (!bootActive) return;
+      clearTimeout(bootTimeoutId);
+      clearTimeout(bootStageId);
+      bootSet(message || "Cannot reach the server", 100, "error");
+    }
+
+    function bootRetry() {
+      bootStart("Retrying…");
+      fetchFromSheet({ boot: true });
+    }
+
+    function fetchFromSheet(opts) {
+      const fromBoot = !!(opts && opts.boot);
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) {
+        if (fromBoot) bootFail("Apps Script URL is not configured");
+        return;
+      }
       setSyncStatus("syncing");
 
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
@@ -1610,10 +1739,12 @@
             if (newReady > oldReady) triggerChime();
           }
           renderAll();
+          if (fromBoot || bootActive) bootDone();
         })
         .catch(err => {
           setSyncStatus("offline");
           console.log("Fetch error:", err);
+          if (fromBoot) bootFail("Cannot reach the server — check the deployment URL, then tap Retry");
         });
     }
 
@@ -2369,9 +2500,17 @@
                   ${isAssigned ? 'Assigned to department' : 'Assigned — click to stop alert'}
                 </span>
               </label>
-              <button onclick="markOrderReady('${o.orderNum}')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
-                Call Drink Ready (#${escapeHtml(o.orderNum)})
-              </button>
+              <div class="flex gap-2">
+                <button onclick="markOrderReady('${o.orderNum}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
+                  Call Drink Ready (#${escapeHtml(o.orderNum)})
+                </button>
+                <button onclick="reprintDrinkLabel('${o.orderNum}')" title="Print drink label" aria-label="Print drink label"
+                        class="w-12 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl flex items-center justify-center transition">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>`;
       });
@@ -2431,6 +2570,11 @@
             o.status = prevStatus;
             renderAll();
             showToast(`Failed to mark #${orderNum} ready`, "error");
+          } else {
+            // 出餐 → print the drink label. printBluetoothLabel routes to the
+            // local BLE printer when this tab owns it, otherwise to the shared
+            // queue so whichever tab holds the connection prints it.
+            printReadyDrinkLabel(o);
           }
         })
         .catch(() => {
@@ -2507,7 +2651,7 @@
               <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
               <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
             </div>
-            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs">
+            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
               Clear
             </button>
           </div>`;
@@ -2561,10 +2705,53 @@
     let btCharTx = null;
     let btBusy   = false;
 
+    // ===== BLMCSS LOGO (1-bit raster, 384 dots wide) =====
+    // The source PNG is stored rotated 90°; it was rotated upright and
+    // thresholded once at build time, then embedded here as raw GS v 0 data.
+    const LOGO_BITMAP = { w: 384, h: 130, b64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AAAB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf4AAAP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/wAAB//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/gAAH/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/AAAP/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf+AAA/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/8AAD/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/4AAH/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAP/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAA/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/wAB/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/gAD/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/gAH/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//AAP/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//AAf/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//AB//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+AD//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/+AH//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/gAAAP/+AP/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAP/+Af/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//+AAAf/8A//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf8f/AAA//8A//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gH/AAA//8B//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/AD/gAB9/8D//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH+AB/gAD9/8H//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP8AA/wAD5/8P//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf4AA/wAHx/4f//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/wAA/wAHx/4ff/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAA/wAPh/4//+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/gAA/wAfh/5+/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/AAA/gAfB/79/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/AAA/gA+B//5/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH+AAA/gB+B//z/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP+AAA/AB8B//z///wAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP+AAB+AD4D//n////wAAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf8AAB+AH4D//H/////4AAP4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf8AAD8AHwD/+H/////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/8AAH4APgD/+P/////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/4AAPwAfgH/8f/////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/4AAfgAfAH/5/////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/4AAfAA+AH/z/////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/4AA+AB+AP/3//Af/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAYAB8AP///+A4P////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAAD4AP///+A4Af//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAAHwAf///+B4AB//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAAPwAf///8BwAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAAPgA//9/8DwAf+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAAfAA//5/8HwA/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAA+AB//x/8HgD/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAAD8AB//h/8PgH/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/8AAAH4AD//h/4fAP/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/8AAAPwAD//B/8/Af/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/+AAA/gAH//B//+A/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//AAD/AAH/+B//+B/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//gAf+AAP/+B//8D/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//wD/8AAf/+B//8H/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////4AAf38A//4H/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf////gAA/n8A//wP/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////AAB+P8Af/gf/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///8AAD8P4Af/Af/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///wAAH4f4AP+A//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///AAAHgf4AD8A//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/4AAAAA/4AAAB//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/4AAAB/+AAAA/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/wAAAD/+AAA///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/wAAAD/8AAP///4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/wAAAH/8AB////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/wAAAH/8AP////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/wAAAP/4A//////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAAP/4D//////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAAf/4P//AAf/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAAf/4//wAAP/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAf////+AAAH/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAf////4AAAD/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAf////gB8AD/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAP////AP+AD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAAB///8A/+AD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AAB///4D/8AD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4ABD///wH/AAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4ADj///AP8AAD+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4AHn//+AfwAAD+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/8APH//8A/gAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/8AeH//4B/AAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/+A+P//4D/AAAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//B8P//wD+AAAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB///8f//gH+AAAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///4f//AH+AAAPgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///w///AH+AAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//g//+AH+AAA+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//B//8AH+AAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/+B//8AH/AAD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/4D//4AH/gAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAAfgD//4AH/wA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/AAAAH//wAH///+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/gAAAH//wAD///4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/gAAAP//wAB///gAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAAAf//gAA//+AAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAAAf//gAAf/wAA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAAA///gAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAAA///AAAAAAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wAAB///AAAAAAAH+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/gAAD///AAAAAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/AAAH///AAAAAAAf4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH+AAAP///AAAAAAAfwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH8AAAf///AAAAAAA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAA////AAAAAP//nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAB////AAAAA////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+AAD////AAAAD////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/AAP////AAAAH////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgA/////AAAAPv///gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP4H/////AAAAfv///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////3//AAAA/f///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////D//AAAA+///ngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//4D//gAAA8//+PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf+AD//gAAA//+eeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//gAAA//+f8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAAAf/8P4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAP/4HgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAf/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//+AAA//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///AAH//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+YHOPx8fAAAAAf//wA///AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/YHPfzu7gAAAAP//////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADnYHPYbk5AAAAAH//////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+YH/YD4fAAAAAD//////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+YH/4B8PgAAAAB//////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADnYH/YQODgAAAAAf///8+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADncP/c7GxgAAAAAP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/fu3Pz+/gAAAAAB//+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB+PkyHh8PAAAAAAAH/gAAAAAAAAAAAAAAAAAAAAAAAAAA" };
+
+    function pushLogo(buf) {
+      const raw = atob(LOGO_BITMAP.b64);
+      const bytesPerRow = LOGO_BITMAP.w / 8;
+      buf.push(0x1d, 0x76, 0x30, 0x00, 0x00, bytesPerRow, 0x00,
+               LOGO_BITMAP.h & 0xff, (LOGO_BITMAP.h >> 8) & 0xff);
+      for (let i = 0; i < raw.length; i++) buf.push(raw.charCodeAt(i));
+    }
+
     // Tiny string → byte helper (Latin-1 only; SJ-P3-B handles GB2312 internally)
+    // ESC/POS is a byte protocol: a stray ESC/GS byte from customer text, or a
+    // CJK code unit whose low byte is 0x1B / 0x1D, corrupts every command after
+    // it. Map typographic glyphs to ASCII and collapse wide runs to one "?".
+    const PRINT_GLYPHS = {
+      "\u2014": "-", "\u2013": "-", "\u2010": "-", "\u2011": "-", "\u2212": "-",
+      "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+      "\u2026": "...", "\u2022": "*", "\u00b7": "-", "\u00d7": "x", "\u00f7": "/",
+      "\u2103": "C", "\u00b0": " deg", "\u2248": "~", "\u2192": "->", "\u2190": "<-",
+      "\u2713": "v", "\u2717": "x", "\u00a0": " ", "\u3000": " "
+    };
+
+    function sanitizePrintText(value) {
+      let out = "";
+      let wideRun = false;
+      for (const ch of String(value == null ? "" : value)) {
+        const code = ch.codePointAt(0);
+        if (code < 0x20 || code === 0x7f) {
+          if (code === 9 || code === 10 || code === 13) out += " ";
+          continue;
+        }
+        const mapped = PRINT_GLYPHS[ch];
+        if (mapped !== undefined) { out += mapped; wideRun = false; continue; }
+        if (code <= 0xff) { out += ch; wideRun = false; continue; }
+        if (!wideRun) out += "?";
+        wideRun = true;
+      }
+      return out;
+    }
+
     function esc(str) {
+      const clean = sanitizePrintText(str);
       const bytes = [];
-      for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i) & 0xff);
+      for (let i = 0; i < clean.length; i++) bytes.push(clean.charCodeAt(i) & 0xff);
       return bytes;
     }
 
@@ -2572,10 +2759,8 @@
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
-      // ----- BLMCSS LOGO (text version, horizontal) -----
-      buf.push(0x1d, 0x21, 0x11);            // GS ! 0x11 — 2w x 2h
-      buf.push(0x1b, 0x61, 0x01);             // center
-      buf.push(...esc("BLMCSS"));
+      // ----- BLMCSS LOGO (upright raster) -----
+      pushLogo(buf);
       buf.push(0x0a);
       buf.push(0x1d, 0x21, 0x00);             // normal size
       buf.push(0x1b, 0x61, 0x01);             // center
@@ -2745,6 +2930,28 @@
       return false;
     }
 
+    // Auto print fires once per order when it turns READY; the manual button
+    // deliberately bypasses this so a damaged ticket can be replaced.
+    const printedReadyOrders = new Set();
+
+    function printReadyDrinkLabel(order) {
+      if (!order || !canUserPrint()) return;
+      const key = String(order.orderNum).trim();
+      if (printedReadyOrders.has(key)) return;
+      printedReadyOrders.add(key);
+      printBluetoothLabel(order);
+    }
+
+    async function reprintDrinkLabel(orderNum) {
+      if (!canUserPrint()) {
+        showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000);
+        return;
+      }
+      const o = state.orders.find(item => String(item.orderNum).trim() === String(orderNum).trim());
+      if (!o) { showToast("Order #" + orderNum + " not found", "error", 3000); return; }
+      await printBluetoothLabel(o);
+    }
+
     // Connect once → auto-reconnect forever
     async function connectBluetoothPrinter() {
       if (!canUserPrint()) { showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000); return false; }
@@ -2753,9 +2960,14 @@
       renderAdminPrinterStatus();
       try {
         let device = null;
-        // Try pre-paired devices first (silent, no user dialog)
-        const paired = await navigator.bluetooth.getDevices();
-        device = paired.find(d => d.name && d.name.includes(PRINTER_DEVICE_NAME));
+        // Try pre-paired devices first (silent, no user dialog). getDevices is
+        // only available behind a flag on most Chrome builds, so feature-test.
+        if (typeof navigator.bluetooth.getDevices === "function") {
+          try {
+            const paired = await navigator.bluetooth.getDevices();
+            device = paired.find(d => d.name && d.name.includes(PRINTER_DEVICE_NAME)) || null;
+          } catch (e) { /* permission not granted yet — fall through to picker */ }
+        }
         if (!device) {
           device = await navigator.bluetooth.requestDevice({
             filters: [
@@ -2801,20 +3013,86 @@
     }
 
     // Floating bottom-right status bar (visible on every view, not just Admin)
-    function updatePrinterBar(state, text) {
-      const bar = document.getElementById("printerBar");
-      if (!bar) return;
-      bar.classList.remove("hidden");
+    // ==================== PRINT: FLOATING STATUS CARD ====================
+    // Always visible on every view — the operator's source of truth for whether
+    // a label can actually come out.
+    let printerBarState = "offline";
+    let printerBarTransientUntil = 0;
+
+    function connectionIsLive() {
+      return !!(btDevice && btDevice.gatt && btDevice.gatt.connected && btCharTx);
+    }
+
+    function updatePrinterBar(status, text, transient) {
+      printerBarState = status;
+      if (transient) {
+        const until = Date.now() + 4000;
+        printerBarTransientUntil = until;
+        setTimeout(() => {
+          if (printerBarTransientUntil !== until) return;
+          printerBarTransientUntil = 0;
+          syncPrinterBar(true);
+        }, 4100);
+      }
+
       const dot = document.getElementById("printerDot");
       const textEl = document.getElementById("printerStatusText");
-      const colors = {
-        online: "bg-emerald-500",
-        offline: "bg-rose-500",
-        connecting: "bg-amber-500 animate-pulse"
+      const iconWrap = document.getElementById("printerIconWrap");
+      const primaryBtn = document.getElementById("printerPrimaryBtn");
+      const primaryLabel = document.getElementById("printerPrimaryLabel");
+      if (!dot || !textEl) return;
+
+      const tones = {
+        online:     { dot: "bg-emerald-500",             wrap: "bg-emerald-50 text-emerald-600", label: "Test Print" },
+        connecting: { dot: "bg-amber-500 animate-pulse", wrap: "bg-amber-50 text-amber-600",     label: "Connecting" },
+        offline:    { dot: "bg-rose-500",                wrap: "bg-rose-50 text-rose-600",       label: "Connect" }
       };
-      dot.className = "w-2 h-2 rounded-full " + (colors[state] || "bg-slate-500");
-      textEl.innerText = text || "Printer Offline";
+      const tone = tones[status] || tones.offline;
+
+      dot.className = "w-2 h-2 rounded-full flex-shrink-0 " + tone.dot;
+      if (iconWrap) iconWrap.className = "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 " + tone.wrap;
+      textEl.innerText = text || (status === "online" ? "Connected" : "Not connected");
+
+      if (primaryBtn && primaryLabel) {
+        primaryLabel.innerText = tone.label;
+        primaryBtn.disabled = status === "connecting";
+        primaryBtn.className = "flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition " +
+          (status === "online" ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-amber-500 hover:bg-amber-400 text-slate-950") +
+          (status === "connecting" ? " opacity-60 cursor-wait" : "");
+      }
     }
+
+    function printerPrimaryAction() {
+      if (printerBarState === "online") testBluetoothLabel();
+      else connectBluetoothPrinter();
+    }
+
+    // Manage → jump to Admin → Printer Control for admins; everyone else
+    // (who may still hold the Can Print permission) goes straight to pairing.
+    function gotoPrinterControl() {
+      if (String(state.currentUserRole || "").toLowerCase() === "admin") {
+        switchView("admin");
+        switchAdminSection("printer");
+      } else {
+        connectBluetoothPrinter();
+      }
+    }
+
+    function syncPrinterBar(force) {
+      if (printerBarState === "connecting") return;
+      if (Date.now() < printerBarTransientUntil) return;
+      if (connectionIsLive()) {
+        if (force || printerBarState !== "online") {
+          updatePrinterBar("online", (btDevice && btDevice.name) || PRINTER_DEVICE_NAME);
+        }
+      } else if (printerBarState === "online") {
+        updatePrinterBar("offline", "Disconnected");
+      }
+    }
+
+    // The card starts in its offline state and is never hidden.
+    updatePrinterBar("offline", "Not connected");
+    setInterval(syncPrinterBar, 1500);
 
     // ==================== ADMIN SIDEBAR NAV ====================
     // Categorises all existing admin sections under a left-hand side nav.
@@ -2853,7 +3131,7 @@
       document.querySelectorAll("[data-admin-link]").forEach(link => {
         const isActive = link.dataset.adminLink === key;
         link.className = `flex items-center gap-2 w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition ${
-          isActive ? "bg-slate-800 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+          isActive ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:bg-slate-100"
         }`;
       });
       // Filter sections
@@ -3772,7 +4050,8 @@
       // Init sound icon state
       const soundIcon = document.getElementById("soundIcon");
       if (soundIcon) soundIcon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
-      fetchFromSheet();
+      bootStart();
+      fetchFromSheet({ boot: true });
       setInterval(updateTimers, 1000);
       setInterval(smartCheckUpdates, 2000);
       setInterval(updateClock, 1000);
