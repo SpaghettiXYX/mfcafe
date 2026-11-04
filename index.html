@@ -873,7 +873,7 @@
             <p class="text-xs text-slate-400">SJ-P3-B thermal label printer via Web Bluetooth (Chrome/Edge only)</p>
           </div>
           <div id="adminPrinterStatusPill" class="flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500">
-            <div class="w-2 h-2 rounded-full bg-slate-400"></div> Offline
+            <div class="w-2 h-2 rounded-full bg-slate-400"></div> <span id="adminPrinterStatusText">Offline</span>
           </div>
         </div>
 
@@ -915,6 +915,9 @@
             </button>
             <button onclick="testTextOnly()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2.5 rounded-xl transition">
               <i class="fa-solid fa-font mr-1"></i>Text-Only Test
+            </button>
+            <button onclick="testAllChannels()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2.5 rounded-xl transition">
+              <i class="fa-solid fa-layer-group mr-1"></i>Test All Channels
             </button>
             <button onclick="probePrinter()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2.5 rounded-xl transition">
               <i class="fa-solid fa-list-check mr-1"></i>Probe GATT
@@ -3308,14 +3311,24 @@
         if (!device) {
           // A filtered scan keeps the picker short; if the printer advertises an
           // unexpected name, fall back to listing every nearby BLE device.
+          // Chrome only grants access to services declared here. This batch of
+          // SJ-P3-B exposes 18F0 + FF00 + ISSC UART and no FFE0 at all, so all
+          // known printer services must be listed or getPrimaryService fails.
+          const optional = [
+            "000018f0-0000-1000-8000-00805f9b34fb",
+            "0000ff00-0000-1000-8000-00805f9b34fb",
+            "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+            PRINTER_BLE_SERVICE
+          ];
           device = await navigator.bluetooth.requestDevice(btScanAll
-            ? { acceptAllDevices: true, optionalServices: [PRINTER_BLE_SERVICE] }
+            ? { acceptAllDevices: true, optionalServices: optional }
             : {
                 filters: [
                   ...PRINTER_NAME_PREFIXES.map(namePrefix => ({ namePrefix })),
+                  { services: ["000018f0-0000-1000-8000-00805f9b34fb"] },
                   { services: [PRINTER_BLE_SERVICE] }
                 ],
-                optionalServices: [PRINTER_BLE_SERVICE]
+                optionalServices: optional
               });
           btScanAll = false;
         }
@@ -3358,22 +3371,96 @@
       } catch (e) { setTimeout(autoReconnect, 5000); }
     }
 
-    // Printers vary in which GATT service they expose, so try the documented
-    // pair first, then accept any writable characteristic.
+    // Printers vary in which GATT service they expose. Order matters: the
+    // 18F0/2AF1 pair is the ESC/POS channel on this SJ-P3-B firmware (verified
+    // with Probe GATT); FFE0 and the ISSC UART service are fallbacks used by
+    // other batches. The device exposes no FFE0 at all, so FFE0-first would
+    // silently land on the ISSC UART characteristic instead.
+    const PRINTER_CHAR_CANDIDATES = [
+      { svc: "000018f0-0000-1000-8000-00805f9b34fb",
+        chr: "00002af1-0000-1000-8000-00805f9b34fb" },
+      { svc: PRINTER_BLE_SERVICE, chr: PRINTER_BLE_CHAR_TX },
+      { svc: "0000ff00-0000-1000-8000-00805f9b34fb",
+        chr: "0000ff02-0000-1000-8000-00805f9b34fb" },
+      { svc: "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+        chr: "49535343-8841-43f4-a8d4-ecbe34729bb3" }
+    ];
+
     async function resolvePrinterCharacteristic(server) {
-      try {
-        const service = await server.getPrimaryService(PRINTER_BLE_SERVICE);
-        return await service.getCharacteristic(PRINTER_BLE_CHAR_TX);
-      } catch (e) { /* different firmware — scan below */ }
+      for (const cand of PRINTER_CHAR_CANDIDATES) {
+        try {
+          const service = await server.getPrimaryService(cand.svc);
+          const ch = await service.getCharacteristic(cand.chr);
+          console.log("[printer] using known pair", cand.svc, "->", cand.chr);
+          return ch;
+        } catch (e) { /* not this firmware — try next */ }
+      }
       const services = await server.getPrimaryServices();
       for (const svc of services) {
         let chars = [];
         try { chars = await svc.getCharacteristics(); } catch (e) { continue; }
         for (const c of chars) {
-          if (c.properties && (c.properties.write || c.properties.writeWithoutResponse)) return c;
+          if (c.properties && (c.properties.write || c.properties.writeWithoutResponse)) {
+            console.log("[printer] fallback writable char", svc.uuid, "->", c.uuid);
+            return c;
+          }
         }
       }
       throw new Error("No writable characteristic — device is not a printer?");
+    }
+
+    // Lists every writable characteristic and prints a labelled block on each,
+    // so the operator can physically see which channel the paper listens to.
+    async function testAllChannels() {
+      if (!canUserPrint()) {
+        showToast("Print permission denied — ask Admin to enable 'Can Print'", "error", 4000);
+        return;
+      }
+      if (!connectionIsLive()) { showPrinterNotConnectedModal(); return; }
+      const prev = btCharTx;
+      const box = document.getElementById("printerProbe");
+      try {
+        const list = await collectWritableChars();
+        if (!list.length) { showToast("No writable channel found", "error", 4000); return; }
+        const results = [];
+        for (let i = 0; i < list.length; i++) {
+          const c = list[i].char;
+          btCharTx = c;
+          const tag = "CH" + (i + 1) + " " + String(c.uuid).slice(0, 8).toUpperCase();
+          const buf = [0x1b, 0x40, 0x1b, 0x61, 0x01, 0x1d, 0x21, 0x00];
+          for (const ch of "CHANNEL TEST") buf.push(ch.charCodeAt(0));
+          buf.push(0x0a);
+          for (const ch of tag) buf.push(ch.charCodeAt(0));
+          buf.push(0x0a, 0x0a, 0x0a);
+          try { await btWrite(new Uint8Array(buf)); results.push(tag + "  -> sent"); }
+          catch (e) { results.push(tag + "  -> " + e.message); }
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        btCharTx = prev;
+        if (box) {
+          box.classList.remove("hidden");
+          box.innerText = "Channel test done — check the paper for the block that printed cleanly:\n" + results.join("\n");
+        }
+        showToast("Tested " + list.length + " channels — check the paper", "success", 5000);
+      } catch (e) {
+        btCharTx = prev;
+        showToast("Channel test failed: " + e.message, "error", 5000);
+      }
+    }
+
+    async function collectWritableChars() {
+      const out = [];
+      const services = await btDevice.gatt.getPrimaryServices();
+      for (const svc of services) {
+        let chars = [];
+        try { chars = await svc.getCharacteristics(); } catch (e) { continue; }
+        for (const c of chars) {
+          if (c.properties && (c.properties.write || c.properties.writeWithoutResponse)) {
+            out.push({ svc: svc.uuid, char: c });
+          }
+        }
+      }
+      return out;
     }
 
     // ==================== PRINTER DIAGNOSTICS ====================
@@ -3650,14 +3737,15 @@
       const pill = document.getElementById("adminPrinterStatusPill");
       if (!pill) return;
       const dot = pill.querySelector("div");
+      const label = document.getElementById("adminPrinterStatusText");
       if (btDevice && btDevice.gatt && btDevice.gatt.connected) {
         pill.className = "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800";
         dot.className = "w-2 h-2 rounded-full bg-emerald-500";
-        pill.querySelector("span").innerText = "Online: " + (btDevice.name || "SJ-P3-B");
+        if (label) label.innerText = "Online: " + (btDevice.name || PRINTER_DEVICE_NAME);
       } else {
         pill.className = "flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-500";
         dot.className = "w-2 h-2 rounded-full bg-slate-400";
-        pill.appendChild(pill.querySelector("span") || pill.appendChild(document.createElement("span")));
+        if (label) label.innerText = "Offline";
       }
     }
 
