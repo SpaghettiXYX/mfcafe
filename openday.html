@@ -151,6 +151,9 @@
 
     /* ===== ORDERING TUTORIAL (auto-opens after an order is submitted) ===== */
     #orderTutorialModal.hidden { display: none !important; }
+    #orderTutorialModal { background: rgba(16,21,31,.72); text-wrap: pretty; font-variant-numeric: tabular-nums; }
+    #orderTutorialModal > div { max-height: 90dvh; overflow-y: auto; border: 0; }
+    #hideOrderTutorial:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px rgba(245,158,11,.55), 0 0 0 9px rgba(245,158,11,.16); }
     #orderTutorialModal.is-open #tutTitle,
     #orderTutorialModal.is-open .tut-step { animation: soh-stream-in 120ms ease-out both; }
     #orderTutorialModal.is-open .tut-step:nth-child(2) { animation-delay: 30ms; }
@@ -361,6 +364,10 @@
         </div>
       </div>
 
+      <label class="mt-4 flex items-center gap-2 text-xs text-slate-600">
+        <input id="hideOrderTutorial" type="checkbox" class="accent-amber-500">
+        <span>Don't show this again on this device</span>
+      </label>
       <button type="button" onclick="closeOrderTutorial()"
         class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">
         <i class="fa-solid fa-check mr-1"></i> Got it
@@ -514,9 +521,11 @@
           if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          if (data.orderGuides && data.orderGuides.openday) applyOrderGuide(data.orderGuides.openday);
           applyReservationState();
           renderMenu();
           hideSelfOrderLoader();
+          scheduleOrderTutorial();
         })
         .catch(() => {
           hideSelfOrderLoader();
@@ -845,9 +854,15 @@
       });
     }
 
-    // Post-order guide: only shown right after a fresh submission, never when
-    // an old ticket is restored from history.
+    let orderTutorialShown = false;
+    function scheduleOrderTutorial() {
+      setTimeout(showOrderTutorial, 1400);
+    }
+
     function showOrderTutorial() {
+      if (orderTutorialShown) return;
+      try { if (localStorage.getItem('mfcafe_hide_guide_openday') === '1') return; } catch (_) {}
+      orderTutorialShown = true;
       const modal = document.getElementById('orderTutorialModal');
       if (!modal) return;
       modal.classList.remove('hidden');
@@ -855,6 +870,9 @@
     }
 
     function closeOrderTutorial() {
+      if (document.getElementById('hideOrderTutorial')?.checked) {
+        try { localStorage.setItem('mfcafe_hide_guide_openday', '1'); } catch (_) {}
+      }
       const modal = document.getElementById('orderTutorialModal');
       if (!modal) return;
       modal.classList.remove('is-open');
