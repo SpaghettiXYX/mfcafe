@@ -484,7 +484,8 @@ function getInitialData() {
     teacherPauseReason: teacherPauseReason,
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
-    categoryColors: getCategoryColors()
+    categoryColors: getCategoryColors(),
+    receiptLayout: getReceiptLayout()
   };
 }
 
@@ -1233,6 +1234,70 @@ function getHubInfo() {
   };
 }
 
+// ==================== RECEIPT LAYOUT (editable in Admin → Receipt Layout) ====================
+// Stored in Script Properties so every terminal prints the same template.
+// Block shape:
+//   { type: "logo" }
+//   { type: "field", field: orderNum|productName|temp|cupType|guestName|
+//                            qrTile|customization|time|price, prefix, suffix,
+//                     align: left|center|right, size: 1|2|3, bold: bool }
+//   { type: "text", text: "...", align, size, bold }
+//   { type: "divider", align, size, bold }
+//   { type: "feed", lines: 1..10 }
+const RECEIPT_LAYOUT_KEY = "RECEIPT_LAYOUT_V1";
+
+function defaultReceiptLayout() {
+  return [
+    { type: "logo" },
+    { type: "field", field: "orderNum", prefix: "#", align: "center", size: 3, bold: true },
+    { type: "divider", align: "center", size: 1, bold: false },
+    { type: "field", field: "productName", align: "center", size: 2, bold: true },
+    { type: "field", field: "cupType", align: "center", size: 1, bold: true },
+    { type: "field", field: "temp", align: "center", size: 1, bold: false },
+    { type: "field", field: "guestName", prefix: "Guest: ", align: "left", size: 1, bold: false },
+    { type: "field", field: "qrTile", prefix: "Tile: ", align: "left", size: 1, bold: false },
+    { type: "field", field: "customization", prefix: "Notes: ", align: "left", size: 1, bold: false },
+    { type: "feed", lines: 3 }
+  ];
+}
+
+function getReceiptLayout() {
+  const raw = PropertiesService.getScriptProperties().getProperty(RECEIPT_LAYOUT_KEY);
+  if (!raw) return defaultReceiptLayout();
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : defaultReceiptLayout();
+  } catch (e) {
+    return defaultReceiptLayout();
+  }
+}
+
+function saveReceiptLayout(layout) {
+  if (!Array.isArray(layout) || layout.length === 0 || layout.length > 30) {
+    return { success: false, error: "Invalid layout (1-30 blocks required)" };
+  }
+  const fields = ["orderNum", "productName", "temp", "cupType", "guestName",
+    "qrTile", "customization", "time", "price"];
+  const clean = layout.map(b => {
+    const type = ["logo", "field", "text", "divider", "feed"].indexOf(String(b.type)) >= 0
+      ? String(b.type) : "text";
+    return {
+      type: type,
+      field: fields.indexOf(String(b.field)) >= 0 ? String(b.field) : "orderNum",
+      text: String(b.text || "").slice(0, 60),
+      prefix: String(b.prefix || "").slice(0, 30),
+      suffix: String(b.suffix || "").slice(0, 30),
+      align: ["left", "center", "right"].indexOf(String(b.align)) >= 0 ? String(b.align) : "left",
+      size: [1, 2, 3].indexOf(Number(b.size)) >= 0 ? Number(b.size) : 1,
+      bold: !!b.bold,
+      lines: Math.max(1, Math.min(10, Number(b.lines) || 3))
+    };
+  });
+  PropertiesService.getScriptProperties().setProperty(RECEIPT_LAYOUT_KEY, JSON.stringify(clean));
+  bumpVersion();
+  return { success: true, layout: clean };
+}
+
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -1287,6 +1352,7 @@ function doPost(e) {
     if (action === "markPrintJobDone") return jsonResponse(markPrintJobDone(data.id));
     if (action === "hubHeartbeat")  return jsonResponse(setHub(data.hubId, data.printerName));
     if (action === "getHub")         return jsonResponse(getHubInfo());
+    if (action === "saveReceiptLayout") return jsonResponse(saveReceiptLayout(data.layout));
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
