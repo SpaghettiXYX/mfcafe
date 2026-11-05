@@ -3917,6 +3917,32 @@
     // ORDER_GUIDE script property; the portals pick it up on their 15s poll.
     let guidePortal = "customer";
 
+    // Built-in wording. The editor always shows four step rows so the fields
+    // never vanish when the saved guide has no steps yet; the defaults are used
+    // as placeholders (empty input still falls back to them on the portal).
+    const DEFAULT_ORDER_GUIDES = {
+      customer: {
+        kicker: "How self-ordering works",
+        heading: "You're all set",
+        steps: [
+          { title: "Keep this ticket", body: "Your barcode is the proof of this order. Staff will scan it when you pick up." },
+          { title: "Show it at 2/F Chill Zone", body: "Hand the barcode to the counter so we can confirm your drink and pickup time." },
+          { title: "Watch for your number", body: "Your order number is called on the pickup screen as soon as it's ready." },
+          { title: "Collect and enjoy", body: "Pick your drink up at the service counter. Keep this page open to check status." }
+        ]
+      },
+      openday: {
+        kicker: "How self-ordering works",
+        heading: "Almost there",
+        steps: [
+          { title: "Show the barcode to pay", body: "Take this ticket to the 2/F Chill Zone cashier. Scanning it confirms your payment." },
+          { title: "Payment comes first", body: "Drinks are only crafted after payment is confirmed. No payment, no drink." },
+          { title: "Watch for your number", body: "The pickup screen calls your order number once your drink is ready." },
+          { title: "Collect and enjoy", body: "Grab your drink at the service counter. Keep this page open to track the order." }
+        ]
+      }
+    };
+
     function renderGuideTabs() {
       document.querySelectorAll("[data-guide-tab]").forEach(btn => {
         const active = btn.dataset.guideTab === guidePortal;
@@ -3931,25 +3957,29 @@
       if (!stepsEl) return;
       renderGuideTabs();
       const guides = state.orderGuides || {};
-      const g = guides[guidePortal] || { kicker: "", heading: "", steps: [] };
+      const d = DEFAULT_ORDER_GUIDES[guidePortal];
+      const g = guides[guidePortal] || {};
       document.getElementById("guideKicker").value = g.kicker || "";
+      document.getElementById("guideKicker").placeholder = d.kicker;
       document.getElementById("guideHeading").value = g.heading || "";
+      document.getElementById("guideHeading").placeholder = d.heading;
       const steps = Array.isArray(g.steps) ? g.steps : [];
-      stepsEl.innerHTML = steps.map((s, i) => `
+      // Always render four rows: an empty saved guide used to collapse the
+      // whole step list, which looked like the page had lost its content.
+      const rows = Math.max(4, steps.length);
+      stepsEl.innerHTML = Array.from({ length: rows }, (_, i) => {
+        const s = steps[i] || {};
+        const fallback = d.steps[i] || { title: "", body: "" };
+        return `
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
           <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Step ${i + 1}</p>
-          <input id="guideStepTitle${i}" maxlength="60" placeholder="Step title"
+          <input id="guideStepTitle${i}" maxlength="60" placeholder="${layoutEsc(fallback.title || "Step title")}"
+            value="${layoutEsc(s.title || "")}"
             class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          <textarea id="guideStepBody${i}" rows="2" maxlength="220" placeholder="Step description"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700"></textarea>
-        </div>
-      `).join("");
-      steps.forEach((s, i) => {
-        const t = document.getElementById(`guideStepTitle${i}`);
-        const b = document.getElementById(`guideStepBody${i}`);
-        if (t) t.value = s.title || "";
-        if (b) b.value = s.body || "";
-      });
+          <textarea id="guideStepBody${i}" rows="2" maxlength="220" placeholder="${layoutEsc(fallback.body || "Step description")}"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700">${layoutEsc(s.body || "")}</textarea>
+        </div>`;
+      }).join("");
     }
 
     function switchGuidePortal(portal) {
