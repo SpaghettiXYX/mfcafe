@@ -2996,56 +2996,45 @@
       return out;
     }
 
-    // GB2312 encoder — CJK characters encode as 2 bytes in range 0xA1A1..0xF7FE;
-    // ASCII is single-byte 0x00..0x7E. Characters outside GB2312 map to '?'.
-    // We build a runtime codepoint → (gbHigh, gbLow) table on first call by
-    // walking the 6,763 characters defined in GB2312 row by row (rows 16–87
-    // cover CJK; rows 01–15 are symbols/letters we also include).
-    let GB2312_TABLE = null;
-    function buildGB2312Table() {
+    // GBK encoder. TextEncoder only implements UTF-8 per the Encoding
+    // Standard — `new TextEncoder("gbk")` throws — so asking it for CJK bytes
+    // silently fell back to UTF-8, and the printer read those bytes as GBK.
+    // That was the mojibake. Instead we build the reverse table once with
+    // TextDecoder("gbk") (all browsers ship GBK decoding) and encode ourselves.
+    let GBK_MAP = null;
+    function gbkMap() {
+      if (GBK_MAP) return GBK_MAP;
       const map = new Map();
-      let gbLow = 0xA1;
-      let gbHigh = 0xA1;
-      // GB2312: 94 characters per row, rows 0xA1..0xF7
-      for (let gb = 0xA1; gb <= 0xF7; gb++) {
-        // Some rows are empty (rows 0xD0 in original table etc.) but we still
-        // walk and encode whatever codepoint the browser's built-in codec gives
-        // us — we detect them via the native TextEncoder fallback below.
-        gbLow = 0xA1;
-        gbHigh = gb;
+      let dec;
+      try { dec = new TextDecoder("gbk"); } catch (e) { GBK_MAP = map; return map; }
+      for (let lead = 0x81; lead <= 0xfe; lead++) {
+        for (let trail = 0x40; trail <= 0xfe; trail++) {
+          if (trail === 0x7f) continue;
+          let ch = "";
+          try { ch = dec.decode(new Uint8Array([lead, trail])); } catch (e) { continue; }
+          // Skip invalid pairs (decoder emits U+FFFD) and duplicates
+          if (ch.length === 1 && ch.charCodeAt(0) >= 0x80 && ch.charCodeAt(0) !== 0xfffd && !map.has(ch)) {
+            map.set(ch, [lead, trail]);
+          }
+        }
       }
-      // Strategy: build map from a hardcoded list using the native encoder
-      // as an authoritative generator when available, then cache.
+      GBK_MAP = map;
       return map;
     }
 
-    // Primary encoder. Tries native TextEncoder('gbk') (Chrome/Edge ship this
-    // as a non-standard extension). Falls back to UTF-8 if CJK bytes cannot be
-    // produced — most SJ-P3-B firmware also accepts UTF-8 when Chinese mode
-    // (ESC &) is active, otherwise ASCII works fine for Western text.
-    let _gbkEncoder = null;
+    // Text → GBK bytes: ASCII stays single byte, CJK becomes its two GBK bytes,
+    // anything not in GBK (emoji etc.) becomes '?' so it can't stall the buffer.
     function encodeGBK(text) {
-      if (!_gbkEncoder) {
-        // Test a known CJK pair before caching
-        try {
-          const enc = new TextEncoder("gbk");
-          const probe = enc.encode("中");
-          if (probe && probe.length === 2 && probe[0] >= 0x80) {
-            _gbkEncoder = enc;
-          }
-        } catch (e) { /* not supported */ }
-        if (!_gbkEncoder) {
-          try {
-            const enc = new TextEncoder("gb2312");
-            const probe = enc.encode("中");
-            if (probe && probe.length === 2 && probe[0] >= 0x80) {
-              _gbkEncoder = enc;
-            }
-          } catch (e) { /* not supported */ }
-        }
-        if (!_gbkEncoder) _gbkEncoder = new TextEncoder("utf-8");
+      const map = gbkMap();
+      const bytes = [];
+      for (const ch of text) {
+        const cp = ch.codePointAt(0);
+        if (cp < 0x80) { bytes.push(cp); continue; }
+        const pair = map.get(ch);
+        if (pair) bytes.push(pair[0], pair[1]);
+        else bytes.push(0x3f); // '?'
       }
-      return _gbkEncoder.encode(text);
+      return bytes;
     }
 
     // Convert a string into ESC/POS-safe bytes (Latin-1 + GB2312 for CJK).
@@ -3200,15 +3189,11 @@
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
-      buf.push(0x1d, 0x26);                  // GS & — enable Chinese mode (CJK 2-byte coding)
-      // If native GB2312/GBK is unavailable we fall back to UTF-8; ask the
-      // printer to auto-detect 2-byte sequences. ESC t n = select character
-      // code table (SJ-P3-B; 4 = GBK, 2 = UTF-8 if supported).
-      if (!_gbkEncoder || !/gbk|gb2312/i.test(_gbkEncoder.encoding || "")) {
-        buf.push(0x1b, 0x74, 0x02);         // ESC t 2 = UTF-8 (firmware fallback)
-      } else {
-        buf.push(0x1b, 0x74, 0x04);         // ESC t 4 = GBK  → matches encoder above
-      }
+      // FS & / FS . are the standard ESC/POS Chinese mode pair. (GS & / GS '
+      // used here previously are not implemented on this clone, so GBK bytes
+      // were read as single-byte ASCII — that was the second half of the
+      // mojibake.)
+      buf.push(0x1c, 0x26);                  // FS & — enable Chinese mode
       const gsSize = { 1: 0x00, 2: 0x11, 3: 0x22 };
       const alignByte = { left: 0x00, center: 0x01, right: 0x02 };
 
@@ -3236,7 +3221,7 @@
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
       // don't own a cutter it can stall the buffer for the next job.
       // Close Chinese mode before resetting so the end of label is clean.
-      buf.push(0x1d, 0x27);                  // GS ' — disable Chinese mode
+      buf.push(0x1c, 0x2e);                  // FS . — cancel Chinese mode
       return new Uint8Array(buf);
     }
 
