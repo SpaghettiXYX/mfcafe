@@ -1358,6 +1358,63 @@
     let scanMode = "pay"; // "pay" | "bind" | "clear"
     let soundEnabled = localStorage.getItem("mfcafe_sound") !== "off";
 
+    // ===== LOCAL ORDER OVERRIDES =====
+    // Apps Script is eventually consistent: a poll can land before our own
+    // assignOrder write is visible, so the checkbox "reverted" and the KDS
+    // card jumped back into the pending block. Local intent wins for a short
+    // window; it is handed back to the server as soon as the server agrees (or
+    // the ticket moves on to a later state such as READY).
+    const ORDER_OVERRIDE_KEY = "mfcafe_order_overrides";
+    const ORDER_OVERRIDE_TTL_MS = 30000;
+    let localOrderOverrides = (function () {
+      try {
+        const raw = JSON.parse(localStorage.getItem(ORDER_OVERRIDE_KEY) || "{}");
+        const now = Date.now();
+        const out = {};
+        Object.keys(raw || {}).forEach(k => {
+          const v = raw[k];
+          if (v && v.status && typeof v.at === "number" && now - v.at < ORDER_OVERRIDE_TTL_MS) out[k] = v;
+        });
+        return out;
+      } catch (e) { return {}; }
+    })();
+
+    function saveOrderOverrides() {
+      try { localStorage.setItem(ORDER_OVERRIDE_KEY, JSON.stringify(localOrderOverrides)); } catch (e) {}
+    }
+
+    function rememberOrderStatus(orderNum, status) {
+      localOrderOverrides[String(orderNum).trim()] = { status: String(status).toUpperCase(), at: Date.now() };
+      saveOrderOverrides();
+    }
+
+    function forgetOrderStatus(orderNum) {
+      delete localOrderOverrides[String(orderNum).trim()];
+      saveOrderOverrides();
+    }
+
+    // Merge a server snapshot with locally-intended statuses. Assignment states
+    // are the only ones we hold on to; anything else (READY/SERVED/CANCELLED,
+    // which someone worked on another device) always wins immediately.
+    function applyLocalOrderOverrides(serverOrders) {
+      const now = Date.now();
+      const assignmentStates = ["PENDING", "ASSIGNED", "RESERVED"];
+      const out = serverOrders.map(so => {
+        const key = String(so.orderNum).trim();
+        const ov = localOrderOverrides[key];
+        if (!ov) return so;
+        if (now - ov.at > ORDER_OVERRIDE_TTL_MS) { delete localOrderOverrides[key]; return so; }
+        const srv = String(so.status || "").toUpperCase();
+        if (srv === ov.status || !assignmentStates.includes(srv)) {
+          delete localOrderOverrides[key];
+          return so;
+        }
+        return Object.assign({}, so, { status: ov.status });
+      });
+      saveOrderOverrides();
+      return out;
+    }
+
     // ===== SAFE PRICE HELPER (prevents crash on undefined) =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
 
@@ -1986,9 +2043,10 @@
           handlePushMessage();
 
           if (Array.isArray(data.orders)) {
+            const merged = applyLocalOrderOverrides(data.orders);
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            state.orders = data.orders;
+            const newReady = merged.filter(o => (o.status || "").toUpperCase() === "READY").length;
+            state.orders = merged;
             if (newReady > oldReady) triggerChime();
           }
           renderAll();
@@ -2665,7 +2723,11 @@
         .sort((a, b) => {
           const rankA = (a.status || "").toUpperCase() === "ASSIGNED" ? 0 : 1;
           const rankB = (b.status || "").toUpperCase() === "ASSIGNED" ? 0 : 1;
-          return rankA - rankB || String(a.orderTime).localeCompare(String(b.orderTime));
+          if (rankA !== rankB) return rankA - rankB;
+          // Same-second timestamps used to tie, so the browser's stable sort
+          // could reshuffle the grid; the order number is a fixed tiebreaker.
+          const byTime = String(a.orderTime).localeCompare(String(b.orderTime));
+          return byTime || (Number(a.orderNum) || 0) - (Number(b.orderNum) || 0);
         });
 
       const badge = document.getElementById('kdsPendingCount');
@@ -2784,6 +2846,7 @@
 
       const prevStatus = o.status;
       o.status = isChecked ? "ASSIGNED" : "PENDING";
+      rememberOrderStatus(targetNum, o.status);
       renderAll();
 
       fetch(APPS_SCRIPT_URL, {
@@ -2798,6 +2861,7 @@
       .then(res => {
         if (!res.success) {
           o.status = prevStatus;
+          forgetOrderStatus(targetNum);
           renderAll();
           showToast(res.error || "Failed to update assignment", "error");
         } else {
@@ -2807,6 +2871,7 @@
       })
       .catch(() => {
         o.status = prevStatus;
+        forgetOrderStatus(targetNum);
         renderAll();
         showToast("Network error — reverted", "error");
       });
@@ -3827,9 +3892,27 @@
     // a label can actually come out.
     let printerBarState = "offline";
     let printerBarTransientUntil = 0;
+    // Last known hub from Apps Script (another browser owns the BLE link).
+    let printerHubCache = { hub: null, at: 0 };
 
     function connectionIsLive() {
       return !!(btDevice && btDevice.gatt && btDevice.gatt.connected && btCharTx);
+    }
+
+    function remoteHubIsLive() {
+      return !!(printerHubCache.hub && Date.now() - printerHubCache.at < 25000);
+    }
+
+    // Every device asks who owns the printer, not just the hub itself — that is
+    // why the status card on the other terminals never lit up before.
+    async function pollHubStatus() {
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
+      try {
+        const res = await fetch(`${APPS_SCRIPT_URL}?action=getHub&_t=${Date.now()}`, { cache: "no-cache" });
+        const data = await res.json();
+        printerHubCache = { hub: (data && data.hub) || null, at: Date.now() };
+      } catch (e) { /* keep the last known state; the next tick retries */ }
+      syncPrinterBar(true);
     }
 
     function updatePrinterBar(status, text, transient) {
@@ -3853,6 +3936,7 @@
 
       const tones = {
         online:     { dot: "bg-emerald-500",             wrap: "bg-emerald-50 text-emerald-600", label: "Test Print" },
+        remote:     { dot: "bg-emerald-500",             wrap: "bg-emerald-50 text-emerald-600", label: "Remote" },
         connecting: { dot: "bg-amber-500 animate-pulse", wrap: "bg-amber-50 text-amber-600",     label: "Connecting" },
         offline:    { dot: "bg-rose-500",                wrap: "bg-rose-50 text-rose-600",       label: "Connect" }
       };
@@ -3860,14 +3944,17 @@
 
       dot.className = "w-2 h-2 rounded-full flex-shrink-0 " + tone.dot;
       if (iconWrap) iconWrap.className = "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 " + tone.wrap;
-      textEl.innerText = text || (status === "online" ? "Connected" : "Not connected");
+      textEl.innerText = text || (status === "online" ? "Connected"
+        : status === "remote" ? "Connected on another device" : "Not connected");
+      textEl.title = textEl.innerText;
 
       if (primaryBtn && primaryLabel) {
         primaryLabel.innerText = tone.label;
-        primaryBtn.disabled = status === "connecting";
+        primaryBtn.disabled = status === "connecting" || status === "remote";
         primaryBtn.className = "flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition " +
           (status === "online" ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-amber-500 hover:bg-amber-400 text-slate-950") +
-          (status === "connecting" ? " opacity-60 cursor-wait" : "");
+          (status === "connecting" ? " opacity-60 cursor-wait" : "") +
+          (status === "remote" ? " opacity-50 cursor-default" : "");
       }
     }
 
@@ -3894,7 +3981,16 @@
         if (force || printerBarState !== "online") {
           updatePrinterBar("online", (btDevice && btDevice.name) || PRINTER_DEVICE_NAME);
         }
-      } else if (printerBarState === "online") {
+        return;
+      }
+      if (remoteHubIsLive()) {
+        const name = printerHubCache.hub.printerName || "another device";
+        if (force || printerBarState !== "remote") {
+          updatePrinterBar("remote", `Online · ${name}`);
+        }
+        return;
+      }
+      if (printerBarState === "online" || printerBarState === "remote") {
         updatePrinterBar("offline", "Disconnected");
       }
     }
@@ -3902,6 +3998,8 @@
     // The card starts in its offline state and is never hidden.
     updatePrinterBar("offline", "Not connected");
     setInterval(syncPrinterBar, 1500);
+    pollHubStatus();
+    setInterval(pollHubStatus, 5000);
 
     // ==================== ORDER GUIDE EDITOR ====================
     // Edits the pop-up copy for each self-order portal. Saves to the Apps Script
