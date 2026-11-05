@@ -2276,7 +2276,14 @@
       }
     }
 
+    // Enter is wired globally (and on the QR field), so a held key fires this
+    // once per repeat while the first createOrder is still in flight — each
+    // press used to post another identical order. The button's disabled state
+    // cannot stop a keyboard-triggered call, so guard the request itself.
+    let posOrderInFlight = false;
+
     function submitPosOrder() {
+      if (posOrderInFlight) return;
       if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
       if (!state.selectedPosCupType) return showToast("Please select Cup Type: In-Store or Takeaway!", "warning", 4000);
       const guestInput = document.getElementById('posGuestName');
@@ -2309,6 +2316,7 @@
         return;
       }
 
+      posOrderInFlight = true;
       const btnSubmit = document.getElementById('btnSubmitPos');
       if (btnSubmit) {
         btnSubmit.disabled = true;
@@ -2335,6 +2343,7 @@
       })
       .then(res => res.json())
       .then(res => {
+        posOrderInFlight = false;
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
@@ -2361,6 +2370,7 @@
         }
       })
       .catch(err => {
+        posOrderInFlight = false;
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
