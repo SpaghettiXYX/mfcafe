@@ -2660,7 +2660,13 @@
 
       const activeOrders = state.orders
         .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
-        .sort((a, b) => String(a.orderTime).localeCompare(String(b.orderTime)));
+        // Assigned tickets jump to the top so the bar starts them first; within
+        // each group the oldest order still comes first.
+        .sort((a, b) => {
+          const rankA = (a.status || "").toUpperCase() === "ASSIGNED" ? 0 : 1;
+          const rankB = (b.status || "").toUpperCase() === "ASSIGNED" ? 0 : 1;
+          return rankA - rankB || String(a.orderTime).localeCompare(String(b.orderTime));
+        });
 
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
