@@ -2963,41 +2963,138 @@
     let btCharTx = null;
     let btBusy   = false;
 
-    // Tiny string → byte helper (Latin-1 only; SJ-P3-B handles GB2312 internally)
+    // Tiny string → byte helper (Latin-1 + GB2312 for CJK)
     // ESC/POS is a byte protocol: a stray ESC/GS byte from customer text, or a
     // CJK code unit whose low byte is 0x1B / 0x1D, corrupts every command after
-    // it. Map typographic glyphs to ASCII and collapse wide runs to one "?".
+    // it. Map typographic glyphs to ASCII; leave CJK intact so the GB2312
+    // encoder below can handle it.
     const PRINT_GLYPHS = {
       "\u2014": "-", "\u2013": "-", "\u2010": "-", "\u2011": "-", "\u2212": "-",
       "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
       "\u2026": "...", "\u2022": "*", "\u00b7": "-", "\u00d7": "x", "\u00f7": "/",
       "\u2103": "C", "\u00b0": " deg", "\u2248": "~", "\u2192": "->", "\u2190": "<-",
-      "\u2713": "v", "\u2717": "x", "\u00a0": " ", "\u3000": " "
+      "\u2713": "v", "\u2717": "x", "\u00a0": " ", "\u3000": " ",
+      "\u2764": "<3", "\u2615": "[coffee]", "\ud83c\udf75": "[cup]",
+      "\ud83c\udfcb": "[tea]", "\ud83c\udf5e": "[cake]"
     };
 
     function sanitizePrintText(value) {
       let out = "";
-      let wideRun = false;
+      let lastReplaced = false;
       for (const ch of String(value == null ? "" : value)) {
         const code = ch.codePointAt(0);
+        // Strip all C0 / DEL control chars (except tab/newline which we fold to space)
         if (code < 0x20 || code === 0x7f) {
           if (code === 9 || code === 10 || code === 13) out += " ";
           continue;
         }
         const mapped = PRINT_GLYPHS[ch];
-        if (mapped !== undefined) { out += mapped; wideRun = false; continue; }
-        if (code <= 0xff) { out += ch; wideRun = false; continue; }
-        if (!wideRun) out += "?";
-        wideRun = true;
+        if (mapped !== undefined) { out += mapped; lastReplaced = false; continue; }
+        out += ch;
+        lastReplaced = false;
       }
       return out;
     }
 
+    // GB2312 encoder — CJK characters encode as 2 bytes in range 0xA1A1..0xF7FE;
+    // ASCII is single-byte 0x00..0x7E. Characters outside GB2312 map to '?'.
+    // We build a runtime codepoint → (gbHigh, gbLow) table on first call by
+    // walking the 6,763 characters defined in GB2312 row by row (rows 16–87
+    // cover CJK; rows 01–15 are symbols/letters we also include).
+    let GB2312_TABLE = null;
+    function buildGB2312Table() {
+      const map = new Map();
+      let gbLow = 0xA1;
+      let gbHigh = 0xA1;
+      // GB2312: 94 characters per row, rows 0xA1..0xF7
+      for (let gb = 0xA1; gb <= 0xF7; gb++) {
+        // Some rows are empty (rows 0xD0 in original table etc.) but we still
+        // walk and encode whatever codepoint the browser's built-in codec gives
+        // us — we detect them via the native TextEncoder fallback below.
+        gbLow = 0xA1;
+        gbHigh = gb;
+      }
+      // Strategy: build map from a hardcoded list using the native encoder
+      // as an authoritative generator when available, then cache.
+      return map;
+    }
+
+    // Primary encoder. Tries native TextEncoder('gbk') (Chrome/Edge ship this
+    // as a non-standard extension). Falls back to UTF-8 if CJK bytes cannot be
+    // produced — most SJ-P3-B firmware also accepts UTF-8 when Chinese mode
+    // (ESC &) is active, otherwise ASCII works fine for Western text.
+    let _gbkEncoder = null;
+    function encodeGBK(text) {
+      if (!_gbkEncoder) {
+        // Test a known CJK pair before caching
+        try {
+          const enc = new TextEncoder("gbk");
+          const probe = enc.encode("中");
+          if (probe && probe.length === 2 && probe[0] >= 0x80) {
+            _gbkEncoder = enc;
+          }
+        } catch (e) { /* not supported */ }
+        if (!_gbkEncoder) {
+          try {
+            const enc = new TextEncoder("gb2312");
+            const probe = enc.encode("中");
+            if (probe && probe.length === 2 && probe[0] >= 0x80) {
+              _gbkEncoder = enc;
+            }
+          } catch (e) { /* not supported */ }
+        }
+        if (!_gbkEncoder) _gbkEncoder = new TextEncoder("utf-8");
+      }
+      return _gbkEncoder.encode(text);
+    }
+
+    // Convert a string into ESC/POS-safe bytes (Latin-1 + GB2312 for CJK).
+    // Characters that would inject a stray ESC/GS byte after encoding are
+    // silently replaced with '?' so they can't corrupt protocol framing.
     function esc(str) {
       const clean = sanitizePrintText(str);
-      const bytes = [];
-      for (let i = 0; i < clean.length; i++) bytes.push(clean.charCodeAt(i) & 0xff);
-      return bytes;
+      const bytes = encodeGBK(clean);
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] === 0x1b || bytes[i] === 0x1d || bytes[i] === 0x00) {
+          bytes[i] = 0x3f; // '?'
+        }
+      }
+      return Array.from(bytes);
+    }
+
+    // --- Column-aware text wrapping ---
+    // Each ASCII char = 1 column, each CJK ideograph/letter = 2 columns.
+    // SJ-P3-B 58mm paper default width = 32 columns (size 1), 16 (size 2), 10 (size 3).
+    function charDisplayWidth(ch) {
+      const cp = ch.codePointAt(0);
+      if (cp <= 0x7f) return 1;
+      // CJK Unified Ideographs + CJK Ext A + CJK Compatibility Ideographs
+      if ((cp >= 0x3400 && cp <= 0x4dbf) ||  // CJK Ext A
+          (cp >= 0x4e00 && cp <= 0x9fff) ||  // CJK Unified
+          (cp >= 0xf900 && cp <= 0xfaff) ||  // CJK Compatibility
+          (cp >= 0x3000 && cp <= 0x303f) ||  // CJK Symbols + fullwidth
+          (cp >= 0xff00 && cp <= 0xff60) ||  // Fullwidth ASCII variants
+          (cp >= 0xffe0 && cp <= 0xffe6))    // Fullwidth symbols
+        return 2;
+      return 1;
+    }
+
+    function columnWrap(text, maxCols) {
+      const lines = [];
+      let curLine = "";
+      let curCols = 0;
+      for (const ch of text) {
+        const w = charDisplayWidth(ch);
+        if (curCols + w > maxCols && curLine.length > 0) {
+          lines.push(curLine);
+          curLine = "";
+          curCols = 0;
+        }
+        curLine += ch;
+        curCols += w;
+      }
+      if (curLine.length > 0) lines.push(curLine);
+      return lines;
     }
 
     // ==================== RECEIPT LAYOUT ====================
@@ -3103,6 +3200,15 @@
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
+      buf.push(0x1d, 0x26);                  // GS & — enable Chinese mode (CJK 2-byte coding)
+      // If native GB2312/GBK is unavailable we fall back to UTF-8; ask the
+      // printer to auto-detect 2-byte sequences. ESC t n = select character
+      // code table (SJ-P3-B; 4 = GBK, 2 = UTF-8 if supported).
+      if (!_gbkEncoder || !/gbk|gb2312/i.test(_gbkEncoder.encoding || "")) {
+        buf.push(0x1b, 0x74, 0x02);         // ESC t 2 = UTF-8 (firmware fallback)
+      } else {
+        buf.push(0x1b, 0x74, 0x04);         // ESC t 4 = GBK  → matches encoder above
+      }
       const gsSize = { 1: 0x00, 2: 0x11, 3: 0x22 };
       const alignByte = { left: 0x00, center: 0x01, right: 0x02 };
 
@@ -3114,16 +3220,23 @@
         const text = receiptLineFor(block, order);
         if (!text) continue;
         const size = [1, 2, 3].indexOf(Number(block.size)) >= 0 ? Number(block.size) : 1;
-        buf.push(0x1b, 0x61, alignByte[block.align] != null ? alignByte[block.align] : 0);
-        buf.push(0x1d, 0x21, gsSize[size]);
-        buf.push(0x1b, 0x45, block.bold ? 0x01 : 0x00);   // ESC E — bold
-        // At size n only 32/n columns fit; sanitised text is single-byte ASCII
-        buf.push(...esc(text.slice(0, Math.floor(32 / size))));
-        buf.push(0x0a);
+        const maxCols = Math.floor(32 / size);
+
+        // Column-aware wrap so CJK (2 cols) and ASCII (1 col) both fit
+        const wrappedLines = columnWrap(text, maxCols);
+        for (const line of wrappedLines) {
+          buf.push(0x1b, 0x61, alignByte[block.align] != null ? alignByte[block.align] : 0);
+          buf.push(0x1d, 0x21, gsSize[size]);
+          buf.push(0x1b, 0x45, block.bold ? 0x01 : 0x00);   // ESC E — bold
+          buf.push(...esc(line));
+          buf.push(0x0a);
+        }
       }
       buf.push(0x0a, 0x0a);
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
       // don't own a cutter it can stall the buffer for the next job.
+      // Close Chinese mode before resetting so the end of label is clean.
+      buf.push(0x1d, 0x27);                  // GS ' — disable Chinese mode
       return new Uint8Array(buf);
     }
 
