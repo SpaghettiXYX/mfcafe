@@ -3993,6 +3993,11 @@
         state.orderGuides = res.orderGuides || state.orderGuides;
         renderGuideEditor();
         showToast("Order guide saved", "success");
+      } else if (!res) {
+        // doPost answers with an empty body when the deployed script has no
+        // matching action — i.e. the Apps Script project is older than this
+        // page. Naming the cause beats a generic "could not save".
+        showToast("Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version", "error");
       } else {
         showToast((res && res.error) || "Could not save the order guide", "error");
       }
