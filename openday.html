@@ -1295,13 +1295,24 @@
     }
 
     function buildPickupSlots(cfg) {
+      // Admin-defined exact times take priority over the open/close grid.
+      const custom = Array.isArray(cfg.customSlots) ? cfg.customSlots : [];
+      const lead = Math.max(0, Number(cfg.leadMin) || 0);
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      if (custom.length) {
+        const mins = custom.map(clockToMin).filter(m => isFinite(m)).sort((a, b) => a - b);
+        let slots = mins.filter(m => m >= nowMin + lead)
+          .map(m => ({ value: formatClock(m), label: formatClock(m) }));
+        if (!slots.length) {
+          slots = mins.map(m => ({ value: formatClock(m), label: "Tomorrow " + formatClock(m) }));
+        }
+        return slots;
+      }
       const open = clockToMin(cfg.open);
       const close = clockToMin(cfg.close);
       if (!isFinite(open) || !isFinite(close) || close <= open) return [];
       const step = Math.max(5, Number(cfg.intervalMin) || 15);
-      const lead = Math.max(0, Number(cfg.leadMin) || 0);
-      const now = new Date();
-      const nowMin = now.getHours() * 60 + now.getMinutes();
       const slots = [];
       for (let m = open; m <= close; m += step) {
         if (m >= nowMin + lead) slots.push({ value: formatClock(m), label: formatClock(m) });
@@ -1336,7 +1347,10 @@
       sel.classList.remove("hidden");
       input.classList.add("hidden");
       if (hint) {
-        hint.textContent = `Showing slots inside opening hours (${cfg.open}–${cfg.close}).`;
+        const isCustom = Array.isArray(cfg.customSlots) && cfg.customSlots.length;
+        hint.textContent = isCustom
+          ? "Showing today's available pickup times."
+          : `Showing slots inside opening hours (${cfg.open}–${cfg.close}).`;
         hint.classList.remove("hidden");
       }
     }

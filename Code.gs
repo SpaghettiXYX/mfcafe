@@ -1508,7 +1508,7 @@ function saveOrderGuide(mode, guide) {
 // The self-order portals build their "pickup time" menu from these opening
 // hours, so a guest can never pick a slot while the bar is closed.
 const PICKUP_CONFIG_KEY = "PICKUP_CONFIG";
-const DEFAULT_PICKUP_CONFIG = { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10 };
+const DEFAULT_PICKUP_CONFIG = { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10, customSlots: [] };
 
 function normalizePickupConfig(src) {
   src = src || {};
@@ -1521,7 +1521,18 @@ function normalizePickupConfig(src) {
   let leadMin = Number(src.leadMin);
   if (!isFinite(leadMin) || leadMin < 0) leadMin = DEFAULT_PICKUP_CONFIG.leadMin;
   leadMin = Math.min(180, Math.round(leadMin));
-  return { enabled: src.enabled !== false, open: open, close: close, intervalMin: intervalMin, leadMin: leadMin };
+  // Admin-defined exact times. When any are present they replace the
+  // generated open/close/interval grid on the portals.
+  const customSlots = [];
+  const seen = {};
+  (Array.isArray(src.customSlots) ? src.customSlots : []).forEach(function (raw) {
+    const m = /^(\d{1,2}):([0-5]\d)$/.exec(String(raw || "").trim());
+    if (!m || Number(m[1]) > 23 || customSlots.length >= 48) return;
+    const t = (m[1].length === 1 ? "0" + m[1] : m[1]) + ":" + m[2];
+    if (!seen[t]) { seen[t] = true; customSlots.push(t); }
+  });
+  customSlots.sort();
+  return { enabled: src.enabled !== false, open: open, close: close, intervalMin: intervalMin, leadMin: leadMin, customSlots: customSlots };
 }
 
 function getPickupConfig() {

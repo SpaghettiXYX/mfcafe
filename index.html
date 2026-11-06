@@ -186,6 +186,9 @@
     [data-theme="dark"] .font-medium { font-weight: 300 !important; }
     /* 4. Streaming text: 120ms blur-in per glyph, 30ms stagger. */
     @keyframes soh-stream-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+    /* Save-result pop-up entrance — replays every time the modal re-opens. */
+    @keyframes save-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+    .save-pop { animation: save-pop 200ms cubic-bezier(.4,0,.2,1); }
     .stream-char { display: inline-block; opacity: 0; white-space: pre; animation: soh-stream-in 120ms ease-out forwards; }
     /* 5. Optical icon alignment. */
     .fa-solid, .fa-regular, .fa-brands { position: relative; top: 0.125em; }
@@ -1025,6 +1028,12 @@
             <input type="number" id="pickupLead" min="0" max="180" step="5" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
           </div>
         </div>
+
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Custom slots (optional)</label>
+          <textarea id="pickupCustomSlots" rows="3" oninput="updatePickupPreview()" placeholder="08:30&#10;12:15&#10;15:00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></textarea>
+          <p class="text-[10px] text-slate-400 mt-1">One 24-hour time per line (or comma-separated). When filled, these exact times replace the generated open/close slots above.</p>
+        </div>
         <p id="pickupPreview" class="text-[11px] text-slate-400"></p>
       </div>
 
@@ -1376,6 +1385,20 @@
     </div>
   </div>
 
+  <!-- SAVE RESULT POP-UP (admin save buttons report here) -->
+  <div id="saveResultModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
+    <div class="save-pop bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+      <div id="saveResultIconWrap" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl bg-emerald-100 text-emerald-600">
+        <i id="saveResultIcon" class="fa-solid fa-check font-black"></i>
+      </div>
+      <div>
+        <h3 id="saveResultTitle" class="font-black text-slate-800 text-lg">Saved</h3>
+        <p id="saveResultMessage" class="text-xs text-slate-500 mt-1 whitespace-pre-line"></p>
+      </div>
+      <button onclick="hideSaveResultModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition">OK</button>
+    </div>
+  </div>
+
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgfa0mGParzBp7qj_AUPtjT9-o7zJDO9OmxbDbyj20INNgPEfMurxhH8PI4YHmzl7tVQ/exec";
@@ -1509,6 +1532,26 @@
         toast.style.transform = "translateX(120%)";
         setTimeout(() => toast.remove(), 300);
       }, duration);
+    }
+
+    // ===== SAVE RESULT POP-UP =====
+    // Admin save buttons report through this modal instead of a corner toast,
+    // so the outcome cannot be missed while the admin panel is open.
+    function showSaveResultModal(ok, title, message) {
+      const modal = document.getElementById("saveResultModal");
+      if (!modal) { showToast(message || title, ok ? "success" : "error"); return; }
+      const wrap = document.getElementById("saveResultIconWrap");
+      const icon = document.getElementById("saveResultIcon");
+      document.getElementById("saveResultTitle").innerText = title;
+      document.getElementById("saveResultMessage").innerText = message || "";
+      wrap.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl " + (ok ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600");
+      icon.className = "fa-solid font-black " + (ok ? "fa-check" : "fa-xmark");
+      modal.classList.remove("hidden");
+    }
+
+    function hideSaveResultModal() {
+      const modal = document.getElementById("saveResultModal");
+      if (modal) modal.classList.add("hidden");
     }
 
     // ===== PUSH MESSAGE BROADCAST =====
@@ -3503,17 +3546,16 @@
             try { localStorage.setItem(RECEIPT_LOCAL_KEY, JSON.stringify(res.layout)); } catch (e) {}
           }
           renderLayoutEditor();
-          showToast("Receipt layout saved", "success", 2000);
+          showSaveResultModal(true, "Receipt layout saved", "New labels follow this layout from the next print.");
         } else {
           renderLayoutEditor();
-          showToast("Saved on this device only — " + ((res && res.error) || "server did not accept it"), "warning", 5000);
+          showSaveResultModal(false, "Saved on this device only", ((res && res.error) || "The server did not accept it") + " — the layout prints from this device only.");
         }
       } catch (e) {
         renderLayoutEditor();
         const msg = /failed to fetch|load failed|networkerror/i.test(e.message || "")
-          ? "server unreachable — saved on this device only"
-          : e.message;
-        showToast("Saved on this device only — " + msg, "warning", 6000);
+          ? "Server unreachable" : e.message;
+        showSaveResultModal(false, "Saved on this device only", msg + " — the layout prints from this device only.");
       }
     }
 
@@ -4174,14 +4216,14 @@
       if (res && res.success) {
         state.orderGuides = res.orderGuides || state.orderGuides;
         renderGuideEditor();
-        showToast("Order guide saved", "success");
+        showSaveResultModal(true, "Order guide saved", "The portal shows the new wording on its next visit.");
       } else if (!res) {
         // doPost answers with an empty body when the deployed script has no
         // matching action — i.e. the Apps Script project is older than this
         // page. Naming the cause beats a generic "could not save".
-        showToast("Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version", "error");
+        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
       } else {
-        showToast((res && res.error) || "Could not save the order guide", "error");
+        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the order guide.");
       }
     }
 
@@ -4193,15 +4235,15 @@
       if (res && res.success) {
         state.orderGuides = res.orderGuides || state.orderGuides;
         renderGuideEditor();
-        showToast("Guide reset to default wording", "success");
+        showSaveResultModal(true, "Guide reset", "The guide is back to the original wording.");
       } else {
-        showToast((res && res.error) || "Could not reset the order guide", "error");
+        showSaveResultModal(false, "Could not reset", (res && res.error) || "The server did not reset the order guide.");
       }
     }
 
     // ==================== PICKUP TIME CONFIG ====================
     function renderPickupConfigEditor() {
-      const cfg = state.pickupConfig || { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10 };
+      const cfg = state.pickupConfig || { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10, customSlots: [] };
       const on = document.getElementById("pickupEnabled");
       if (!on) return;
       on.checked = cfg.enabled !== false;
@@ -4209,7 +4251,19 @@
       document.getElementById("pickupClose").value = cfg.close || "18:00";
       document.getElementById("pickupInterval").value = cfg.intervalMin || 15;
       document.getElementById("pickupLead").value = cfg.leadMin != null ? cfg.leadMin : 10;
+      document.getElementById("pickupCustomSlots").value = (cfg.customSlots || []).join("\n");
       updatePickupPreview();
+    }
+
+    function parseCustomSlots(text) {
+      const out = []; const seen = {};
+      String(text || "").split(/[\n,]+/).forEach(part => {
+        const m = /^(\d{1,2}):([0-5]\d)$/.exec(part.trim());
+        if (!m || Number(m[1]) > 23) return;
+        const t = m[1].padStart(2, "0") + ":" + m[2];
+        if (!seen[t]) { seen[t] = true; out.push(t); }
+      });
+      return out.sort();
     }
 
     function readPickupConfigFromEditor() {
@@ -4218,7 +4272,8 @@
         open: document.getElementById("pickupOpen").value || "08:00",
         close: document.getElementById("pickupClose").value || "18:00",
         intervalMin: Number(document.getElementById("pickupInterval").value) || 15,
-        leadMin: Number(document.getElementById("pickupLead").value) || 0
+        leadMin: Number(document.getElementById("pickupLead").value) || 0,
+        customSlots: parseCustomSlots(document.getElementById("pickupCustomSlots").value)
       };
     }
 
@@ -4228,6 +4283,11 @@
       if (!el) return;
       if (!cfg.enabled) {
         el.innerText = "Filter off — the portal accepts any pickup time.";
+        return;
+      }
+      if (cfg.customSlots.length) {
+        const shown = cfg.customSlots.slice(0, 5).join(", ");
+        el.innerText = `Custom list: ${cfg.customSlots.length} slot${cfg.customSlots.length > 1 ? "s" : ""} (${shown}${cfg.customSlots.length > 5 ? "…" : ""}). The opening-hour fields above are ignored while this list is filled.`;
         return;
       }
       const toMin = t => { const p = String(t).split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); };
@@ -4246,9 +4306,11 @@
       if (res && res.success) {
         state.pickupConfig = res.pickupConfig || cfg;
         renderPickupConfigEditor();
-        showToast("Pickup times saved", "success");
+        showSaveResultModal(true, "Pickup times saved", "The self-order portals pick up the new times on their next visit.");
+      } else if (!res) {
+        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
       } else {
-        showToast((res && res.error) || "Could not save pickup times", "error");
+        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the pickup times.");
       }
     }
 
@@ -4353,9 +4415,11 @@
         state.announcements = res.announcements || work;
         adminAnnouncements = null;
         renderAnnouncementsEditor();
-        showToast("Pop-ups saved", "success");
+        showSaveResultModal(true, "Pop-ups saved", "The portals show the new pop-ups on their next visit.");
+      } else if (!res) {
+        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
       } else {
-        showToast((res && res.error) || "Could not save pop-ups", "error");
+        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the pop-ups.");
       }
     }
 
