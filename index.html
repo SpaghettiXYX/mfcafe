@@ -133,6 +133,17 @@
       .kds-unassigned::after { animation: none; opacity: 1; }
     }
 
+    /* Pre-order drawer: collapsed with grid 0fr -> 1fr, never a border stroke. */
+    #kdsPreorderWrap {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease;
+      opacity: 0;
+    }
+    #kdsPreorderWrap.open { grid-template-rows: 1fr; opacity: 1; }
+    #kdsPreorderWrap > div { min-height: 0; overflow: hidden; }
+    #kdsPreorderChevron { transition: transform 200ms ease; }
+    @media (prefers-reduced-motion: reduce) { #kdsPreorderWrap, #kdsPreorderChevron { transition: none; } }
+
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
 
@@ -589,9 +600,30 @@
           <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
           <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
         </div>
-        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
-          0 Active Orders
-        </span>
+        <div class="flex items-center gap-2">
+          <button id="kdsPreorderToggle" onclick="toggleKdsPreorders()"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold px-3 py-1 rounded-full text-xs transition flex items-center gap-1.5"
+            title="Show every scheduled pre-order">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span id="kdsPreorderLabel">Pre-orders 0</span>
+            <i id="kdsPreorderChevron" class="fa-solid fa-chevron-down text-[10px]"></i>
+          </button>
+          <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
+            0 Active Orders
+          </span>
+        </div>
+      </div>
+
+      <!-- Pre-order drawer: every scheduled ticket, freed from the lead-time gate -->
+      <div id="kdsPreorderWrap">
+        <div>
+          <div class="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
+            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3">
+              Scheduled pre-orders · hidden from the board until Minimum lead
+            </p>
+            <div id="kdsPreorderList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Unassigned order marquee -->
@@ -1442,6 +1474,7 @@
     };
 
     let html5QrcodeScanner = null;
+    let kdsPreordersOpen = false;
     let isProcessingScan = false;
     let isModalAddMode = false;
     let scanMode = "pay"; // "pay" | "bind" | "clear"
@@ -2182,7 +2215,9 @@
     }
 
     function renderTabBadges() {
-      const kdsCount = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).length;
+      const kdsCount = state.orders
+        .filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase()))
+        .filter(kdsOrderVisible).length;
       const readyCount = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
       const helperCount = readyCount; // same as ready orders needing clearing
 
@@ -2834,12 +2869,66 @@
       return state.categoryColors[category] || "#64748b";
     }
 
+    function renderKdsPreorderDrawer(activeAll) {
+      const list = document.getElementById('kdsPreorderList');
+      const label = document.getElementById('kdsPreorderLabel');
+      if (!list) return;
+
+      const preorders = activeAll
+        .filter(isPreOrder)
+        .sort((a, b) => {
+          const ma = pickupMinutesOf(a.pickupTime);
+          const mb = pickupMinutesOf(b.pickupTime);
+          return (ma == null ? Infinity : ma) - (mb == null ? Infinity : mb);
+        });
+
+      if (label) label.innerText = `Pre-orders ${preorders.length}`;
+
+      if (preorders.length === 0) {
+        list.innerHTML = `<p class="text-xs font-medium text-slate-400">No scheduled pre-orders right now.</p>`;
+        return;
+      }
+
+      list.innerHTML = preorders.map(o => {
+        const onBoard = kdsOrderVisible(o);
+        const target = pickupMinutesOf(o.pickupTime);
+        let hint = "Ready now";
+        if (target != null && target >= 1440) {
+          hint = "Tomorrow";
+        } else if (target != null) {
+          const d = new Date();
+          const diff = target - (d.getHours() * 60 + d.getMinutes());
+          hint = diff > 0 ? `${diff} min to pickup` : "Pickup time passed";
+        }
+        const tone = onBoard
+          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+          : "bg-slate-100 text-slate-600 border-slate-200";
+        const statusText = onBoard ? "On board" : `Shows ${pickupLeadMinutes()} min before`;
+        return `<div class="flex justify-between items-start gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
+          <div class="min-w-0">
+            <p class="text-sm font-black text-slate-800">#${escapeHtml(o.orderNum)} · ${escapeHtml(o.guestName || "Guest")}</p>
+            <p class="text-[11px] font-bold text-slate-500 truncate">${escapeHtml(o.productName)} (${escapeHtml(o.temp || "")}) · Pickup ${escapeHtml(o.pickupTime || "—")}</p>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full border ${tone}">${escapeHtml(statusText)}</span>
+            <p class="text-[10px] font-bold text-slate-400 mt-1">${escapeHtml(hint)}</p>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
 
-      const activeOrders = state.orders
-        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
+      const activeAll = state.orders
+        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()));
+
+      // Scheduled pre-orders stay off the board until the bar actually needs
+      // them; they are still reachable through the Pre-orders drawer.
+      const activeOrders = activeAll.filter(kdsOrderVisible);
+
+      activeOrders
         // Assigned tickets jump to the top so the bar starts them first; within
         // each group the oldest order still comes first.
         .sort((a, b) => {
@@ -2864,6 +2953,8 @@
 
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+
+      renderKdsPreorderDrawer(activeAll);
 
       // ---- Marquee: every active order the bar still needs to prepare ----
       const marqueeWrap = document.getElementById('kdsMarqueeWrap');
@@ -3125,9 +3216,13 @@
       if (!prepList || !readyList) return;
 
       let prepHtml = "";
-      state.orders.filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
-        prepHtml += pickupNumberCard(o, false);
-      });
+      state.orders
+        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
+        // Keep future pre-orders off the public display until their lead window.
+        .filter(kdsOrderVisible)
+        .forEach(o => {
+          prepHtml += pickupNumberCard(o, false);
+        });
       prepList.innerHTML = prepHtml;
 
       let readyHtml = "";
@@ -3409,6 +3504,54 @@
     function isPreOrder(order) {
       const status = String(order.status || "").toUpperCase();
       return status === "RESERVED" || !!String(order.pickupTime || "").trim();
+    }
+
+    // Pickup times arrive as "14:30", "2:30 PM" or "Tomorrow 2:30 PM" depending
+    // on which portal placed the order, so normalise them to minutes-of-day.
+    // "Tomorrow" shifts the result past 1440 so it can never look due today.
+    function pickupMinutesOf(raw) {
+      const s = String(raw || "").trim();
+      if (!s) return null;
+      const tomorrow = /tomorrow/i.test(s) ? 1440 : 0;
+      const m = s.replace(/tomorrow/i, "").match(/(\d{1,2})[.:](\d{1,2})?\s*(am|pm)?/i);
+      if (!m) return null;
+      let h = Number(m[1]);
+      const min = Number(m[2] || 0);
+      const ap = String(m[3] || "").toLowerCase();
+      if (ap === "pm" && h < 12) h += 12;
+      if (ap === "am" && h === 12) h = 0;
+      if (min > 59 || h > 23) return null;
+      return tomorrow + h * 60 + min;
+    }
+
+    function pickupLeadMinutes() {
+      const n = Number((state.pickupConfig || {}).leadMin);
+      return Number.isFinite(n) && n >= 0 ? n : 10;
+    }
+
+    // A scheduled ticket only reaches the board once it is inside the lead
+    // window; "Now"/blank/unreadable times are treated as ready immediately.
+    function preorderDueNow(order) {
+      const target = pickupMinutesOf(order.pickupTime);
+      if (target == null) return true;
+      if (target >= 1440) return false;
+      const now = new Date();
+      return now.getHours() * 60 + now.getMinutes() >= target - pickupLeadMinutes();
+    }
+
+    function kdsOrderVisible(order) {
+      // Already ticked by the bar: never hide work that is physically underway.
+      if (String(order.status || "").toUpperCase() === "ASSIGNED") return true;
+      if (!isPreOrder(order)) return true;
+      return preorderDueNow(order);
+    }
+
+    function toggleKdsPreorders() {
+      kdsPreordersOpen = !kdsPreordersOpen;
+      const wrap = document.getElementById('kdsPreorderWrap');
+      const chevron = document.getElementById('kdsPreorderChevron');
+      if (wrap) wrap.classList.toggle('open', kdsPreordersOpen);
+      if (chevron) chevron.style.transform = kdsPreordersOpen ? 'rotate(180deg)' : 'rotate(0deg)';
     }
 
     function layoutFieldValue(order, field) {
