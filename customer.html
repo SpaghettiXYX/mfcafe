@@ -212,7 +212,9 @@
       </div>
       <div>
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time (Pre-order / Teacher)</label>
+        <select id="custPickupTimeSelect" class="hidden w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition"></select>
         <input type="text" id="custPickupTime" placeholder="e.g. 10:30 AM / Recess" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+        <p id="pickupHint" class="hidden text-[10px] font-bold text-amber-700 mt-1"></p>
       </div>
       <!-- Cup Type — mandatory -->
       <div>
@@ -443,6 +445,21 @@
     </div>
   </div>
 
+  <!-- ENTRY POP-UPS (managed in Admin → Portal Pop-ups) -->
+  <div id="portalPopup" class="hidden fixed inset-0 z-[140] bg-slate-900/70 flex items-center justify-center p-5">
+    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-md">
+      <div id="portalPopupImageWrap" class="hidden">
+        <img id="portalPopupImage" alt="Announcement" class="w-full max-h-64 object-cover">
+      </div>
+      <div class="p-5 space-y-2">
+        <p id="portalPopupKicker" class="hidden text-[10px] font-black uppercase tracking-wider text-amber-600"></p>
+        <h2 id="portalPopupTitle" class="text-lg font-black text-slate-800"></h2>
+        <p id="portalPopupBody" class="text-sm text-slate-600 leading-snug whitespace-pre-line"></p>
+        <button id="portalPopupNext" onclick="portalPopupNext()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl mt-2 transition">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <script src="self-order-history.js"></script>
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
@@ -465,6 +482,8 @@
       coldPaused: false,
       teacherReservationOpen: true,
       teacherPauseReason: "",
+      pickupConfig: null,
+      announcements: null,
       currentOrder: null
     };
     const selfOrderHistory = SelfOrderHistory.create({
@@ -544,9 +563,13 @@
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (data.orderGuides && data.orderGuides.customer) applyOrderGuide(data.orderGuides.customer);
+          if (data.pickupConfig) state.pickupConfig = data.pickupConfig;
+          if (data.announcements) state.announcements = data.announcements;
           applyReservationState();
           renderMenu();
+          renderPickupOptions();
           showOrderTutorial();
+          showPortalPopups();
           hideSelfOrderLoader();
         })
         .catch(() => {
@@ -743,10 +766,9 @@
 
     function submitSelfOrder() {
       const nameInput = document.getElementById('custName');
-      const pickupInput = document.getElementById('custPickupTime');
 
       const name = nameInput ? nameInput.value.trim() : "";
-      const pickupTime = pickupInput ? pickupInput.value.trim() : "Scheduled";
+      const pickupTime = currentPickupTime();
 
       if (!name) return showToast("Please enter your name!", "warning");
       if (!state.selectedItem) return showToast("Please select a drink!", "warning");
@@ -1276,6 +1298,127 @@
       document.getElementById("confirmModal").classList.add("hidden");
       if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
     });
+
+    // ===== PICKUP SLOT FILTER =====
+    // Opening hours come from Admin → Pickup Times. When the filter is on the
+    // time field becomes a menu, so a guest can never pick a slot outside
+    // service hours; when it is off the original free-text field returns.
+    function clockToMin(t) {
+      const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ""));
+      return m ? (Number(m[1]) * 60 + Number(m[2])) : NaN;
+    }
+
+    function formatClock(min) {
+      const h = Math.floor(min / 60) % 24;
+      const mm = min % 60;
+      const ampm = h >= 12 ? "PM" : "AM";
+      return `${h % 12 || 12}:${String(mm).padStart(2, "0")} ${ampm}`;
+    }
+
+    function buildPickupSlots(cfg) {
+      const open = clockToMin(cfg.open);
+      const close = clockToMin(cfg.close);
+      if (!isFinite(open) || !isFinite(close) || close <= open) return [];
+      const step = Math.max(5, Number(cfg.intervalMin) || 15);
+      const lead = Math.max(0, Number(cfg.leadMin) || 0);
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const slots = [];
+      for (let m = open; m <= close; m += step) {
+        if (m >= nowMin + lead) slots.push({ value: formatClock(m), label: formatClock(m) });
+      }
+      // Everything today is gone (before opening or after closing) — offer the
+      // next service day instead of showing impossible times.
+      if (!slots.length) {
+        for (let m = open; m <= close; m += step) {
+          slots.push({ value: formatClock(m), label: "Tomorrow " + formatClock(m) });
+        }
+      }
+      return slots;
+    }
+
+    function renderPickupOptions() {
+      const cfg = state.pickupConfig;
+      const sel = document.getElementById("custPickupTimeSelect");
+      const input = document.getElementById("custPickupTime");
+      const hint = document.getElementById("pickupHint");
+      if (!sel || !input) return;
+      const slots = (!cfg || cfg.enabled === false) ? [] : buildPickupSlots(cfg);
+      if (!slots.length) {
+        sel.classList.add("hidden");
+        input.classList.remove("hidden");
+        if (hint) hint.classList.add("hidden");
+        return;
+      }
+      sel.innerHTML = slots.map(s => `<option value="${s.value}">${s.label}</option>`).join("");
+      sel.classList.remove("hidden");
+      input.classList.add("hidden");
+      if (hint) {
+        hint.textContent = `Showing slots inside opening hours (${cfg.open}–${cfg.close}).`;
+        hint.classList.remove("hidden");
+      }
+    }
+
+    function currentPickupTime() {
+      const sel = document.getElementById("custPickupTimeSelect");
+      if (sel && !sel.classList.contains("hidden")) return (sel.value || "Scheduled").trim();
+      const input = document.getElementById("custPickupTime");
+      return (input && input.value.trim()) || "Scheduled";
+    }
+
+    // ===== ENTRY POP-UPS =====
+    let portalPopupQueue = [];
+    let portalPopupIndex = 0;
+
+    function showPortalPopups() {
+      const cfg = state.announcements;
+      const items = (cfg && cfg.enabled !== false ? (cfg.items || []) : [])
+        .filter(a => a && a.enabled !== false && (a.showOn || []).includes("customer"))
+        .filter(a => (a.title || "").trim() || (a.body || "").trim() || (a.imageUrl || "").trim());
+      portalPopupQueue = items;
+      portalPopupIndex = 0;
+      renderPortalPopup();
+    }
+
+    function renderPortalPopup() {
+      const overlay = document.getElementById("portalPopup");
+      if (!overlay) return;
+      const item = portalPopupQueue[portalPopupIndex];
+      if (!item) {
+        overlay.classList.add("hidden");
+        return;
+      }
+      const imgWrap = document.getElementById("portalPopupImageWrap");
+      const img = document.getElementById("portalPopupImage");
+      const title = document.getElementById("portalPopupTitle");
+      const body = document.getElementById("portalPopupBody");
+      const kicker = document.getElementById("portalPopupKicker");
+      const nextBtn = document.getElementById("portalPopupNext");
+
+      title.textContent = item.title || "";
+      title.classList.toggle("hidden", !item.title);
+      body.textContent = item.body || "";
+      body.classList.toggle("hidden", !item.body);
+      const remaining = portalPopupQueue.length - portalPopupIndex;
+      kicker.textContent = portalPopupQueue.length > 1 ? `${portalPopupIndex + 1} / ${portalPopupQueue.length}` : "";
+      kicker.classList.toggle("hidden", portalPopupQueue.length < 2);
+      nextBtn.textContent = item.buttonText || (remaining > 1 ? "Next" : "Got it");
+
+      if (item.imageUrl) {
+        imgWrap.classList.remove("hidden");
+        img.onerror = () => imgWrap.classList.add("hidden");
+        img.src = item.imageUrl;
+      } else {
+        imgWrap.classList.add("hidden");
+        img.removeAttribute("src");
+      }
+      overlay.classList.remove("hidden");
+    }
+
+    function portalPopupNext() {
+      portalPopupIndex += 1;
+      renderPortalPopup();
+    }
 
     init();
     window.addEventListener('pageshow', () => {

@@ -609,7 +609,9 @@ function getInitialData() {
     pushMessage: pushMessage,
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout(),
-    orderGuides: getOrderGuides()
+    orderGuides: getOrderGuides(),
+    pickupConfig: getPickupConfig(),
+    announcements: getAnnouncements()
   };
 }
 
@@ -1502,6 +1504,92 @@ function saveOrderGuide(mode, guide) {
   return { success: true, orderGuides: getOrderGuides() };
 }
 
+// ==================== PICKUP TIME SLOTS ====================
+// The self-order portals build their "pickup time" menu from these opening
+// hours, so a guest can never pick a slot while the bar is closed.
+const PICKUP_CONFIG_KEY = "PICKUP_CONFIG";
+const DEFAULT_PICKUP_CONFIG = { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10 };
+
+function normalizePickupConfig(src) {
+  src = src || {};
+  const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const open = timeRe.test(String(src.open || "")) ? String(src.open) : DEFAULT_PICKUP_CONFIG.open;
+  const close = timeRe.test(String(src.close || "")) ? String(src.close) : DEFAULT_PICKUP_CONFIG.close;
+  let intervalMin = Number(src.intervalMin);
+  if (!isFinite(intervalMin) || intervalMin <= 0) intervalMin = DEFAULT_PICKUP_CONFIG.intervalMin;
+  intervalMin = Math.min(120, Math.max(5, Math.round(intervalMin)));
+  let leadMin = Number(src.leadMin);
+  if (!isFinite(leadMin) || leadMin < 0) leadMin = DEFAULT_PICKUP_CONFIG.leadMin;
+  leadMin = Math.min(180, Math.round(leadMin));
+  return { enabled: src.enabled !== false, open: open, close: close, intervalMin: intervalMin, leadMin: leadMin };
+}
+
+function getPickupConfig() {
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty(PICKUP_CONFIG_KEY);
+    return normalizePickupConfig(raw ? JSON.parse(raw) : {});
+  } catch (e) {
+    return normalizePickupConfig({});
+  }
+}
+
+function savePickupConfig(config) {
+  const normalized = normalizePickupConfig(config || {});
+  PropertiesService.getScriptProperties().setProperty(PICKUP_CONFIG_KEY, JSON.stringify(normalized));
+  bumpVersion();
+  return { success: true, pickupConfig: normalized };
+}
+
+// ==================== PORTAL ANNOUNCEMENTS ====================
+// Entry pop-ups for customer.html / openday.html. Stored as one property so
+// saving is atomic; the portals show them again on every page load.
+const ANNOUNCEMENTS_KEY = "PORTAL_ANNOUNCEMENTS";
+const MAX_ANNOUNCEMENTS = 12;
+
+function normalizeAnnouncement(a, i) {
+  a = a || {};
+  const pages = ["customer", "openday"];
+  const showOn = Array.isArray(a.showOn) ? a.showOn.filter(p => pages.indexOf(p) !== -1) : pages;
+  return {
+    id: String(a.id || ("ann-" + (i + 1))).trim().slice(0, 40),
+    enabled: a.enabled !== false,
+    showOn: showOn.length ? showOn : pages,
+    title: String(a.title || "").trim().slice(0, 70),
+    body: String(a.body || "").trim().slice(0, 600),
+    imageUrl: String(a.imageUrl || "").trim().slice(0, 2000),
+    buttonText: String(a.buttonText || "").trim().slice(0, 30)
+  };
+}
+
+function getAnnouncements() {
+  let saved = {};
+  try {
+    saved = JSON.parse(PropertiesService.getScriptProperties().getProperty(ANNOUNCEMENTS_KEY) || "{}");
+  } catch (e) {
+    saved = {};
+  }
+  const items = Array.isArray(saved.items) ? saved.items : [];
+  return {
+    enabled: saved.enabled !== false,
+    items: items.slice(0, MAX_ANNOUNCEMENTS).map(normalizeAnnouncement)
+  };
+}
+
+function saveAnnouncements(config) {
+  config = config || {};
+  const rawItems = Array.isArray(config.items) ? config.items : [];
+  if (rawItems.length > MAX_ANNOUNCEMENTS) {
+    return { success: false, error: "Too many pop-ups (max " + MAX_ANNOUNCEMENTS + ")" };
+  }
+  const clean = {
+    enabled: config.enabled !== false,
+    items: rawItems.map(normalizeAnnouncement)
+  };
+  PropertiesService.getScriptProperties().setProperty(ANNOUNCEMENTS_KEY, JSON.stringify(clean));
+  bumpVersion();
+  return { success: true, announcements: clean };
+}
+
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -1561,6 +1649,8 @@ function doPost(e) {
     if (action === "getHub")         return jsonResponse(getHubInfo());
     if (action === "saveReceiptLayout") return jsonResponse(saveReceiptLayout(data.layout));
     if (action === "saveOrderGuide") return jsonResponse(saveOrderGuide(data.mode, data.guide));
+    if (action === "savePickupConfig") return jsonResponse(savePickupConfig(data.config));
+    if (action === "saveAnnouncements") return jsonResponse(saveAnnouncements(data.config));
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });

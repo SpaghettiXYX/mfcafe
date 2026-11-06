@@ -990,6 +990,70 @@
         <p class="text-[11px] text-slate-400">Leave any field empty to fall back to the original wording. Changes appear on the portal within 15&nbsp;seconds.</p>
       </div>
 
+      <!-- ===== PICKUP TIME FILTER ===== -->
+      <div data-admin-section="pickup" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-clock text-amber-500 mr-2"></i>Pickup Times</h3>
+            <p class="text-xs text-slate-400">The self-order portals only offer slots inside these opening hours.</p>
+          </div>
+          <button onclick="savePickupConfigAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>Save
+          </button>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <input type="checkbox" id="pickupEnabled" onchange="updatePickupPreview()" class="w-4 h-4 accent-amber-500">
+          Restrict pickup times to opening hours
+        </label>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Opens</label>
+            <input type="time" id="pickupOpen" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Closes</label>
+            <input type="time" id="pickupClose" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Slot every (min)</label>
+            <input type="number" id="pickupInterval" min="5" max="120" step="5" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Minimum lead (min)</label>
+            <input type="number" id="pickupLead" min="0" max="180" step="5" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+        </div>
+        <p id="pickupPreview" class="text-[11px] text-slate-400"></p>
+      </div>
+
+      <!-- ===== PORTAL ENTRY POP-UPS ===== -->
+      <div data-admin-section="popups" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-window-restore text-amber-500 mr-2"></i>Portal Pop-ups</h3>
+            <p class="text-xs text-slate-400">Shown once every visit on the self-order portals, in list order.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="addAnnouncement()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[11px] px-3 py-2 rounded-xl transition">
+              <i class="fa-solid fa-plus mr-1"></i>Add
+            </button>
+            <button onclick="saveAnnouncementsAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i>Save
+            </button>
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <input type="checkbox" id="announcementsEnabled" class="w-4 h-4 accent-amber-500">
+          Enable entry pop-ups
+        </label>
+
+        <div id="announcementEditorList" class="space-y-3"></div>
+        <p class="text-[11px] text-slate-400">A pop-up with an image URL shows the picture; otherwise it shows the text. Leave both empty to use the title only.</p>
+      </div>
+
       <!-- ===== RECEIPT LAYOUT EDITOR ===== -->
       <div data-admin-section="layout" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -1349,7 +1413,9 @@
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       categoryColors: {},
       receiptLayout: null,    // editable block list, loaded from Apps Script
-      orderGuides: null       // editable tutorial copy per self-order portal
+      orderGuides: null,      // editable tutorial copy per self-order portal
+      pickupConfig: null,     // opening hours used to build pickup slots
+      announcements: null     // portal entry pop-ups
     };
 
     let html5QrcodeScanner = null;
@@ -2038,6 +2104,8 @@
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
           if (data.orderGuides && typeof data.orderGuides === "object") state.orderGuides = data.orderGuides;
+          if (data.pickupConfig) state.pickupConfig = data.pickupConfig;
+          if (data.announcements) state.announcements = data.announcements;
 
           // Show any active push message from the server
           handlePushMessage();
@@ -4131,6 +4199,166 @@
       }
     }
 
+    // ==================== PICKUP TIME CONFIG ====================
+    function renderPickupConfigEditor() {
+      const cfg = state.pickupConfig || { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10 };
+      const on = document.getElementById("pickupEnabled");
+      if (!on) return;
+      on.checked = cfg.enabled !== false;
+      document.getElementById("pickupOpen").value = cfg.open || "08:00";
+      document.getElementById("pickupClose").value = cfg.close || "18:00";
+      document.getElementById("pickupInterval").value = cfg.intervalMin || 15;
+      document.getElementById("pickupLead").value = cfg.leadMin != null ? cfg.leadMin : 10;
+      updatePickupPreview();
+    }
+
+    function readPickupConfigFromEditor() {
+      return {
+        enabled: document.getElementById("pickupEnabled").checked,
+        open: document.getElementById("pickupOpen").value || "08:00",
+        close: document.getElementById("pickupClose").value || "18:00",
+        intervalMin: Number(document.getElementById("pickupInterval").value) || 15,
+        leadMin: Number(document.getElementById("pickupLead").value) || 0
+      };
+    }
+
+    function updatePickupPreview() {
+      const cfg = readPickupConfigFromEditor();
+      const el = document.getElementById("pickupPreview");
+      if (!el) return;
+      if (!cfg.enabled) {
+        el.innerText = "Filter off — the portal accepts any pickup time.";
+        return;
+      }
+      const toMin = t => { const p = String(t).split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); };
+      const span = toMin(cfg.close) - toMin(cfg.open);
+      if (span <= 0) {
+        el.innerText = "Closing time must be after opening time.";
+        return;
+      }
+      const count = Math.floor(span / Math.max(5, cfg.intervalMin)) + 1;
+      el.innerText = `${count} slots between ${cfg.open} and ${cfg.close}, ${cfg.intervalMin}-min apart, earliest pickup now + ${cfg.leadMin} min.`;
+    }
+
+    async function savePickupConfigAdmin() {
+      const cfg = readPickupConfigFromEditor();
+      const res = await apiPost({ action: "savePickupConfig", config: cfg });
+      if (res && res.success) {
+        state.pickupConfig = res.pickupConfig || cfg;
+        renderPickupConfigEditor();
+        showToast("Pickup times saved", "success");
+      } else {
+        showToast((res && res.error) || "Could not save pickup times", "error");
+      }
+    }
+
+    // ==================== PORTAL POP-UPS ====================
+    // Edits live in this working copy until Save, so a background poll cannot
+    // wipe half-typed copy out from under the admin.
+    let adminAnnouncements = null;
+
+    function announcementsWorkingCopy() {
+      if (!adminAnnouncements) {
+        const src = (state.announcements && state.announcements.items) || [];
+        adminAnnouncements = {
+          enabled: !state.announcements || state.announcements.enabled !== false,
+          items: JSON.parse(JSON.stringify(src))
+        };
+      }
+      return adminAnnouncements;
+    }
+
+    function announcementCardHtml(item, idx) {
+      const checkedPage = p => (item.showOn || []).includes(p) ? "checked" : "";
+      return `
+        <div class="border border-slate-200 rounded-2xl p-3 space-y-2 bg-slate-50">
+          <div class="flex items-center justify-between gap-2">
+            <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+              <input type="checkbox" ${item.enabled !== false ? "checked" : ""} onchange="updateAnnouncement(${idx}, 'enabled', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
+              Enabled
+            </label>
+            <button type="button" onclick="removeAnnouncement(${idx})" class="text-[10px] font-bold text-rose-500 hover:text-rose-700 px-2 py-1 rounded-lg bg-white border border-rose-100">
+              <i class="fa-solid fa-trash mr-1"></i>Remove
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-3 text-[11px] font-bold text-slate-600">
+            <label class="flex items-center gap-1.5">
+              <input type="checkbox" ${checkedPage("customer")} onchange="updateAnnouncementPage(${idx}, 'customer', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
+              Teacher / Pre-Order
+            </label>
+            <label class="flex items-center gap-1.5">
+              <input type="checkbox" ${checkedPage("openday")} onchange="updateAnnouncementPage(${idx}, 'openday', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
+              Open Day
+            </label>
+          </div>
+          <input value="${escapeHtml(item.title || "")}" maxlength="70" placeholder="Heading (optional)" oninput="updateAnnouncement(${idx}, 'title', this.value)"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          <textarea rows="3" maxlength="600" placeholder="Message text" oninput="updateAnnouncement(${idx}, 'body', this.value)"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 resize-y">${escapeHtml(item.body || "")}</textarea>
+          <input value="${escapeHtml(item.imageUrl || "")}" maxlength="2000" placeholder="Image URL (optional, shows the image instead of text)" oninput="updateAnnouncement(${idx}, 'imageUrl', this.value)"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-medium text-slate-600">
+          <input value="${escapeHtml(item.buttonText || "")}" maxlength="30" placeholder="Button text (default: Got it)" oninput="updateAnnouncement(${idx}, 'buttonText', this.value)"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>`;
+    }
+
+    function renderAnnouncementsEditor() {
+      const list = document.getElementById("announcementEditorList");
+      const master = document.getElementById("announcementsEnabled");
+      if (!list || !master) return;
+      const work = announcementsWorkingCopy();
+      master.checked = work.enabled !== false;
+      if (!work.items.length) {
+        list.innerHTML = `<p class="text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-2xl p-4 text-center">No pop-ups yet. Press <b>Add</b> to create one.</p>`;
+        return;
+      }
+      list.innerHTML = work.items.map(announcementCardHtml).join("");
+    }
+
+    function updateAnnouncement(idx, field, value) {
+      const work = announcementsWorkingCopy();
+      if (!work.items[idx]) return;
+      work.items[idx][field] = value;
+    }
+
+    function updateAnnouncementPage(idx, page, checked) {
+      const work = announcementsWorkingCopy();
+      const item = work.items[idx];
+      if (!item) return;
+      const pages = (item.showOn || []).filter(p => p !== page);
+      if (checked) pages.push(page);
+      item.showOn = pages.length ? pages : ["customer", "openday"];
+    }
+
+    function addAnnouncement() {
+      const work = announcementsWorkingCopy();
+      if (work.items.length >= 12) {
+        showToast("Up to 12 pop-ups", "error");
+        return;
+      }
+      work.items.push({ id: "ann-" + Date.now(), enabled: true, showOn: ["customer", "openday"], title: "", body: "", imageUrl: "", buttonText: "" });
+      renderAnnouncementsEditor();
+    }
+
+    function removeAnnouncement(idx) {
+      announcementsWorkingCopy().items.splice(idx, 1);
+      renderAnnouncementsEditor();
+    }
+
+    async function saveAnnouncementsAdmin() {
+      const work = announcementsWorkingCopy();
+      work.enabled = document.getElementById("announcementsEnabled").checked;
+      const res = await apiPost({ action: "saveAnnouncements", config: work });
+      if (res && res.success) {
+        state.announcements = res.announcements || work;
+        adminAnnouncements = null;
+        renderAnnouncementsEditor();
+        showToast("Pop-ups saved", "success");
+      } else {
+        showToast((res && res.error) || "Could not save pop-ups", "error");
+      }
+    }
+
     // ==================== ADMIN SIDEBAR NAV ====================
     // Categorises all existing admin sections under a left-hand side nav.
     // Clicking a link hides every section that doesn't match data-admin-section=<key>.
@@ -4144,6 +4372,8 @@
       { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
       { key: "printer",      label: "Printer Control",    icon: "fa-print" },
       { key: "guide",        label: "Order Guide",        icon: "fa-book-open" },
+      { key: "pickup",       label: "Pickup Times",       icon: "fa-clock" },
+      { key: "popups",       label: "Portal Pop-ups",     icon: "fa-window-restore" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
     ];
@@ -4180,6 +4410,8 @@
       });
       if (key === "layout") renderLayoutEditor();
       if (key === "guide") renderGuideEditor();
+      if (key === "pickup") renderPickupConfigEditor();
+      if (key === "popups") renderAnnouncementsEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================
