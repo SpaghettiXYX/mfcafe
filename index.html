@@ -1892,6 +1892,7 @@
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
             const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
             state.orders = data.orders;
+            reconcileAssignedOrderMap(data.orders);
             if (newReady > oldReady) triggerChime();
           }
           renderAll();
@@ -2563,7 +2564,25 @@
 
       const activeOrders = state.orders
         .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
-        .sort((a, b) => String(a.orderTime).localeCompare(String(b.orderTime)));
+        .sort((a, b) => {
+          const sa = (a.status || "").toUpperCase();
+          const sb = (b.status || "").toUpperCase();
+          // Assigned orders always float to the top of the KDS.
+          const rankA = sa === "ASSIGNED" ? 0 : 1;
+          const rankB = sb === "ASSIGNED" ? 0 : 1;
+          if (rankA !== rankB) return rankA - rankB;
+          // Inside the assigned group: first ticked = position 1, second = 2…
+          if (rankA === 0) {
+            const ta = assignedAtOf(a.orderNum);
+            const tb = assignedAtOf(b.orderNum);
+            const na = ta == null ? Infinity : ta;
+            const nb = tb == null ? Infinity : tb;
+            if (na !== nb) return na - nb;
+          }
+          // Pending / reserved keep their arrival order.
+          const byTime = String(a.orderTime).localeCompare(String(b.orderTime));
+          return byTime || (Number(a.orderNum) || 0) - (Number(b.orderNum) || 0);
+        });
 
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
@@ -2673,6 +2692,53 @@
       grid.innerHTML = html;
     }
 
+    // ===== ASSIGNMENT ORDER =====
+    // Records the order in which the head chef ticked "Assigned". First ticked
+    // floats to the very top, second to position 2, and so on. Persisted locally
+    // so a page reload does not reshuffle the in-progress queue.
+    const ASSIGNED_ORDER_KEY = "mfcafe_assigned_order";
+    function loadAssignedOrderMap() {
+      try { return JSON.parse(localStorage.getItem(ASSIGNED_ORDER_KEY) || "{}") || {}; }
+      catch (e) { return {}; }
+    }
+    function saveAssignedOrderMap(map) {
+      try { localStorage.setItem(ASSIGNED_ORDER_KEY, JSON.stringify(map)); } catch (e) {}
+    }
+    function assignedAtOf(orderNum) {
+      return loadAssignedOrderMap()[String(orderNum)];
+    }
+    function recordAssigned(orderNum) {
+      const m = loadAssignedOrderMap();
+      m[String(orderNum)] = Date.now();
+      saveAssignedOrderMap(m);
+    }
+    function clearAssigned(orderNum) {
+      const m = loadAssignedOrderMap();
+      if (m[String(orderNum)] !== undefined) {
+        delete m[String(orderNum)];
+        saveAssignedOrderMap(m);
+      }
+    }
+    // Drop records for orders no longer ASSIGNED, and backfill ASSIGNED orders
+    // that have no local record (e.g. assigned on another device) so they sink
+    // to the bottom of the assigned group instead of mixing in.
+    function reconcileAssignedOrderMap(orders) {
+      const m = loadAssignedOrderMap();
+      const assignedNums = new Set();
+      let changed = false;
+      (orders || []).forEach(o => {
+        const num = String(o.orderNum);
+        if ((o.status || "").toUpperCase() === "ASSIGNED") {
+          assignedNums.add(num);
+          if (m[num] === undefined) { m[num] = Date.now(); changed = true; }
+        }
+      });
+      Object.keys(m).forEach(k => {
+        if (!assignedNums.has(k)) { delete m[k]; changed = true; }
+      });
+      if (changed) saveAssignedOrderMap(m);
+    }
+
     function assignOrder(orderNum, isChecked) {
       const targetNum = String(orderNum).trim().replace("#", "");
       const o = state.orders.find(item => String(item.orderNum).trim() === targetNum);
@@ -2680,6 +2746,7 @@
 
       const prevStatus = o.status;
       o.status = isChecked ? "ASSIGNED" : "PENDING";
+      if (isChecked) recordAssigned(targetNum); else clearAssigned(targetNum);
       renderAll();
 
       fetch(APPS_SCRIPT_URL, {
@@ -2694,6 +2761,7 @@
       .then(res => {
         if (!res.success) {
           o.status = prevStatus;
+          if (isChecked) clearAssigned(targetNum); else recordAssigned(targetNum);
           renderAll();
           showToast(res.error || "Failed to update assignment", "error");
         } else {
@@ -2703,6 +2771,7 @@
       })
       .catch(() => {
         o.status = prevStatus;
+        if (isChecked) clearAssigned(targetNum); else recordAssigned(targetNum);
         renderAll();
         showToast("Network error — reverted", "error");
       });
@@ -2713,6 +2782,7 @@
       if (o) {
         const prevStatus = o.status;
         o.status = "READY";
+        clearAssigned(orderNum);
         renderAll();
         triggerChime();
         fetch(APPS_SCRIPT_URL, {
