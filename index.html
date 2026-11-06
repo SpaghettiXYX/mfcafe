@@ -394,6 +394,14 @@
         </div>
         <div id="googleBtn" class="flex justify-center"></div>
       </div>
+
+      <div class="pt-4 border-t border-slate-100 text-left">
+        <label class="block text-xs font-bold text-slate-500 mb-1">Staff card</label>
+        <input type="text" id="loginCardCode" placeholder="Scan your staff card..."
+          onkeydown="if(event.key==='Enter'){event.preventDefault();scanStaffCardLogin();}"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800">
+        <p class="text-[10px] text-slate-400 mt-1">Scanning signs you straight in as the account bound to the card.</p>
+      </div>
     </div>
   </div>
 
@@ -584,6 +592,18 @@
             </div>
           </div>
 
+          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <i class="fa-solid fa-tag text-amber-500 text-xs"></i>
+              <span class="text-[11px] font-bold text-slate-500">Staff discount</span>
+              <span id="posDiscountBadge" class="hidden text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"></span>
+            </div>
+            <div class="flex items-center gap-3 flex-shrink-0">
+              <button onclick="clearPosDiscount()" id="posDiscountClear" class="hidden text-[10px] font-bold text-slate-400 hover:text-rose-500">Clear</button>
+              <button onclick="openDiscountModal()" class="text-[11px] font-black text-amber-600 hover:text-amber-500">Apply</button>
+            </div>
+          </div>
+
           <button onclick="submitPosOrder()" id="btnSubmitPos" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-circle-check"></i>
             <span id="posSubmitBtnText">Confirm & Submit ($0.00)</span>
@@ -592,6 +612,62 @@
 
       </div>
     </section>
+
+    <!-- DISCOUNT MODAL (staff card authorisation) -->
+    <div id="discountModal" class="hidden fixed inset-0 bg-slate-900/85 backdrop-blur-md z-[80] flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-tag text-amber-500 mr-2"></i>Staff Discount</h3>
+            <p id="discountItemName" class="text-[11px] font-bold text-slate-400 mt-0.5"></p>
+          </div>
+          <button onclick="closeDiscountModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="selectDiscountPct(100)" data-pct="100" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">Free</button>
+          <button onclick="selectDiscountPct(10)" data-pct="10" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">10%</button>
+          <button onclick="selectDiscountPct(20)" data-pct="20" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">20%</button>
+          <button onclick="selectDiscountPct(50)" data-pct="50" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">50%</button>
+        </div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Custom %</label>
+          <input type="number" id="discountCustomPct" min="0" max="100" step="1" placeholder="0"
+            oninput="selectDiscountPct(Math.max(0, Math.min(100, Number(this.value) || 0)))"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400">Scan staff card to authorise</label>
+          <input type="text" id="discountCardInput" placeholder="Scan card barcode..."
+            onkeydown="if(event.key==='Enter'){event.preventDefault();confirmDiscount();}"
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
+          <p id="discountError" class="hidden text-[11px] font-bold text-rose-500"></p>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold text-slate-400">New total</p>
+            <p id="discountPreview" class="text-xl font-black text-slate-900">$0.00</p>
+          </div>
+          <button onclick="confirmDiscount()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
+            Authorise & Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAFF CARD ACCOUNT CHOOSER -->
+    <div id="cardAccountModal" class="hidden fixed inset-0 bg-slate-900/85 backdrop-blur-md z-[90] flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+        <div>
+          <h3 class="font-black text-slate-800 text-lg">Choose account</h3>
+          <p class="text-[11px] font-bold text-slate-400">This card is linked to more than one account.</p>
+        </div>
+        <div id="cardAccountList" class="space-y-2"></div>
+        <button onclick="closeCardAccountChooser()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 rounded-xl">Cancel</button>
+      </div>
+    </div>
 
     <!-- VIEW 2: BAR KDS SCREEN -->
     <section id="view-kds" class="space-y-6">
@@ -687,19 +763,25 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <h3 class="pickup-col-title font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
-            <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
-          </h3>
-          <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+            <h3 class="pickup-col-title font-black text-slate-500 text-base uppercase tracking-wider">
+              <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
+            </h3>
+            <span id="pickupPrepCount" class="text-[11px] font-black text-slate-400">0</span>
+          </div>
+          <div id="pickupPreparingList" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 text-center overflow-y-auto max-h-[58vh] pr-1"></div>
         </div>
 
-        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
-          <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
-            <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
-          </h3>
-          <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
+        <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-200 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between border-b border-emerald-200 pb-2 mb-3">
+            <h3 class="pickup-col-title font-black text-emerald-700 text-base uppercase tracking-wider">
+              <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
+            </h3>
+            <span id="pickupReadyCount" class="text-[11px] font-black text-emerald-600">0</span>
+          </div>
+          <div id="pickupReadyList" class="grid grid-cols-2 lg:grid-cols-3 gap-2.5 text-center overflow-y-auto max-h-[58vh] pr-1"></div>
         </div>
       </div>
     </section>
@@ -1150,6 +1232,38 @@
         <p class="text-[11px] text-slate-400">Badge names follow the queue: 0 orders, 1–2, 3–5 and 6+ per drink category. The last label appears when nothing is being made and a ticket is waiting.</p>
       </div>
 
+      <!-- ===== STAFF CARDS ===== -->
+      <div data-admin-section="staffcards" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-id-card text-amber-500 mr-2"></i>Staff Cards</h3>
+          <p class="text-xs text-slate-400">One card can open several accounts. Scanning it at login asks which account to enter.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Card barcode</label>
+            <input type="text" id="staffCardCode" placeholder="Scan or type the card code"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();saveStaffCardBinding();}"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div class="flex items-end">
+            <button onclick="saveStaffCardBinding()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2.5 rounded-xl shadow-sm transition">
+              <i class="fa-solid fa-link mr-1"></i>Bind selected accounts
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Accounts on this card</label>
+          <div id="staffCardUserList" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-44 overflow-y-auto border border-slate-200 rounded-2xl p-3 bg-slate-50"></div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Existing bindings</label>
+          <div id="staffCardBindings" class="space-y-2"></div>
+        </div>
+      </div>
+
       <!-- ===== RECEIPT LAYOUT EDITOR ===== -->
       <div data-admin-section="layout" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -1526,7 +1640,9 @@
       orderGuides: null,      // editable tutorial copy per self-order portal
       pickupConfig: null,     // opening hours used to build pickup slots
       announcements: null,    // portal entry pop-ups
-      kdsStatus: null         // Admin-editable status strip labels
+      kdsStatus: null,        // Admin-editable status strip labels
+      posDiscount: null,      // { pct, by } applied to the drink being rung up
+      staffCards: null        // { cardCode: [username, ...] }
     };
 
     let html5QrcodeScanner = null;
@@ -1962,6 +2078,174 @@
       fetchFromSheet({ boot: true });
     }
 
+    // ============ STAFF CARDS ============
+    function staffCardMap() {
+      const m = state.staffCards;
+      return (m && typeof m === "object") ? m : {};
+    }
+
+    function resolveCardAccounts(code) {
+      const key = String(code || "").trim();
+      if (!key) return [];
+      const names = staffCardMap()[key];
+      if (!Array.isArray(names)) return [];
+      return names
+        .map(n => (state.users || []).find(u => String(u.username || "").toLowerCase() === String(n).toLowerCase()))
+        .filter(Boolean);
+    }
+
+    async function lookupCardAccounts(code) {
+      if (!code) return [];
+      // Before login the Users sheet has not been loaded into state yet, so
+      // ask the backend to resolve the card on the spot.
+      if ((state.users || []).length) return resolveCardAccounts(code);
+      try {
+        const res = await apiPost({ action: "getCardAccounts", card: code });
+        return (res && Array.isArray(res.accounts)) ? res.accounts : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function loginAsAccount(user) {
+      if (!user) return;
+      completeLogin({ username: user.username, role: user.role || "Staff", canPrint: !!user.canPrint });
+    }
+
+    function showCardAccountChooser(accounts) {
+      const list = document.getElementById("cardAccountList");
+      const modal = document.getElementById("cardAccountModal");
+      if (!list || !modal) return;
+      window.__cardAccounts = accounts;
+      list.innerHTML = accounts.map((u, i) => `
+        <button onclick="pickCardAccount(${i})" class="w-full flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 transition">
+          <span class="text-sm font-black text-slate-800">${escapeHtml(u.username)}</span>
+          <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">${escapeHtml(u.role || "Staff")}</span>
+        </button>`).join("");
+      modal.classList.remove("hidden");
+    }
+
+    function pickCardAccount(index) {
+      const accounts = window.__cardAccounts || [];
+      const user = accounts[index];
+      if (!user) return;
+      closeCardAccountChooser();
+      loginAsAccount(user);
+    }
+
+    function closeCardAccountChooser() {
+      document.getElementById("cardAccountModal")?.classList.add("hidden");
+    }
+
+    async function scanStaffCardLogin() {
+      const input = document.getElementById("loginCardCode");
+      const errEl = document.getElementById("loginError");
+      const code = input ? input.value.trim() : "";
+      if (!code) return;
+      if (input) input.value = "";
+      const accounts = await lookupCardAccounts(code);
+      if (accounts.length === 0) {
+        if (errEl) {
+          errEl.innerText = `Card ${code} is not linked to any account. Ask an Admin to bind it.`;
+          errEl.classList.remove("hidden");
+        }
+        return;
+      }
+      if (errEl) errEl.classList.add("hidden");
+      if (accounts.length === 1) { loginAsAccount(accounts[0]); return; }
+      showCardAccountChooser(accounts);
+    }
+
+    // ============ POS DISCOUNT ============
+    let discountDraftPct = 0;
+
+    function posBasePrice() {
+      return state.selectedPosItem ? getPosItemPrice(state.selectedPosItem, state.selectedPosTemp) : 0;
+    }
+
+    function posDiscountPrice() {
+      const base = posBasePrice();
+      const pct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
+      return Math.max(0, Math.round(base * (100 - pct)) / 100);
+    }
+
+    function updatePosTotal() {
+      const txt = document.getElementById("posSubmitBtnText");
+      const badge = document.getElementById("posDiscountBadge");
+      const clearBtn = document.getElementById("posDiscountClear");
+      const pct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
+      if (txt) txt.innerText = `Confirm & Submit (${fmtPrice(posDiscountPrice())})`;
+      if (!badge || !clearBtn) return;
+      if (pct > 0) {
+        badge.innerText = `${pct === 100 ? "FREE" : "-" + pct + "%"} · ${state.posDiscount.by}`;
+        badge.classList.remove("hidden");
+        clearBtn.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+        clearBtn.classList.add("hidden");
+      }
+    }
+
+    function highlightDiscountPct() {
+      document.querySelectorAll(".discount-pct-btn").forEach(btn => {
+        const on = Number(btn.dataset.pct) === discountDraftPct;
+        btn.classList.toggle("bg-amber-100", on);
+        btn.classList.toggle("border-amber-300", on);
+        btn.classList.toggle("text-amber-800", on);
+        btn.classList.toggle("bg-slate-50", !on);
+      });
+    }
+
+    function openDiscountModal() {
+      if (!state.selectedPosItem) return showToast("Select a drink first.", "warning");
+      discountDraftPct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
+      const nameEl = document.getElementById("discountItemName");
+      if (nameEl) nameEl.innerText = `${state.selectedPosItem.name} (${state.selectedPosTemp || ""}) · ${fmtPrice(posBasePrice())}`;
+      const custom = document.getElementById("discountCustomPct");
+      if (custom) custom.value = discountDraftPct || "";
+      const card = document.getElementById("discountCardInput");
+      if (card) card.value = "";
+      document.getElementById("discountError")?.classList.add("hidden");
+      selectDiscountPct(discountDraftPct);
+      document.getElementById("discountModal")?.classList.remove("hidden");
+      setTimeout(() => document.getElementById("discountCardInput")?.focus(), 200);
+    }
+
+    function closeDiscountModal() {
+      document.getElementById("discountModal")?.classList.add("hidden");
+    }
+
+    function selectDiscountPct(pct) {
+      discountDraftPct = Math.max(0, Math.min(100, Number(pct) || 0));
+      const custom = document.getElementById("discountCustomPct");
+      if (custom && String(custom.value) !== String(discountDraftPct)) custom.value = discountDraftPct || "";
+      const eff = Math.max(0, Math.round(posBasePrice() * (100 - discountDraftPct)) / 100);
+      const preview = document.getElementById("discountPreview");
+      if (preview) preview.innerText = fmtPrice(eff);
+      highlightDiscountPct();
+    }
+
+    async function confirmDiscount() {
+      const errEl = document.getElementById("discountError");
+      const showErr = msg => { if (errEl) { errEl.innerText = msg; errEl.classList.remove("hidden"); } };
+      if (discountDraftPct <= 0) return showErr("Choose a discount percentage first.");
+      const cardInput = document.getElementById("discountCardInput");
+      const code = cardInput ? cardInput.value.trim() : "";
+      if (!code) return showErr("Scan a staff card to authorise this discount.");
+      const accounts = await lookupCardAccounts(code);
+      if (accounts.length === 0) return showErr(`Card ${code} is not linked to a staff account.`);
+      state.posDiscount = { pct: discountDraftPct, by: accounts[0].username };
+      if (cardInput) cardInput.value = "";
+      closeDiscountModal();
+      updatePosTotal();
+      showToast(`Discount applied by ${accounts[0].username}`, "success");
+    }
+
+    function clearPosDiscount() {
+      state.posDiscount = null;
+      updatePosTotal();
+    }
+
     function attemptLogin() {
       const u = document.getElementById("loginUsername").value.trim();
       const p = document.getElementById("loginPassword").value.trim();
@@ -2239,6 +2523,7 @@
           if (data.pickupConfig) state.pickupConfig = data.pickupConfig;
           if (data.announcements) state.announcements = data.announcements;
           if (data.kdsStatus) state.kdsStatus = data.kdsStatus;
+          if (data.staffCards) state.staffCards = data.staffCards;
 
           // Show any active push message from the server
           handlePushMessage();
@@ -2384,7 +2669,7 @@
 
       if (nameEl) nameEl.innerText = item.name;
       if (priceEl) priceEl.innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
-      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
+      updatePosTotal();
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -2426,7 +2711,7 @@
       if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (state.selectedPosItem) {
         document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
-        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
+        updatePosTotal();
       }
     }
 
@@ -2535,6 +2820,8 @@
         temp: state.selectedPosTemp,
         customization: notes,
         price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
+        discountPct: state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0,
+        discountBy: state.posDiscount ? state.posDiscount.by : "",
         status: "PENDING",
         qrTile: qrTile,
         cupType: cupType
@@ -2561,7 +2848,8 @@
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
           clearPosTileError();
-          document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
+          state.posDiscount = null;
+          updatePosTotal();
           
           fetchFromSheet();
 
@@ -3344,24 +3632,20 @@
       const tile = String(order.qrTile || "").trim();
       const num = String(order.orderNum || "").trim();
       const primary = tile || `#${num}`;
-      const secondary = tile && num ? `Order #${escapeHtml(num)}` : "";
       const isUnpaid = String(order.paymentStatus || "").trim().toUpperCase() === "UNPAID";
-      const showUnpaidBadge = isReady && isUnpaid;
-      const unpaidBadge = showUnpaidBadge
-        ? `<div class="absolute -top-2 -right-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm z-10">UNPAID</div>`
+      const unpaidBadge = (isReady && isUnpaid)
+        ? `<div class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm z-10">UNPAID</div>`
         : "";
-      let cls = "relative ";
-      if (isReady) {
-        cls += showUnpaidBadge
-          ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md border-4 border-rose-500"
-          : "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md";
-      } else {
-        cls += "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
-      }
+      // McDonald's logic: the number is the only thing that matters. Ready
+      // numbers dominate, preparing numbers stay quiet so the eye lands on
+      // "your drink is up" first.
+      const cls = isReady
+        ? "relative bg-emerald-600 text-white rounded-2xl font-black px-2 py-4 shadow-md"
+        : "relative bg-white rounded-2xl font-black px-2 py-3 text-slate-500 border border-slate-200";
+      const size = isReady ? "text-5xl md:text-6xl" : "text-3xl md:text-4xl";
       return `<div class="${cls}">
         ${unpaidBadge}
-        <div class="pickup-number leading-none">${escapeHtml(primary)}</div>
-        ${secondary ? `<div class="pickup-sub text-[11px] font-bold opacity-70 mt-1">${secondary}</div>` : ""}
+        <div class="pickup-number leading-none ${size}">${escapeHtml(primary)}</div>
       </div>`;
     }
 
@@ -3370,21 +3654,35 @@
       const readyList = document.getElementById('pickupReadyList');
       if (!prepList || !readyList) return;
 
-      let prepHtml = "";
-      state.orders
+      const ts = o => {
+        const t = Date.parse(o.orderTime);
+        return Number.isFinite(t) ? t : 0;
+      };
+
+      const preparing = state.orders
         .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
         // Keep future pre-orders off the public display until their lead window.
         .filter(kdsOrderVisible)
-        .forEach(o => {
-          prepHtml += pickupNumberCard(o, false);
-        });
-      prepList.innerHTML = prepHtml;
+        .sort((a, b) => ts(a) - ts(b));
 
-      let readyHtml = "";
-      state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
-        readyHtml += pickupNumberCard(o, true);
-      });
-      readyList.innerHTML = readyHtml;
+      const ready = state.orders
+        .filter(o => (o.status || "").toUpperCase() === "READY")
+        .sort((a, b) => ts(a) - ts(b));
+
+      prepList.innerHTML = preparing.length
+        ? preparing.map(o => pickupNumberCard(o, false)).join("")
+        : `<p class="col-span-full text-slate-400 text-sm font-medium py-6">Nothing in the queue.</p>`;
+      readyList.innerHTML = ready.length
+        ? ready.map(o => pickupNumberCard(o, true)).join("")
+        : `<p class="col-span-full text-emerald-700/60 text-sm font-medium py-6">Waiting for the next order.</p>`;
+
+      const prepCount = document.getElementById('pickupPrepCount');
+      const readyCount = document.getElementById('pickupReadyCount');
+      if (prepCount) prepCount.innerText = preparing.length;
+      if (readyCount) readyCount.innerText = ready.length;
+
+      // Oldest ticket first, no auto-scrolling: the person who has waited
+      // longest stays on screen, and the grid never jumps under the reader.
     }
 
     function renderHelper() {
@@ -4701,6 +4999,71 @@
       }
     }
 
+    function renderStaffCardsEditor() {
+      const list = document.getElementById("staffCardUserList");
+      if (list) {
+        const users = state.users || [];
+        list.innerHTML = users.length
+          ? users.map(u => `
+            <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+              <input type="checkbox" class="staff-card-user w-4 h-4 accent-amber-500" value="${escapeHtml(u.username)}">
+              <span class="truncate">${escapeHtml(u.username)} <span class="text-slate-400">(${escapeHtml(u.role || "Staff")})</span></span>
+            </label>`).join("")
+          : `<p class="text-[11px] text-slate-400 col-span-full">No accounts loaded.</p>`;
+      }
+      renderStaffCardBindings();
+    }
+
+    function renderStaffCardBindings() {
+      const wrap = document.getElementById("staffCardBindings");
+      if (!wrap) return;
+      const map = staffCardMap();
+      const codes = Object.keys(map);
+      wrap.innerHTML = codes.length
+        ? codes.map(code => `
+          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 gap-2">
+            <div class="min-w-0">
+              <p class="text-[11px] font-black text-slate-800 truncate">${escapeHtml(code)}</p>
+              <p class="text-[10px] font-bold text-slate-400 truncate">${escapeHtml((map[code] || []).join(", "))}</p>
+            </div>
+            <button onclick="removeStaffCard('${encodeURIComponent(code).replace(/'/g, "%27")}')" class="text-[10px] font-bold text-slate-400 hover:text-rose-500 flex-shrink-0">Remove</button>
+          </div>`).join("")
+        : `<p class="text-[11px] text-slate-400">No cards bound yet.</p>`;
+    }
+
+    async function postStaffCards(map, okTitle) {
+      const res = await apiPost({ action: "saveStaffCards", cards: map });
+      if (res && res.success) {
+        state.staffCards = res.staffCards || map;
+        renderStaffCardsEditor();
+        showSaveResultModal(true, okTitle, "Staff card logins and discount authorisations use this list immediately.");
+      } else if (!res) {
+        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
+      } else {
+        showSaveResultModal(false, "Could not save", (res && res.error) || "The server rejected the card list.");
+      }
+    }
+
+    async function saveStaffCardBinding() {
+      const codeEl = document.getElementById("staffCardCode");
+      const code = codeEl ? codeEl.value.trim() : "";
+      const picked = Array.from(document.querySelectorAll(".staff-card-user:checked")).map(cb => cb.value);
+      if (!code) return showToast("Scan or type a card code first.", "warning");
+      if (!picked.length) return showToast("Tick at least one account for this card.", "warning");
+      const map = Object.assign({}, staffCardMap());
+      map[code] = picked;
+      await postStaffCards(map, "Card bound");
+      if (codeEl) codeEl.value = "";
+      document.querySelectorAll(".staff-card-user:checked").forEach(cb => { cb.checked = false; });
+    }
+
+    async function removeStaffCard(encodedCode) {
+      const code = decodeURIComponent(encodedCode);
+      const map = Object.assign({}, staffCardMap());
+      delete map[code];
+      await postStaffCards(map, "Card unbound");
+    }
+
     async function savePickupConfigAdmin() {
       const cfg = readPickupConfigFromEditor();
       const res = await apiPost({ action: "savePickupConfig", config: cfg });
@@ -4839,6 +5202,7 @@
       { key: "guide",        label: "Order Guide",        icon: "fa-book-open" },
       { key: "pickup",       label: "Pickup Times",       icon: "fa-clock" },
       { key: "kdsstatus",    label: "KDS Status",          icon: "fa-signal" },
+      { key: "staffcards",   label: "Staff Cards",         icon: "fa-id-card" },
       { key: "popups",       label: "Portal Pop-ups",     icon: "fa-window-restore" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
@@ -4879,6 +5243,7 @@
       if (key === "pickup") renderPickupConfigEditor();
       if (key === "popups") renderAnnouncementsEditor();
       if (key === "kdsstatus") renderKdsStatusEditor();
+      if (key === "staffcards") renderStaffCardsEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================

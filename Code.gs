@@ -147,10 +147,11 @@ function ensureOrdersSheet(ss) {
       "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
       "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus",
       "CupType",  // "In-Store" or "Takeaway"
-      "PaidTime"  // when payment cleared — KDS count-up starts here
+      "PaidTime", // when payment cleared — KDS count-up starts here
+      "DiscountPct", "DiscountAmount", "DiscountBy"
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 14).getValues()[0];
+    const headers = sheet.getRange(1, 1, 1, 17).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -181,6 +182,10 @@ function ensureOrdersSheet(ss) {
           sheet.getRange(i + 1, 14).setValue(orderTime instanceof Date ? orderTime.toISOString() : String(orderTime));
         }
       }
+    }
+    // Discount columns (15–17) — added when staff discounts shipped.
+    if (!headers[14] || String(headers[14]).trim() === "") {
+      sheet.getRange(1, 15, 1, 3).setValues([["DiscountPct", "DiscountAmount", "DiscountBy"]]);
     }
   }
   return sheet;
@@ -575,7 +580,10 @@ function getInitialData() {
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
         cupType: String(row[12] || "In-Store").trim() || "In-Store",
-        paidTime: row[13] ? String(row[13]) : ""
+        paidTime: row[13] ? String(row[13]) : "",
+        discountPct: Number(row[14]) || 0,
+        discountAmount: Number(row[15]) || 0,
+        discountBy: String(row[16] || "").trim()
       });
     }
   }
@@ -612,7 +620,8 @@ function getInitialData() {
     orderGuides: getOrderGuides(),
     pickupConfig: getPickupConfig(),
     announcements: getAnnouncements(),
-    kdsStatus: getKdsStatusConfig()
+    kdsStatus: getKdsStatusConfig(),
+    staffCards: getStaffCards()
   };
 }
 
@@ -646,7 +655,10 @@ function getOrderHistory(limit) {
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
         cupType: String(row[12] || "In-Store").trim() || "In-Store",
-        paidTime: row[13] ? String(row[13]) : ""
+        paidTime: row[13] ? String(row[13]) : "",
+        discountPct: Number(row[14]) || 0,
+        discountAmount: Number(row[15]) || 0,
+        discountBy: String(row[16] || "").trim()
       });
       if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
     }
@@ -741,6 +753,17 @@ function createOrderLocked(order) {
     }
     cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
 
+    // Staff discount: Price always stores what the guest actually pays, so
+    // every existing revenue/KDS calculation keeps working unchanged.
+    const originalPrice = Number(order.price) || 0;
+    let discountPct = Number(order.discountPct) || 0;
+    if (!isFinite(discountPct) || discountPct < 0) discountPct = 0;
+    if (discountPct > 100) discountPct = 100;
+    discountPct = Math.round(discountPct * 100) / 100;
+    const discountAmount = discountPct > 0 ? Math.round(originalPrice * discountPct) / 100 : 0;
+    const finalPrice = Math.max(0, Math.round((originalPrice - discountAmount) * 100) / 100);
+    const discountBy = String(order.discountBy || "").trim().slice(0, 40);
+
     const createdOrder = {
       orderNum: assignedOrderNum,
       orderTime: orderTime,
@@ -750,19 +773,23 @@ function createOrderLocked(order) {
       productName: order.productName,
       temp: order.temp,
       customization: rawNote.replace(/^'/, ""),
-      price: Number(order.price) || 0,
+      price: finalPrice,
       status: status,
       qrTile: qrTile,
       paymentStatus: paymentStatus,
       cupType: cupType,
-      paidTime: paymentStatus === "PAID" ? orderTime : ""
+      paidTime: paymentStatus === "PAID" ? orderTime : "",
+      discountPct: discountPct,
+      discountAmount: discountAmount,
+      discountBy: discountPct > 0 ? discountBy : ""
     };
 
     sheet.appendRow([
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus, cupType, createdOrder.paidTime
+      createdOrder.paymentStatus, cupType, createdOrder.paidTime,
+      createdOrder.discountPct, createdOrder.discountAmount, createdOrder.discountBy
     ]);
 
     // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -1471,6 +1498,71 @@ function saveKdsStatusConfig(config) {
   return { success: true, kdsStatus: clean };
 }
 
+// ==================== STAFF CARDS ====================
+// One physical card may open several accounts, so the map is
+// { cardCode: [username, ...] } and the portal asks which account to enter.
+const STAFF_CARD_KEY = "STAFF_CARD_MAP";
+
+function normalizeStaffCards(raw) {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const out = {};
+  let kept = 0;
+  Object.keys(src).forEach(code => {
+    if (kept >= 60) return;
+    const key = String(code).trim().slice(0, 40);
+    if (!key) return;
+    const list = Array.isArray(src[code]) ? src[code] : [];
+    const accounts = list.map(x => String(x).trim()).filter(Boolean).slice(0, 12);
+    const unique = accounts.filter((x, i) => accounts.indexOf(x) === i);
+    if (unique.length) {
+      out[key] = unique;
+      kept++;
+    }
+  });
+  return out;
+}
+
+function getStaffCards() {
+  const raw = PropertiesService.getScriptProperties().getProperty(STAFF_CARD_KEY);
+  if (!raw) return {};
+  try {
+    return normalizeStaffCards(JSON.parse(raw));
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveStaffCards(config) {
+  const clean = normalizeStaffCards(config);
+  PropertiesService.getScriptProperties().setProperty(STAFF_CARD_KEY, JSON.stringify(clean));
+  bumpVersion();
+  return { success: true, staffCards: clean };
+}
+
+// Resolve a scanned card before the client has loaded the Users sheet
+// (the login screen appears before initial data is fetched).
+function getCardAccounts(cardCode) {
+  const code = String(cardCode || "").trim();
+  if (!code) return [];
+  const map = getStaffCards();
+  const names = Array.isArray(map[code]) ? map[code] : [];
+  if (!names.length) return [];
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
+  const rows = sheet ? sheet.getDataRange().getValues() : [];
+  const out = [];
+  rows.slice(1).forEach(row => {
+    const uname = String(row[0] || "").trim();
+    if (!uname) return;
+    if (!names.some(n => String(n).toLowerCase() === uname.toLowerCase())) return;
+    out.push({
+      username: uname,
+      role: String(row[2] || "Staff").trim(),
+      canPrint: String(row[4] || "").trim().toUpperCase() === "TRUE"
+    });
+  });
+  return out;
+}
+
 // ==================== SELF-ORDER GUIDE ====================
 // Copy for the "How self-ordering works" pop-up. One guide per portal so the
 // teacher counter and Open Day can explain themselves differently.
@@ -1668,6 +1760,8 @@ function doPost(e) {
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
     if (action === "saveKdsStatus") return jsonResponse(saveKdsStatusConfig(data.config));
+    if (action === "saveStaffCards") return jsonResponse(saveStaffCards(data.cards));
+    if (action === "getCardAccounts") return jsonResponse({ success: true, accounts: getCardAccounts(data.card) });
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
