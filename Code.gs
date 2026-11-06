@@ -611,7 +611,8 @@ function getInitialData() {
     receiptLayout: getReceiptLayout(),
     orderGuides: getOrderGuides(),
     pickupConfig: getPickupConfig(),
-    announcements: getAnnouncements()
+    announcements: getAnnouncements(),
+    kdsStatus: getKdsStatusConfig()
   };
 }
 
@@ -1429,6 +1430,47 @@ function saveReceiptLayout(layout) {
   return { success: true, layout: clean };
 }
 
+// ==================== KDS STATUS BADGES ====================
+// The Bar KDS shows a live status strip; Admin owns every word on it.
+const KDS_STATUS_KEY = "KDS_STATUS_CONFIG";
+const KDS_STATUS_DEFAULTS = {
+  enabled: true,
+  title: "Bar Status",
+  labels: { idle: "Clear", normal: "Steady", busy: "Busy", critical: "Behind", free: "Ready for next" }
+};
+
+function normalizeKdsStatusConfig(raw) {
+  const src = (raw && typeof raw === "object") ? raw : {};
+  const labels = (src.labels && typeof src.labels === "object") ? src.labels : {};
+  const out = {
+    enabled: src.enabled === undefined ? KDS_STATUS_DEFAULTS.enabled : !!src.enabled,
+    title: String(src.title || KDS_STATUS_DEFAULTS.title).trim().slice(0, 24) || KDS_STATUS_DEFAULTS.title,
+    labels: {}
+  };
+  Object.keys(KDS_STATUS_DEFAULTS.labels).forEach(k => {
+    const v = String(labels[k] || "").trim().slice(0, 18);
+    out.labels[k] = v || KDS_STATUS_DEFAULTS.labels[k];
+  });
+  return out;
+}
+
+function getKdsStatusConfig() {
+  const raw = PropertiesService.getScriptProperties().getProperty(KDS_STATUS_KEY);
+  if (!raw) return normalizeKdsStatusConfig(null);
+  try {
+    return normalizeKdsStatusConfig(JSON.parse(raw));
+  } catch (e) {
+    return normalizeKdsStatusConfig(null);
+  }
+}
+
+function saveKdsStatusConfig(config) {
+  const clean = normalizeKdsStatusConfig(config);
+  PropertiesService.getScriptProperties().setProperty(KDS_STATUS_KEY, JSON.stringify(clean));
+  bumpVersion();
+  return { success: true, kdsStatus: clean };
+}
+
 // ==================== SELF-ORDER GUIDE ====================
 // Copy for the "How self-ordering works" pop-up. One guide per portal so the
 // teacher counter and Open Day can explain themselves differently.
@@ -1625,6 +1667,7 @@ function doPost(e) {
     if (action === "toggleOpenDayReservation") return jsonResponse(setOpenDayReservationOpen(data.open));
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
+    if (action === "saveKdsStatus") return jsonResponse(saveKdsStatusConfig(data.config));
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 

@@ -614,6 +614,14 @@
         </div>
       </div>
 
+      <!-- Live bar status — the on-screen stand-in for the lamp system -->
+      <div id="kdsStatusStrip" class="hidden bg-white border border-slate-200 rounded-3xl px-4 py-3 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="kdsStatusTitle" class="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Bar Status</span>
+          <div id="kdsStatusChips" class="flex flex-wrap items-center gap-2"></div>
+        </div>
+      </div>
+
       <!-- Pre-order drawer: every scheduled ticket, freed from the lead-time gate -->
       <div id="kdsPreorderWrap">
         <div>
@@ -1095,6 +1103,53 @@
         <p class="text-[11px] text-slate-400">A pop-up with an image URL shows the picture; otherwise it shows the text. Leave both empty to use the title only.</p>
       </div>
 
+      <!-- ===== KDS STATUS BADGES ===== -->
+      <div data-admin-section="kdsstatus" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-signal text-amber-500 mr-2"></i>KDS Status Badges</h3>
+            <p class="text-xs text-slate-400">The live status strip above the Bar KDS ticket grid. Rename every badge here.</p>
+          </div>
+          <button onclick="saveKdsStatusAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
+            <i class="fa-solid fa-floppy-disk mr-1"></i>Save
+          </button>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+          <input type="checkbox" id="kdsStatusEnabled" class="w-4 h-4 accent-amber-500">
+          Show the status strip on the KDS
+        </label>
+
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Strip label</label>
+          <input type="text" id="kdsStatusTitleInput" maxlength="24" placeholder="Bar Status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">No orders</label>
+            <input type="text" id="kdsLabelIdle" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Steady</label>
+            <input type="text" id="kdsLabelNormal" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Busy</label>
+            <input type="text" id="kdsLabelBusy" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Behind</label>
+            <input type="text" id="kdsLabelCritical" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Ready for next order</label>
+            <input type="text" id="kdsLabelFree" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+        </div>
+        <p class="text-[11px] text-slate-400">Badge names follow the queue: 0 orders, 1–2, 3–5 and 6+ per drink category. The last label appears when nothing is being made and a ticket is waiting.</p>
+      </div>
+
       <!-- ===== RECEIPT LAYOUT EDITOR ===== -->
       <div data-admin-section="layout" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -1470,7 +1525,8 @@
       receiptLayout: null,    // editable block list, loaded from Apps Script
       orderGuides: null,      // editable tutorial copy per self-order portal
       pickupConfig: null,     // opening hours used to build pickup slots
-      announcements: null     // portal entry pop-ups
+      announcements: null,    // portal entry pop-ups
+      kdsStatus: null         // Admin-editable status strip labels
     };
 
     let html5QrcodeScanner = null;
@@ -2182,6 +2238,7 @@
           if (data.orderGuides && typeof data.orderGuides === "object") state.orderGuides = data.orderGuides;
           if (data.pickupConfig) state.pickupConfig = data.pickupConfig;
           if (data.announcements) state.announcements = data.announcements;
+          if (data.kdsStatus) state.kdsStatus = data.kdsStatus;
 
           // Show any active push message from the server
           handlePushMessage();
@@ -2869,6 +2926,103 @@
       return state.categoryColors[category] || "#64748b";
     }
 
+    // ============ KDS STATUS STRIP (on-screen stand-in for the lamp system) ============
+    const KDS_STATUS_DEFAULTS = {
+      enabled: true,
+      title: "Bar Status",
+      labels: { idle: "Clear", normal: "Steady", busy: "Busy", critical: "Behind", free: "Ready for next" }
+    };
+
+    function kdsStatusConfig() {
+      const c = state.kdsStatus || {};
+      return {
+        enabled: c.enabled !== false,
+        title: String(c.title || KDS_STATUS_DEFAULTS.title).trim() || KDS_STATUS_DEFAULTS.title,
+        labels: Object.assign({}, KDS_STATUS_DEFAULTS.labels, c.labels || {})
+      };
+    }
+
+    function kdsLevelOf(count) {
+      if (count <= 0) return "idle";
+      if (count <= 2) return "normal";
+      if (count <= 5) return "busy";
+      return "critical";
+    }
+
+    function renderKdsStatus(activeAll) {
+      const strip = document.getElementById("kdsStatusStrip");
+      const chips = document.getElementById("kdsStatusChips");
+      const title = document.getElementById("kdsStatusTitle");
+      if (!strip || !chips) return;
+
+      const cfg = kdsStatusConfig();
+      if (!cfg.enabled) { strip.classList.add("hidden"); return; }
+      strip.classList.remove("hidden");
+      if (title) title.innerText = cfg.title;
+
+      const visible = activeAll.filter(kdsOrderVisible);
+      const cats = (state.categories || []).slice();
+      visible.forEach(o => {
+        const c = getOrderCategory(o);
+        if (c && cats.indexOf(c) === -1) cats.push(c);
+      });
+
+      const counts = {};
+      cats.forEach(cat => { counts[cat] = 0; });
+      visible.forEach(o => {
+        const c = getOrderCategory(o);
+        counts[c] = (counts[c] || 0) + 1;
+      });
+
+      const tones = {
+        idle: "bg-slate-100 text-slate-500",
+        normal: "bg-emerald-100 text-emerald-700",
+        busy: "bg-amber-100 text-amber-700",
+        critical: "bg-rose-100 text-rose-700"
+      };
+
+      let html = "";
+      cats.forEach(cat => {
+        const count = counts[cat] || 0;
+        const level = kdsLevelOf(count);
+        html += `<span class="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full pl-2 pr-2.5 py-1">
+          <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${getCategoryColor(cat)}"></span>
+          <span class="text-[11px] font-extrabold text-slate-700">${escapeHtml(cat)}</span>
+          <span class="text-[11px] font-black text-slate-900">${count}</span>
+          <span class="text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full ${tones[level]}">${escapeHtml(cfg.labels[level])}</span>
+        </span>`;
+      });
+
+      const assigned = visible.filter(o => (o.status || "").toUpperCase() === "ASSIGNED").length;
+      const anyCritical = cats.some(cat => kdsLevelOf(counts[cat] || 0) === "critical");
+      let level = "idle";
+      let label = cfg.labels.idle;
+      if (visible.length > 0) {
+        if (assigned === 0 && visible.length > 0) {
+          level = "normal"; label = cfg.labels.free;   // nothing in hand, work waiting
+        } else if (anyCritical) {
+          level = "critical"; label = cfg.labels.critical;
+        } else if (visible.length >= 4) {
+          level = "busy"; label = cfg.labels.busy;
+        } else {
+          level = "normal"; label = cfg.labels.normal;
+        }
+      }
+      html += `<span class="inline-flex items-center gap-1.5 bg-white border border-slate-300 rounded-full px-2.5 py-1">
+        <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">${escapeHtml(cfg.title)}</span>
+        <span class="text-[10px] font-black px-1.5 py-0.5 rounded-full ${tones[level]}">${escapeHtml(label)}</span>
+      </span>`;
+
+      const later = activeAll.filter(o => !kdsOrderVisible(o)).length;
+      if (later > 0) {
+        html += `<span class="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1 text-[10px] font-extrabold text-slate-500">
+          <i class="fa-solid fa-clock-rotate-left text-[9px]"></i>${later} later
+        </span>`;
+      }
+
+      chips.innerHTML = html;
+    }
+
     function renderKdsPreorderDrawer(activeAll) {
       const list = document.getElementById('kdsPreorderList');
       const label = document.getElementById('kdsPreorderLabel');
@@ -2955,6 +3109,7 @@
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
 
       renderKdsPreorderDrawer(activeAll);
+      renderKdsStatus(activeAll);
 
       // ---- Marquee: every active order the bar still needs to prepare ----
       const marqueeWrap = document.getElementById('kdsMarqueeWrap');
@@ -4504,6 +4659,48 @@
       el.innerText = `${count} slots between ${cfg.open} and ${cfg.close}, ${cfg.intervalMin}-min apart, earliest pickup now + ${cfg.leadMin} min.`;
     }
 
+    function renderKdsStatusEditor() {
+      const cfg = kdsStatusConfig();
+      const on = document.getElementById("kdsStatusEnabled");
+      if (!on) return;
+      on.checked = cfg.enabled !== false;
+      document.getElementById("kdsStatusTitleInput").value = cfg.title;
+      document.getElementById("kdsLabelIdle").value = cfg.labels.idle;
+      document.getElementById("kdsLabelNormal").value = cfg.labels.normal;
+      document.getElementById("kdsLabelBusy").value = cfg.labels.busy;
+      document.getElementById("kdsLabelCritical").value = cfg.labels.critical;
+      document.getElementById("kdsLabelFree").value = cfg.labels.free;
+    }
+
+    function readKdsStatusFromEditor() {
+      return {
+        enabled: document.getElementById("kdsStatusEnabled").checked,
+        title: document.getElementById("kdsStatusTitleInput").value.trim().slice(0, 24),
+        labels: {
+          idle: document.getElementById("kdsLabelIdle").value.trim().slice(0, 18),
+          normal: document.getElementById("kdsLabelNormal").value.trim().slice(0, 18),
+          busy: document.getElementById("kdsLabelBusy").value.trim().slice(0, 18),
+          critical: document.getElementById("kdsLabelCritical").value.trim().slice(0, 18),
+          free: document.getElementById("kdsLabelFree").value.trim().slice(0, 18)
+        }
+      };
+    }
+
+    async function saveKdsStatusAdmin() {
+      const cfg = readKdsStatusFromEditor();
+      const res = await apiPost({ action: "saveKdsStatus", config: cfg });
+      if (res && res.success) {
+        state.kdsStatus = res.kdsStatus || cfg;
+        renderKdsStatusEditor();
+        renderKDS();
+        showSaveResultModal(true, "Status badges saved", "The Bar KDS picks up the new badge names on its next refresh.");
+      } else if (!res) {
+        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
+      } else {
+        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the badge names.");
+      }
+    }
+
     async function savePickupConfigAdmin() {
       const cfg = readPickupConfigFromEditor();
       const res = await apiPost({ action: "savePickupConfig", config: cfg });
@@ -4641,6 +4838,7 @@
       { key: "printer",      label: "Printer Control",    icon: "fa-print" },
       { key: "guide",        label: "Order Guide",        icon: "fa-book-open" },
       { key: "pickup",       label: "Pickup Times",       icon: "fa-clock" },
+      { key: "kdsstatus",    label: "KDS Status",          icon: "fa-signal" },
       { key: "popups",       label: "Portal Pop-ups",     icon: "fa-window-restore" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
@@ -4680,6 +4878,7 @@
       if (key === "guide") renderGuideEditor();
       if (key === "pickup") renderPickupConfigEditor();
       if (key === "popups") renderAnnouncementsEditor();
+      if (key === "kdsstatus") renderKdsStatusEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================
