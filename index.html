@@ -2865,16 +2865,15 @@
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
 
-      // ---- Marquee: every order not yet assigned by the head chef ----
-      const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
+      // ---- Marquee: every active order the bar still needs to prepare ----
       const marqueeWrap = document.getElementById('kdsMarqueeWrap');
       const marqueeTrack = document.getElementById('kdsMarqueeTrack');
       if (marqueeWrap && marqueeTrack) {
-        if (unassigned.length === 0) {
+        if (activeOrders.length === 0) {
           marqueeWrap.classList.add('hidden');
           marqueeTrack.innerHTML = "";
         } else {
-          const line = unassigned.map(o => {
+          const line = activeOrders.map(o => {
             const cat = getOrderCategory(o);
             return `#${o.orderNum} ${o.productName} (${o.temp}) · ${cat}${o.qrTile ? ` · Tile ${o.qrTile}` : ""}`;
           }).join("   •   ");
@@ -3126,7 +3125,7 @@
       if (!prepList || !readyList) return;
 
       let prepHtml = "";
-      state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
+      state.orders.filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
         prepHtml += pickupNumberCard(o, false);
       });
       prepList.innerHTML = prepHtml;
