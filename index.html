@@ -12,9 +12,38 @@
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- Camera scanner library (jsDelivr primary, unpkg fallback for blocked networks) -->
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
-    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
+  <!-- Camera scanner library: tried from several mirrors on demand, so a
+       blocked CDN no longer kills the camera for the whole session. -->
+  <script>
+    window.__scannerLibPromise = null;
+    function loadScannerLibrary() {
+      if (typeof Html5Qrcode !== "undefined") return Promise.resolve(true);
+      if (window.__scannerLibPromise) return window.__scannerLibPromise;
+
+      const urls = [
+        "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js",
+        "https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"
+      ];
+
+      window.__scannerLibPromise = new Promise(resolve => {
+        let i = 0;
+        const tryNext = () => {
+          if (typeof Html5Qrcode !== "undefined") return resolve(true);
+          if (i >= urls.length) return resolve(false);
+          const s = document.createElement("script");
+          s.src = urls[i++];
+          s.async = true;
+          s.onload = () => resolve(typeof Html5Qrcode !== "undefined");
+          s.onerror = () => { s.remove(); tryNext(); };
+          document.head.appendChild(s);
+        };
+        tryNext();
+      });
+      return window.__scannerLibPromise;
+    }
+    loadScannerLibrary();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- Google Identity Services — free Google sign-in (loaded async, used only when configured) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1608,7 +1637,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwUGjqWIXAwZy3Da_T4XK1oDYEvcrCvR39Ezyn_08xeiZi_msvHD3P5_497umP8QCxWnA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxP9hY3S8KJkBhFXH6nIn3jV28cN4S3O5r2jr-gBPgcZgrPBBXuJu9vho2kg4u5FObeRQ/exec";
 
     // Reuse the boot-screen logo (already embedded as a data URI) for the header pill.
     (function () {
@@ -3034,72 +3063,101 @@
       }
     }
 
-    function startQRScanner() {
-      if (scannerStarting) return;
+    function cameraErrorMessage(err) {
+      const name = (err && err.name) ? String(err.name) : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+        return "camera permission is blocked. Click the camera icon in the address bar, allow access, then try again.";
+      }
+      if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        return "no camera found on this device. Use the scanner gun or type the code.";
+      }
+      if (name === "NotReadableError" || name === "TrackStartError") {
+        return "the camera is already in use by another app or tab. Close it and try again.";
+      }
+      if (name === "OverconstrainedError") {
+        return "this device has no suitable camera. Use the scanner gun or type the code.";
+      }
+      const msg = (err && err.message) ? err.message : String(err);
+      return msg + " — allow camera permission, or use the scanner gun.";
+    }
 
-      if (typeof Html5Qrcode === "undefined") {
-        showToast("Scanner library not loaded. Check the internet connection, or use the scanner gun / manual input.", "error", 6000);
+    async function startQRScanner() {
+      if (scannerStarting) return;
+      scannerStarting = true;
+
+      // The library is fetched from mirrors on demand — a blocked CDN retries.
+      const libReady = await loadScannerLibrary();
+      if (!libReady) {
+        scannerStarting = false;
+        showToast("Camera scanner could not load (network blocked). Use the scanner gun or type the code.", "error", 8000);
         return;
       }
 
       // Browsers only allow camera access on HTTPS or localhost
       if (!window.isSecureContext) {
+        scannerStarting = false;
         showToast("Camera needs a secure (HTTPS) connection. Open this page via https:// or localhost, or use the scanner gun.", "error", 8000);
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        scannerStarting = false;
+        showToast("This browser does not expose a camera to web pages. Use Chrome/Edge, or the scanner gun.", "error", 8000);
         return;
       }
 
       const modal = document.getElementById('qrScannerModal');
-      if (!modal) return;
+      if (!modal) { scannerStarting = false; return; }
       modal.classList.remove('hidden');
       isProcessingScan = false;
-      scannerStarting = true;
 
-      const stopExisting = (html5QrcodeScanner && html5QrcodeScanner.isScanning)
-        ? html5QrcodeScanner.stop().catch(() => {})
-        : Promise.resolve();
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        await html5QrcodeScanner.stop().catch(() => {});
+      }
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
+      }
 
-      stopExisting.then(() => {
-        if (!html5QrcodeScanner) {
-          html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
+      // Let the modal paint before the camera viewport is measured
+      await new Promise(r => setTimeout(r, 300));
+
+      const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13
+      ] : undefined;
+
+      const config = {
+        fps: 12,
+        qrbox: (viewWidth, viewHeight) => {
+          const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
+          return { width: edge, height: edge };
+        },
+        aspectRatio: 1.0,
+        disableFlip: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      };
+      if (formats) config.formatsToSupport = formats;
+
+      try {
+        // Prefer the rear camera, but fall back to any available camera so
+        // laptops and single-lens webcams still scan.
+        try {
+          await html5QrcodeScanner.start({ facingMode: "environment" }, config, handleScanResult, () => {});
+        } catch (firstErr) {
+          const name = (firstErr && firstErr.name) ? String(firstErr.name) : "";
+          const retryable = name === "OverconstrainedError" || name === "NotFoundError" || name === "DevicesNotFoundError";
+          if (!retryable) throw firstErr;
+          const cameras = await Html5Qrcode.getCameras().catch(() => []);
+          if (!cameras.length) throw firstErr;
+          await html5QrcodeScanner.start({ deviceId: { exact: cameras[cameras.length - 1].id } }, config, handleScanResult, () => {});
         }
-
-        // Let the modal paint before the camera viewport is measured
-        setTimeout(() => {
-          const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.PDF_417
-          ] : undefined;
-
-          const config = {
-            fps: 12,
-            qrbox: (viewWidth, viewHeight) => {
-              const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
-              return { width: edge, height: edge };
-            },
-            aspectRatio: 1.0,
-            disableFlip: false,
-            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-          };
-          if (formats) config.formatsToSupport = formats;
-
-          html5QrcodeScanner.start(
-            { facingMode: "environment" },
-            config,
-            handleScanResult,
-            () => {}
-          ).then(() => {
-            scannerStarting = false;
-          }).catch(err => {
-            scannerStarting = false;
-            const msg = (err && err.message) ? err.message : String(err);
-            showToast("Camera failed: " + msg + " — allow camera permission or use the scanner gun.", "error", 6000);
-            stopQRScanner();
-          });
-        }, 250);
-      });
+        scannerStarting = false;
+      } catch (err) {
+        scannerStarting = false;
+        showToast("Camera unavailable: " + cameraErrorMessage(err), "error", 8000);
+        stopQRScanner();
+      }
     }
 
     function scanQRTileForOrder() {
