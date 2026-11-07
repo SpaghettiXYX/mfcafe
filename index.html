@@ -313,6 +313,14 @@
     #displayExitBtn { display: none; }
     body.display-mode #displayExitBtn { display: flex; }
 
+    /* Floating printer card: collapsed keeps the icon + status dot as a small
+       pill so the printer stays reachable without covering the POS. */
+    #printerBar.is-collapsed { width: auto; }
+    #printerBar.is-collapsed #printerBarLabel,
+    #printerBar.is-collapsed #printerBarActions { display: none; }
+    #printerBar.is-collapsed > div:first-child { padding: 0.4rem 0.5rem; }
+    #printerBar.is-collapsed #printerBarChevron { transform: rotate(180deg); }
+
     /* Toast slide animation */
     #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
 
@@ -1605,7 +1613,7 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
 
-  <!-- Floating Bluetooth Printer card — permanently visible, below dialogs -->
+  <!-- Floating Bluetooth Printer card — collapsible, remembers the choice -->
   <div id="printerBar" role="status" aria-live="polite"
        class="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[45] w-[15rem] sm:w-[16.5rem] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
     <div class="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
@@ -1614,13 +1622,18 @@
           <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>
         </svg>
       </div>
-      <div class="min-w-0 flex-1">
+      <div id="printerBarLabel" class="min-w-0 flex-1">
         <div class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Printer</div>
         <div id="printerStatusText" class="text-[11px] font-extrabold text-slate-700 truncate">Not connected</div>
       </div>
       <div id="printerDot" class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></div>
+      <button id="printerBarToggle" type="button" onclick="togglePrinterBar()"
+              aria-label="Hide printer status" title="Hide printer status" aria-expanded="true"
+              class="relative w-6 h-6 -mr-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition flex-shrink-0 before:content-[''] before:absolute before:-inset-2.5">
+        <i id="printerBarChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
+      </button>
     </div>
-    <div class="px-3 pb-2.5 flex items-center gap-1.5">
+    <div id="printerBarActions" class="px-3 pb-2.5 flex items-center gap-1.5">
       <button id="printerPrimaryBtn" onclick="printerPrimaryAction()"
               class="flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition bg-amber-500 hover:bg-amber-400 text-slate-950">
         <span id="printerPrimaryLabel">Connect</span>
@@ -1895,6 +1908,10 @@
         document.getElementById("confirmModal").classList.add("hidden");
         if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
       });
+      // Restore the printer card's collapsed state from the last session.
+      let printerBarCollapsed = false;
+      try { printerBarCollapsed = localStorage.getItem(PRINTER_BAR_COLLAPSED_KEY) === "1"; } catch (e) {}
+      setPrinterBarCollapsed(printerBarCollapsed);
     });
 
     // ===== SOUND TOGGLE =====
@@ -1906,6 +1923,29 @@
         icon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
       }
       showToast(soundEnabled ? "Sound notifications ON" : "Sound notifications OFF", soundEnabled ? "success" : "warning");
+    }
+
+    // ===== FLOATING PRINTER CARD: COLLAPSE / RESTORE =====
+    const PRINTER_BAR_COLLAPSED_KEY = "mfcafe_printer_bar_collapsed";
+
+    function setPrinterBarCollapsed(collapsed) {
+      const bar = document.getElementById("printerBar");
+      if (!bar) return;
+      bar.classList.toggle("is-collapsed", collapsed);
+      const toggle = document.getElementById("printerBarToggle");
+      if (toggle) {
+        const label = collapsed ? "Show printer status" : "Hide printer status";
+        toggle.setAttribute("aria-label", label);
+        toggle.title = label;
+        toggle.setAttribute("aria-expanded", String(!collapsed));
+      }
+      try { localStorage.setItem(PRINTER_BAR_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch (e) {}
+    }
+
+    function togglePrinterBar() {
+      const bar = document.getElementById("printerBar");
+      if (!bar) return;
+      setPrinterBarCollapsed(!bar.classList.contains("is-collapsed"));
     }
 
     // ===== THEME =====
