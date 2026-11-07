@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark"><head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <!-- Always fetch latest HTML/JS — no stale cached announcements -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -10,6 +10,13 @@
   
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Compile `hover:` variants behind (hover: hover) so a phone tap does not
+    // leave the tapped card stuck in its hover state.
+    if (window.tailwind) {
+      tailwind.config = { future: { hoverOnlyWhenSupported: true } };
+    }
+  </script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- JsBarcode for Code 128 ticket -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -89,6 +96,11 @@
         0 0 0 5px rgba(245,158,11,0.55),
         0 0 0 9px rgba(245,158,11,0.16) !important;
     }
+    /* Keyboard-only focus on controls. */
+    button:focus-visible, a:focus-visible, [role="button"]:focus-visible, label:focus-visible, select:focus-visible {
+      outline: 0 none !important;
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px rgba(245,158,11,0.55) !important;
+    }
     /* 3. Dark mode drops every weight by 40%. */
     [data-theme="dark"] body { font-weight: 300; }
     [data-theme="dark"] .font-black { font-weight: 540 !important; }
@@ -154,8 +166,8 @@
       display: grid; grid-template-rows: 0fr;
       padding-top: 0 !important; padding-bottom: 0 !important;
       border-width: 0 !important; opacity: 0;
-      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease,
-                  padding 280ms cubic-bezier(.4,0,.2,1), border-width 280ms ease;
+      /* Only compositable properties animate; padding/border snap. */
+      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease;
     }
     #itemOptions.hidden { display: none !important; }
     #itemOptions > #itemOptionsInner { min-height: 0; overflow: hidden; }
@@ -192,8 +204,8 @@
     .sd-loader-bar span { display: block; width: 42%; height: 100%; border-radius: 999px; background: #f59e0b; animation: sd-slide 1.2s ease-in-out infinite; }
     @keyframes sd-slide { from { transform: translateX(-110%); } to { transform: translateX(360%); } }
     /* Page content fades in once the menu has landed. */
-    @keyframes sd-reveal { from { opacity: 0; transform: translateY(10px); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
-    .sd-reveal { animation: sd-reveal 1s cubic-bezier(.22,.61,.36,1) .2s both; }
+    @keyframes sd-reveal { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+    .sd-reveal { animation: sd-reveal 320ms cubic-bezier(.22,.61,.36,1) both; }
     @media (prefers-reduced-motion: reduce) { .sd-loader-mark::after, .sd-loader-bar span, .sd-reveal { animation: none !important; } }
 
     /* ===== ORDERING TUTORIAL (opens with the menu, visible during the fade-in) ===== */
@@ -209,6 +221,36 @@
     @media (prefers-reduced-motion: reduce) {
       #orderTutorialModal.is-open #tutTitle,
       #orderTutorialModal.is-open .tut-step { animation: none !important; }
+    }
+
+    /* ===== TOUCH PLATFORM (guests order on phones) ===== */
+    /* Paint edge to edge, then keep the footer clear of the home indicator. */
+    @supports (padding: env(safe-area-inset-bottom)) {
+      body { padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+    }
+    /* 100vh is the tallest viewport; 100dvh tracks the visible one. */
+    body.min-h-screen { min-height: 100dvh; }
+    button, a, [role="button"], label, select { touch-action: manipulation; }
+    button, [role="button"], label { -webkit-user-select: none; user-select: none; }
+    /* Hover is unavailable on touch, so the press carries the feedback. */
+    button:active, [role="button"]:active { transform: scale(0.97); }
+    /* iOS zooms the page when a focused field is under 16px. */
+    @media (pointer: coarse) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+    /* The precompiled Tailwind build emits plain :hover rules; on touch they
+       stick after a tap. Restore each utility's base colour. */
+    @media (hover: none) {
+      .hover\:bg-amber-400:hover { background-color: rgb(245 158 11) !important; }
+      .hover\:bg-emerald-700:hover { background-color: rgb(5 150 105) !important; }
+      .hover\:bg-rose-700:hover { background-color: rgb(225 29 72) !important; }
+      .hover\:bg-slate-200:hover { background-color: rgb(241 245 249) !important; }
+      .hover\:bg-slate-800:hover { background-color: rgb(15 23 42) !important; }
+      .hover\:border-slate-300:hover { border-color: rgb(226 232 240) !important; }
+      .hover\:text-slate-600:hover { color: rgb(148 163 184) !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      button:active, [role="button"]:active { transform: none; }
     }
   </style>
   <script>
@@ -580,6 +622,12 @@
         .replace(/'/g, "&#039;");
     }
 
+    // Safe argument for a double-quoted inline handler: JSON-quote first, then
+    // HTML-escape, so apostrophes in a category name cannot close the literal.
+    function jsArg(v) {
+      return escapeHtml(JSON.stringify(String(v ?? "")));
+    }
+
     let sdLoaderFinished = false;
     // Reveal the page once the first menu payload lands; the overlay fades out
     // so there is never a flash of an empty menu.
@@ -723,7 +771,7 @@
         const cats = ["All", ...state.categories];
         tabsEl.innerHTML = cats.map(cat => {
           const active = state.selectedCategory === cat;
-          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+          return `<button onclick="selectCustomerCategory(${jsArg(cat)})" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
         }).join('');
       }
 
@@ -761,7 +809,7 @@
               onerror="this.parentElement.remove()">
           </div>` : ""}
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
+          ${String(item.tempOptions || "").trim() ? `<p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>` : ""}
           <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
         `;
         container.appendChild(btn);
