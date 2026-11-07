@@ -96,6 +96,52 @@
     [data-theme="dark"] .font-bold { font-weight: 420 !important; }
     [data-theme="dark"] .font-semibold { font-weight: 360 !important; }
     [data-theme="dark"] .font-medium { font-weight: 300 !important; }
+    /* Logo is ink artwork, so invert it on dark surfaces instead of redrawing. */
+    [data-theme="dark"] .boot-logo { filter: invert(1); }
+
+    /* Temperature owns the glow: cold is blue, hot is orange-red. */
+    .temp-btn-idle {
+      border-color: var(--border) !important;
+      background-color: var(--surface) !important;
+      color: var(--text-3) !important;
+      box-shadow: none !important;
+    }
+    .temp-hot-active {
+      border-color: rgba(244,63,94,0.55) !important;
+      background-color: rgba(255,228,230,0.85) !important;
+      color: #9f1239 !important;
+      box-shadow:
+        0 0 0 2px var(--surface),
+        0 0 0 5px rgba(244,63,94,0.30),
+        0 12px 26px -14px rgba(244,63,94,0.85) !important;
+    }
+    .temp-cold-active {
+      border-color: rgba(56,189,248,0.60) !important;
+      background-color: rgba(224,242,254,0.90) !important;
+      color: #075985 !important;
+      box-shadow:
+        0 0 0 2px var(--surface),
+        0 0 0 5px rgba(56,189,248,0.34),
+        0 12px 26px -14px rgba(14,165,233,0.90) !important;
+    }
+    [data-theme="dark"] .temp-hot-active { background-color: rgba(244,63,94,0.18) !important; color: #fecdd3 !important; }
+    [data-theme="dark"] .temp-cold-active { background-color: rgba(56,189,248,0.18) !important; color: #bae6fd !important; }
+    .temp-btn-disabled { border-color: var(--border) !important; background-color: var(--surface-3) !important; color: var(--text-4) !important; cursor: not-allowed; }
+
+    /* The configurator frame follows the chosen temperature too. */
+    #itemOptions.panel-cold { background-color: rgba(56,189,248,0.06) !important; border-color: rgba(56,189,248,0.34) !important; }
+    #itemOptions.panel-hot { background-color: rgba(244,63,94,0.05) !important; border-color: rgba(244,63,94,0.30) !important; }
+
+    /* Notes pills: selected ones read as pressed, not just hovered. */
+    .note-pill { border-color: var(--border-2); background-color: var(--surface); color: var(--text-3); }
+    .note-pill.is-on {
+      border-color: rgba(245,158,11,0.65) !important;
+      background-color: rgba(245,158,11,0.16) !important;
+      color: #b45309 !important;
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+    }
+    [data-theme="dark"] .note-pill.is-on { color: #fcd34d !important; }
+
     /* 4. Streaming text: 120ms blur-in per glyph, 30ms stagger. */
     @keyframes soh-stream-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
     .stream-char { display: inline-block; opacity: 0; white-space: pre; animation: soh-stream-in 120ms ease-out forwards; }
@@ -186,6 +232,7 @@
 
   <!-- Header -->
   <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
+    <img src="assets/mfcafe-logo.png" alt="MFCafe" class="boot-logo mx-auto w-auto h-16 mb-3 select-none" draggable="false">
     <div class="inline-flex items-center space-x-2 bg-amber-500/10 text-amber-700 px-3.5 py-1 rounded-full text-xs font-extrabold mb-2 border border-amber-300/60">
       <i class="fa-solid fa-mug-hot text-amber-500"></i>
       <span>MFCafe Open Day Portal</span>
@@ -453,6 +500,7 @@
       categories: [],
       selectedCategory: "All",
       selectedItem: null,
+      selectedNotes: [],      // pill notes toggled on for the current drink
       selectedTemp: "Cold",
       selectedCupType: "",  // "" | "In-Store" | "Takeaway"
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
@@ -626,7 +674,13 @@
         const btn = document.createElement('button');
         btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
         btn.onclick = () => selectItem(item);
+        const img = String(item.imageUrl || "").trim();
         btn.innerHTML = `
+          ${img ? `<div class="mb-2 rounded-xl overflow-hidden" style="aspect-ratio:4/3;background:var(--surface-3)">
+            <img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
+              style="width:100%;height:100%;object-fit:cover"
+              onerror="this.parentElement.remove()">
+          </div>` : ""}
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
@@ -689,29 +743,22 @@
 
       if (opts.includes("Cold") && opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" onclick="setTemp('Cold')" id="btnCold" ${coldAllowed ? '' : 'disabled'} class="flex-1 py-2.5 rounded-xl text-xs font-bold border ${coldAllowed ? 'border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}">Cold 🧊</button>
-          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500">Hot ☕</button>
+          <button type="button" onclick="setTemp('Cold')" id="btnCold" ${coldAllowed ? '' : 'disabled'} class="temp-btn-idle flex-1 py-2.5 rounded-xl text-xs font-bold border">Cold 🧊</button>
+          <button type="button" onclick="setTemp('Hot')" id="btnHot" class="temp-btn-idle flex-1 py-2.5 rounded-xl text-xs font-bold border">Hot ☕</button>
         `;
       } else if (opts.includes("Hot")) {
         tempContainer.innerHTML = `
-          <button type="button" id="btnHot" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Hot Only ☕</button>
+          <button type="button" id="btnHot" class="temp-hot-active w-full py-2.5 rounded-xl text-xs font-bold border">Hot Only ☕</button>
         `;
       } else {
         tempContainer.innerHTML = `
-          <button type="button" id="btnCold" class="w-full py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm">Cold Only 🧊</button>
+          <button type="button" id="btnCold" class="temp-cold-active w-full py-2.5 rounded-xl text-xs font-bold border">Cold Only 🧊</button>
         `;
       }
 
+      state.selectedNotes = [];
+      renderNotePills();
       setTemp(state.selectedTemp);
-
-      const pillsContainer = document.getElementById('custRemarkPillsContainer');
-      pillsContainer.innerHTML = "";
-      const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
-      hotkeys.forEach(hk => {
-        pillsContainer.innerHTML += `
-          <button type="button" onclick="addNotePill('${escapeHtml(hk)}')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
-        `;
-      });
 
       renderMenu();
     }
@@ -720,17 +767,47 @@
       state.selectedTemp = temp;
       const btnCold = document.getElementById('btnCold');
       const btnHot = document.getElementById('btnHot');
-      if (btnCold) btnCold.className = temp === 'Cold' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
-      if (btnHot) btnHot.className = temp === 'Hot' ? 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
+      if (btnCold) {
+        const disabled = btnCold.hasAttribute('disabled');
+        btnCold.className = `flex-1 py-2.5 rounded-xl text-xs font-bold border ${disabled ? 'temp-btn-disabled' : (temp === 'Cold' ? 'temp-cold-active' : 'temp-btn-idle')}`;
+      }
+      if (btnHot) {
+        btnHot.className = `flex-1 py-2.5 rounded-xl text-xs font-bold border ${temp === 'Hot' ? 'temp-hot-active' : 'temp-btn-idle'}`;
+      }
+      const panel = document.getElementById('itemOptions');
+      if (panel) {
+        panel.classList.toggle('panel-cold', temp === 'Cold');
+        panel.classList.toggle('panel-hot', temp === 'Hot');
+      }
       if (state.selectedItem) {
         document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
         document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) — Pay at Cashier`;
       }
     }
 
-    function addNotePill(text) {
-      const field = document.getElementById('custNotes');
-      if (field) field.value = field.value ? `${field.value}, ${text}` : text;
+    function renderNotePills() {
+      const wrap = document.getElementById('custRemarkPillsContainer');
+      if (!wrap) return;
+      const hotkeys = String(state.remarkHotkeys || "").split(',').map(s => s.trim()).filter(Boolean);
+      wrap.innerHTML = "";
+      hotkeys.forEach(hk => {
+        const on = state.selectedNotes.includes(hk);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `note-pill ${on ? 'is-on' : ''} text-[10px] font-bold px-2 py-1 rounded-lg border transition`;
+        b.textContent = hk;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.onclick = () => toggleNotePill(hk);
+        wrap.appendChild(b);
+      });
+    }
+
+    // Tap adds the note, tap again removes it — no duplicates, ever.
+    function toggleNotePill(text) {
+      const i = state.selectedNotes.indexOf(text);
+      if (i === -1) state.selectedNotes.push(text);
+      else state.selectedNotes.splice(i, 1);
+      renderNotePills();
     }
 
     function setCustCupType(t) {
@@ -759,7 +836,8 @@
       }
 
       const notesInput = document.getElementById('custNotes');
-      const notes = notesInput ? notesInput.value : "";
+      const freeText = notesInput ? notesInput.value.trim() : "";
+      const notes = [...(state.selectedNotes || []), freeText].filter(Boolean).join(", ");
 
       const orderPayload = {
         orderTime: new Date().toISOString(),
@@ -1245,6 +1323,7 @@
       const unpaidBadge = document.getElementById('ticketUnpaidBadge');
       if (unpaidBadge) unpaidBadge.remove();
       state.selectedItem = null;
+      state.selectedNotes = [];
       state.currentOrder = null;
       selfOrderHistory.newOrder();
       setItemOptionsOpen(false);

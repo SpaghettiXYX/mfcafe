@@ -211,12 +211,15 @@ function ensureQRTilesSheet(ss) {
 
 // Ensure menu sheet has Category (E) and ColdPaused (F) columns
 function ensureMenuSheetColumns(sheet) {
-  const headers = sheet.getRange(1, 1, 1, 6).getValues()[0];
+  const headers = sheet.getRange(1, 1, 1, 7).getValues()[0];
   if (!headers[4] || String(headers[4]).trim() === "") {
     sheet.getRange(1, 5).setValue("Category");
   }
   if (!headers[5] || String(headers[5]).trim() === "") {
     sheet.getRange(1, 6).setValue("ColdPaused");
+  }
+  if (!headers[6] || String(headers[6]).trim() === "") {
+    sheet.getRange(1, 7).setValue("ImageUrl");
   }
 }
 
@@ -545,7 +548,8 @@ function getInitialData() {
           effectiveStatus: effectiveStatus,
           available: effectiveStatus.toLowerCase() === "active",
           category: String(row[4] || "Other").trim(),
-          coldPaused: itemColdPaused
+          coldPaused: itemColdPaused,
+          imageUrl: String(row[6] || "").trim()
         });
       }
     }
@@ -1133,6 +1137,7 @@ function saveMenuItem(item) {
       sheet.getRange(i + 1, 4).setValue(item.status);
       sheet.getRange(i + 1, 5).setValue(item.category || "Other");
       sheet.getRange(i + 1, 6).setValue(item.coldPaused ? "true" : "false");
+      sheet.getRange(i + 1, 7).setValue(String(item.imageUrl || "").trim());
       SpreadsheetApp.flush();
       bumpVersion();
       return { success: true };
@@ -1144,7 +1149,7 @@ function saveMenuItem(item) {
 function addMenuItem(item) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Financial & Menu Summary");
   ensureMenuSheetColumns(sheet);
-  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false"]);
+  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false", String(item.imageUrl || "").trim()]);
   SpreadsheetApp.flush();
   bumpVersion();
   return { success: true };
