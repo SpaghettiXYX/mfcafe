@@ -3494,6 +3494,13 @@
           ? "bg-emerald-100 text-emerald-800 border-emerald-200"
           : "bg-slate-100 text-slate-600 border-slate-200";
         const statusText = onBoard ? "On board" : `Shows ${pickupLeadMinutes()} min before`;
+        // Off-board pre-orders can be promoted early: assigning the ticket puts
+        // it on the main KDS grid immediately, and the normal Ready → print →
+        // clear flow takes it from there.
+        const startBtn = onBoard ? "" : `<button onclick="assignOrder(${jsArg(o.orderNum)}, true)"
+              class="mt-1 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full transition flex items-center gap-1 ml-auto">
+              <i class="fa-solid fa-play text-[8px]"></i> Start now
+            </button>`;
         return `<div class="flex justify-between items-start gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
           <div class="min-w-0">
             <p class="text-sm font-black text-slate-800">#${escapeHtml(o.orderNum)} · ${escapeHtml(o.guestName || "Guest")}</p>
@@ -3502,6 +3509,7 @@
           <div class="text-right flex-shrink-0">
             <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full border ${tone}">${escapeHtml(statusText)}</span>
             <p class="text-[10px] font-bold text-slate-400 mt-1">${escapeHtml(hint)}</p>
+            ${startBtn}
           </div>
         </div>`;
       }).join("");
