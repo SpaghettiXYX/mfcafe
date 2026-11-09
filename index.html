@@ -11,47 +11,10 @@
   
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Compile every `hover:` variant behind (hover: hover) and (pointer: fine).
-    // On the iPad KDS a tap used to leave the tapped button stuck in its hover
-    // state until something else was tapped.
-    if (window.tailwind) {
-      tailwind.config = { future: { hoverOnlyWhenSupported: true } };
-    }
-  </script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- Camera scanner library: tried from several mirrors on demand, so a
-       blocked CDN no longer kills the camera for the whole session. -->
-  <script>
-    window.__scannerLibPromise = null;
-    function loadScannerLibrary() {
-      if (typeof Html5Qrcode !== "undefined") return Promise.resolve(true);
-      if (window.__scannerLibPromise) return window.__scannerLibPromise;
-
-      const urls = [
-        "https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js",
-        "https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"
-      ];
-
-      window.__scannerLibPromise = new Promise(resolve => {
-        let i = 0;
-        const tryNext = () => {
-          if (typeof Html5Qrcode !== "undefined") return resolve(true);
-          if (i >= urls.length) return resolve(false);
-          const s = document.createElement("script");
-          s.src = urls[i++];
-          s.async = true;
-          s.onload = () => resolve(typeof Html5Qrcode !== "undefined");
-          s.onerror = () => { s.remove(); tryNext(); };
-          document.head.appendChild(s);
-        };
-        tryNext();
-      });
-      return window.__scannerLibPromise;
-    }
-    loadScannerLibrary();
-  </script>
+  <!-- Camera scanner library (jsDelivr primary, unpkg fallback for blocked networks) -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
+    onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <!-- Google Identity Services — free Google sign-in (loaded async, used only when configured) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -141,18 +104,8 @@
     @keyframes kds-marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     .kds-marquee-track {
       display: inline-flex; white-space: nowrap; will-change: transform;
-      animation: kds-marquee-scroll 40s linear infinite;
+      animation: kds-marquee-scroll 22s linear infinite;
     }
-    /* A short queue fits on one line — scrolling it would just make the bar
-       chase the same three words. */
-    .kds-marquee-track.is-static { animation: none; }
-    /* Horizontal chip strips scroll without a visible bar. */
-    .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-    .no-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
-    /* Past ~24 unassigned tickets the per-card halo pulse turns the whole
-       board into a strobe. Keep the ring, drop the animation. */
-    #kdsGrid.kds-many .kds-unassigned::after { animation: none; opacity: 1; }
-
     /* New-order flash: a pseudo-element ring. Box-shadow is stripped by the
        dark theme's .shadow-sm reset, and Safari's outline animation is
        unreliable, so both are avoided. The ring only animates opacity.
@@ -180,17 +133,6 @@
       .kds-unassigned::after { animation: none; opacity: 1; }
     }
 
-    /* Pre-order drawer: collapsed with grid 0fr -> 1fr, never a border stroke. */
-    #kdsPreorderWrap {
-      display: grid; grid-template-rows: 0fr;
-      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease;
-      opacity: 0;
-    }
-    #kdsPreorderWrap.open { grid-template-rows: 1fr; opacity: 1; }
-    #kdsPreorderWrap > div { min-height: 0; overflow: hidden; }
-    #kdsPreorderChevron { transition: transform 200ms ease; }
-    @media (prefers-reduced-motion: reduce) { #kdsPreorderWrap, #kdsPreorderChevron { transition: none; } }
-
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
 
@@ -215,12 +157,6 @@
         0 0 0 2px var(--surface),
         0 0 0 5px rgba(245,158,11,0.55),
         0 0 0 9px rgba(245,158,11,0.16) !important;
-    }
-    /* Keyboard-only focus on controls: same doubled ring, never shown to a
-       touch user, so a stylus/tab session never loses its place. */
-    button:focus-visible, a:focus-visible, [role="button"]:focus-visible, label:focus-visible, select:focus-visible {
-      outline: 0 none !important;
-      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px rgba(245,158,11,0.55) !important;
     }
     /* POS QR-tile validation: red ring + shake, kept distinct from the
        neutral focus ring so a missing tile is obvious at a glance. */
@@ -250,10 +186,6 @@
     [data-theme="dark"] .font-medium { font-weight: 300 !important; }
     /* 4. Streaming text: 120ms blur-in per glyph, 30ms stagger. */
     @keyframes soh-stream-in { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
-    /* Save-result pop-up entrance — replays every time the modal re-opens. */
-    @keyframes save-pop { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
-    .save-pop { animation: save-pop 200ms cubic-bezier(.4,0,.2,1); }
-    @media (prefers-reduced-motion: reduce) { .save-pop { animation: none; } }
     .stream-char { display: inline-block; opacity: 0; white-space: pre; animation: soh-stream-in 120ms ease-out forwards; }
     /* 5. Optical icon alignment. */
     .fa-solid, .fa-regular, .fa-brands { position: relative; top: 0.125em; }
@@ -295,13 +227,6 @@
     body.display-mode #view-pickup > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem !important; }
     body.display-mode .pickup-col-title { font-size: 1rem !important; margin-bottom: 0.5rem !important; padding-bottom: 0.35rem !important; }
     body.display-mode .pickup-number { font-size: clamp(2.75rem, 11vw, 8rem) !important; }
-    /* A five-glyph tile (#1001) at text-5xl is wider than one cell of the
-       2-column phone grid; clamp it to the tile instead of letting it bleed. */
-    .pickup-number { min-width: 0; }
-    @media (max-width: 640px) {
-      .pickup-number.text-5xl { font-size: clamp(1.75rem, 9.5vw, 3rem); }
-      .pickup-number.text-3xl { font-size: clamp(1.4rem, 7vw, 2rem); }
-    }
     body.display-mode .pickup-sub { font-size: 0.95rem !important; }
     body.display-mode #pickupPreparingList > div,
     body.display-mode #pickupReadyList > div { padding: 1rem 0.5rem !important; }
@@ -313,23 +238,11 @@
     #displayExitBtn { display: none; }
     body.display-mode #displayExitBtn { display: flex; }
 
-    /* Floating printer card: collapsed keeps the icon + status dot as a small
-       pill so the printer stays reachable without covering the POS. */
-    #printerBar.is-collapsed { width: auto; }
-    #printerBar.is-collapsed #printerBarLabel,
-    #printerBar.is-collapsed #printerBarActions { display: none; }
-    #printerBar.is-collapsed > div:first-child { padding: 0.4rem 0.5rem; }
-    #printerBar.is-collapsed #printerBarChevron { transform: rotate(180deg); }
-
     /* Toast slide animation */
     #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
 
-    /* Theme switch only: the blanket `*` transition made every hover and
-       scroll animate colour. The class is applied for one frame during a
-       theme toggle, then removed. */
-    html.theme-animating *, html.theme-animating *::before, html.theme-animating *::after {
-      transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-    }
+    /* Smooth theme transition */
+    *, *::before, *::after { transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
 
     /* ===== MOBILE RESPONSIVE (<= 1024px) ===== */
     @media (max-width: 1024px) {
@@ -390,33 +303,6 @@
 
       /* POS unpaid queue */
       #unpaidOrdersContainer { gap: 0.5rem !important; }
-    }
-
-    /* 9. Once the boot screen clears, let the app itself fade in. */
-    @keyframes pos-reveal {
-      from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
-      to { opacity: 1; transform: none; filter: blur(0); }
-    }
-    body.pos-reveal > *:not(#bootScreen) { animation: pos-reveal 320ms cubic-bezier(.22,.61,.36,1) both; }
-    @media (prefers-reduced-motion: reduce) { body.pos-reveal > * { animation: none !important; } }
-
-    /* ===== TOUCH PLATFORM (iPad KDS, phone POS) ===== */
-    /* A kitchen device is a touch device: no pull-to-refresh reload mid-service,
-       no 300ms double-tap delay, no text selection on a long press. */
-    html, body { overscroll-behavior-y: none; }
-    /* 100vh is the tallest viewport; 100dvh tracks the visible one. */
-    body.min-h-screen { min-height: 100dvh; }
-    button, a, [role="button"], label, select, input[type="checkbox"] { touch-action: manipulation; }
-    button, [role="button"], label { -webkit-user-select: none; user-select: none; }
-    /* Hover is gated off on touch (see tailwind.config above), so the press has
-       to carry the feedback. Instant — a native button responds on touch-down. */
-    button:active, [role="button"]:active { transform: scale(0.97); }
-    /* iOS zooms the whole page when a focused field is under 16px. */
-    @media (pointer: coarse) {
-      input, select, textarea { font-size: 16px !important; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      button:active, [role="button"]:active { transform: none; }
     }
   </style>
 
@@ -486,14 +372,6 @@
         </div>
         <div id="googleBtn" class="flex justify-center"></div>
       </div>
-
-      <div class="pt-4 border-t border-slate-100 text-left">
-        <label class="block text-xs font-bold text-slate-500 mb-1">Staff card</label>
-        <input type="text" id="loginCardCode" placeholder="Scan your staff card..."
-          onkeydown="if(event.key==='Enter'){event.preventDefault();scanStaffCardLogin();}"
-          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800">
-        <p class="text-[10px] text-slate-400 mt-1">Scanning signs you straight in as the account bound to the card.</p>
-      </div>
     </div>
   </div>
 
@@ -502,8 +380,7 @@
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
         <div class="bg-amber-500 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
-          <img id="brandPillLogo" alt="MFCafe logo" draggable="false"
-               class="w-[18px] h-[18px] object-contain select-none">
+          <i class="fa-solid fa-store"></i>
           <span>MFCafe Portal</span>
         </div>
         <div>
@@ -684,18 +561,6 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5">
-            <div class="flex items-center gap-2 min-w-0">
-              <i class="fa-solid fa-tag text-amber-500 text-xs"></i>
-              <span class="text-[11px] font-bold text-slate-500">Staff discount</span>
-              <span id="posDiscountBadge" class="hidden text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700"></span>
-            </div>
-            <div class="flex items-center gap-3 flex-shrink-0">
-              <button onclick="clearPosDiscount()" id="posDiscountClear" class="hidden text-[10px] font-bold text-slate-400 hover:text-rose-500">Clear</button>
-              <button onclick="openDiscountModal()" class="text-[11px] font-black text-amber-600 hover:text-amber-500">Apply</button>
-            </div>
-          </div>
-
           <button onclick="submitPosOrder()" id="btnSubmitPos" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-circle-check"></i>
             <span id="posSubmitBtnText">Confirm & Submit ($0.00)</span>
@@ -705,62 +570,6 @@
       </div>
     </section>
 
-    <!-- DISCOUNT MODAL (staff card authorisation) -->
-    <div id="discountModal" class="hidden fixed inset-0 bg-slate-900/85 backdrop-blur-md z-[80] flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-        <div class="flex justify-between items-start">
-          <div>
-            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-tag text-amber-500 mr-2"></i>Staff Discount</h3>
-            <p id="discountItemName" class="text-[11px] font-bold text-slate-400 mt-0.5"></p>
-          </div>
-          <button onclick="closeDiscountModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-xl hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-
-        <div class="grid grid-cols-4 gap-2">
-          <button onclick="selectDiscountPct(100)" data-pct="100" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">Free</button>
-          <button onclick="selectDiscountPct(10)" data-pct="10" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">10%</button>
-          <button onclick="selectDiscountPct(20)" data-pct="20" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">20%</button>
-          <button onclick="selectDiscountPct(50)" data-pct="50" class="discount-pct-btn bg-slate-50 border border-slate-200 rounded-xl py-2 text-[11px] font-black text-slate-700">50%</button>
-        </div>
-        <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Custom %</label>
-          <input type="number" id="discountCustomPct" min="0" max="100" step="1" placeholder="0"
-            oninput="selectDiscountPct(Math.max(0, Math.min(100, Number(this.value) || 0)))"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
-        </div>
-
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400">Scan staff card to authorise</label>
-          <input type="text" id="discountCardInput" placeholder="Scan card barcode..."
-            onkeydown="if(event.key==='Enter'){event.preventDefault();confirmDiscount();}"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
-          <p id="discountError" class="hidden text-[11px] font-bold text-rose-500"></p>
-        </div>
-
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-[10px] font-bold text-slate-400">New total</p>
-            <p id="discountPreview" class="text-xl font-black text-slate-900">$0.00</p>
-          </div>
-          <button onclick="confirmDiscount()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-sm transition">
-            Authorise & Apply
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- STAFF CARD ACCOUNT CHOOSER -->
-    <div id="cardAccountModal" class="hidden fixed inset-0 bg-slate-900/85 backdrop-blur-md z-[90] flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-        <div>
-          <h3 class="font-black text-slate-800 text-lg">Choose account</h3>
-          <p class="text-[11px] font-bold text-slate-400">This card is linked to more than one account.</p>
-        </div>
-        <div id="cardAccountList" class="space-y-2"></div>
-        <button onclick="closeCardAccountChooser()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 rounded-xl">Cancel</button>
-      </div>
-    </div>
-
     <!-- VIEW 2: BAR KDS SCREEN -->
     <section id="view-kds" class="space-y-6">
       <div class="flex justify-between items-start">
@@ -768,45 +577,16 @@
           <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
           <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button id="kdsPreorderToggle" onclick="toggleKdsPreorders()"
-            class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold px-3 py-1 rounded-full text-xs transition flex items-center gap-1.5"
-            title="Show every scheduled pre-order">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-            <span id="kdsPreorderLabel">Pre-orders 0</span>
-            <i id="kdsPreorderChevron" class="fa-solid fa-chevron-down text-[10px]"></i>
-          </button>
-          <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
-            0 Active Orders
-          </span>
-        </div>
-      </div>
-
-      <!-- Live bar status — the on-screen stand-in for the lamp system -->
-      <div id="kdsStatusStrip" class="hidden bg-white border border-slate-200 rounded-3xl px-4 py-3 shadow-sm">
-        <div class="flex flex-wrap items-center gap-2">
-          <span id="kdsStatusTitle" class="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Bar Status</span>
-          <div id="kdsStatusChips" class="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar min-w-0"></div>
-        </div>
-      </div>
-
-      <!-- Pre-order drawer: every scheduled ticket, freed from the lead-time gate -->
-      <div id="kdsPreorderWrap">
-        <div>
-          <div class="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
-            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-3">
-              Scheduled pre-orders · hidden from the board until Minimum lead
-            </p>
-            <div id="kdsPreorderList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-          </div>
-        </div>
+        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
+          0 Active Orders
+        </span>
       </div>
 
       <!-- Unassigned order marquee -->
       <div id="kdsMarqueeWrap" class="hidden bg-slate-900 rounded-2xl overflow-hidden shadow-sm border border-slate-700">
         <div class="flex items-stretch h-full">
           <span class="bg-amber-500 text-slate-950 font-black text-[10px] px-3 uppercase tracking-wider flex-shrink-0 rounded-l-2xl flex items-center">
-            <i class="fa-solid fa-bell mr-1"></i> New
+            <i class="fa-solid fa-bell animate-bounce mr-1"></i> New
           </span>
           <div class="overflow-hidden flex-1 py-3">
             <div id="kdsMarqueeTrack" class="kds-marquee-track text-white text-sm font-bold"></div>
@@ -855,25 +635,19 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-            <h3 class="pickup-col-title font-black text-slate-500 text-base uppercase tracking-wider">
-              <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
-            </h3>
-            <span id="pickupPrepCount" class="text-[11px] font-black text-slate-400">0</span>
-          </div>
-          <div id="pickupPreparingList" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 text-center overflow-y-auto max-h-[58vh] pr-1"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <h3 class="pickup-col-title font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
+            <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
+          </h3>
+          <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
 
-        <div class="bg-emerald-50 p-5 rounded-3xl border border-emerald-200 shadow-sm flex flex-col">
-          <div class="flex items-center justify-between border-b border-emerald-200 pb-2 mb-3">
-            <h3 class="pickup-col-title font-black text-emerald-700 text-base uppercase tracking-wider">
-              <i class="fa-solid fa-bell text-emerald-600 mr-2"></i> Ready For Pickup
-            </h3>
-            <span id="pickupReadyCount" class="text-[11px] font-black text-emerald-600">0</span>
-          </div>
-          <div id="pickupReadyList" class="grid grid-cols-2 lg:grid-cols-3 gap-2.5 text-center overflow-y-auto max-h-[58vh] pr-1"></div>
+        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
+          <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
+            <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
+          </h3>
+          <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
       </div>
     </section>
@@ -1166,192 +940,6 @@
         </div>
       </div>
 
-      <!-- ===== SELF-ORDER GUIDE EDITOR ===== -->
-      <div data-admin-section="guide" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-book-open text-amber-500 mr-2"></i>Order Guide</h3>
-            <p class="text-xs text-slate-400">Wording for the “How self-ordering works” pop-up shown after an order is placed.</p>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="resetOrderGuide()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[11px] px-3 py-2 rounded-xl transition">
-              Reset to default
-            </button>
-            <button onclick="saveOrderGuideAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
-              <i class="fa-solid fa-floppy-disk mr-1"></i>Save Guide
-            </button>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap gap-2" id="guidePortalTabs">
-          <button type="button" data-guide-tab="customer" onclick="switchGuidePortal('customer')"
-            class="px-3 py-2 rounded-xl text-[11px] font-extrabold transition">Teacher / Pre-Order</button>
-          <button type="button" data-guide-tab="openday" onclick="switchGuidePortal('openday')"
-            class="px-3 py-2 rounded-xl text-[11px] font-extrabold transition">Open Day</button>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Small label</label>
-            <input id="guideKicker" maxlength="40" placeholder="How self-ordering works"
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Heading</label>
-            <input id="guideHeading" maxlength="40" placeholder="You're all set"
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div id="guideSteps" class="space-y-3"></div>
-        </div>
-
-        <p class="text-[11px] text-slate-400">Leave any field empty to fall back to the original wording. Changes appear on the portal within 15&nbsp;seconds.</p>
-      </div>
-
-      <!-- ===== PICKUP TIME FILTER ===== -->
-      <div data-admin-section="pickup" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-clock text-amber-500 mr-2"></i>Pickup Times</h3>
-            <p class="text-xs text-slate-400">The self-order portals only offer slots inside these opening hours.</p>
-          </div>
-          <button onclick="savePickupConfigAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
-            <i class="fa-solid fa-floppy-disk mr-1"></i>Save
-          </button>
-        </div>
-
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input type="checkbox" id="pickupEnabled" onchange="updatePickupPreview()" class="w-4 h-4 accent-amber-500">
-          Restrict pickup times to opening hours
-        </label>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Opens</label>
-            <input type="time" id="pickupOpen" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Closes</label>
-            <input type="time" id="pickupClose" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Slot every (min)</label>
-            <input type="number" id="pickupInterval" min="5" max="120" step="5" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Minimum lead (min)</label>
-            <input type="number" id="pickupLead" min="0" max="180" step="5" oninput="updatePickupPreview()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Custom slots (optional)</label>
-          <textarea id="pickupCustomSlots" rows="3" oninput="updatePickupPreview()" placeholder="08:30&#10;12:15&#10;15:00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></textarea>
-          <p class="text-[10px] text-slate-400 mt-1">One 24-hour time per line (or comma-separated). When filled, these exact times replace the generated open/close slots above.</p>
-        </div>
-        <p id="pickupPreview" class="text-[11px] text-slate-400"></p>
-      </div>
-
-      <!-- ===== PORTAL ENTRY POP-UPS ===== -->
-      <div data-admin-section="popups" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-window-restore text-amber-500 mr-2"></i>Portal Pop-ups</h3>
-            <p class="text-xs text-slate-400">Shown once every visit on the self-order portals, in list order.</p>
-          </div>
-          <div class="flex gap-2">
-            <button onclick="addAnnouncement()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[11px] px-3 py-2 rounded-xl transition">
-              <i class="fa-solid fa-plus mr-1"></i>Add
-            </button>
-            <button onclick="saveAnnouncementsAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
-              <i class="fa-solid fa-floppy-disk mr-1"></i>Save
-            </button>
-          </div>
-        </div>
-
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input type="checkbox" id="announcementsEnabled" class="w-4 h-4 accent-amber-500">
-          Enable entry pop-ups
-        </label>
-
-        <div id="announcementEditorList" class="space-y-3"></div>
-        <p class="text-[11px] text-slate-400">A pop-up with an image URL shows the picture; otherwise it shows the text. Leave both empty to use the title only.</p>
-      </div>
-
-      <!-- ===== KDS STATUS BADGES ===== -->
-      <div data-admin-section="kdsstatus" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
-        <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-signal text-amber-500 mr-2"></i>KDS Status Badges</h3>
-            <p class="text-xs text-slate-400">The live status strip above the Bar KDS ticket grid. Rename every badge here.</p>
-          </div>
-          <button onclick="saveKdsStatusAdmin()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2 rounded-xl shadow-sm transition">
-            <i class="fa-solid fa-floppy-disk mr-1"></i>Save
-          </button>
-        </div>
-
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
-          <input type="checkbox" id="kdsStatusEnabled" class="w-4 h-4 accent-amber-500">
-          Show the status strip on the KDS
-        </label>
-
-        <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Strip label</label>
-          <input type="text" id="kdsStatusTitleInput" maxlength="24" placeholder="Bar Status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">No orders</label>
-            <input type="text" id="kdsLabelIdle" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Steady</label>
-            <input type="text" id="kdsLabelNormal" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Busy</label>
-            <input type="text" id="kdsLabelBusy" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Behind</label>
-            <input type="text" id="kdsLabelCritical" maxlength="18" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-        </div>
-        <p class="text-[11px] text-slate-400">Badge names follow the queue: 0 orders, 1–2, 3–5 and 6+ per drink category.</p>
-      </div>
-
-      <!-- ===== STAFF CARDS ===== -->
-      <div data-admin-section="staffcards" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div class="border-b border-slate-100 pb-3">
-          <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-id-card text-amber-500 mr-2"></i>Staff Cards</h3>
-          <p class="text-xs text-slate-400">One card can open several accounts. Scanning it at login asks which account to enter.</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Card barcode</label>
-            <input type="text" id="staffCardCode" placeholder="Scan or type the card code"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();saveStaffCardBinding();}"
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          </div>
-          <div class="flex items-end">
-            <button onclick="saveStaffCardBinding()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] px-4 py-2.5 rounded-xl shadow-sm transition">
-              <i class="fa-solid fa-link mr-1"></i>Bind selected accounts
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Accounts on this card</label>
-          <div id="staffCardUserList" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-44 overflow-y-auto border border-slate-200 rounded-2xl p-3 bg-slate-50"></div>
-        </div>
-
-        <div>
-          <label class="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Existing bindings</label>
-          <div id="staffCardBindings" class="space-y-2"></div>
-        </div>
-      </div>
-
       <!-- ===== RECEIPT LAYOUT EDITOR ===== -->
       <div data-admin-section="layout" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -1613,7 +1201,7 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-20 right-4 z-[100] space-y-2 pointer-events-none"></div>
 
-  <!-- Floating Bluetooth Printer card — collapsible, remembers the choice -->
+  <!-- Floating Bluetooth Printer card — permanently visible, below dialogs -->
   <div id="printerBar" role="status" aria-live="polite"
        class="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[45] w-[15rem] sm:w-[16.5rem] max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-lg">
     <div class="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
@@ -1622,18 +1210,13 @@
           <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>
         </svg>
       </div>
-      <div id="printerBarLabel" class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1">
         <div class="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Printer</div>
         <div id="printerStatusText" class="text-[11px] font-extrabold text-slate-700 truncate">Not connected</div>
       </div>
       <div id="printerDot" class="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"></div>
-      <button id="printerBarToggle" type="button" onclick="togglePrinterBar()"
-              aria-label="Hide printer status" title="Hide printer status" aria-expanded="true"
-              class="relative w-6 h-6 -mr-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition flex-shrink-0 before:content-[''] before:absolute before:-inset-2.5">
-        <i id="printerBarChevron" class="fa-solid fa-chevron-down text-[10px] transition-transform"></i>
-      </button>
     </div>
-    <div id="printerBarActions" class="px-3 pb-2.5 flex items-center gap-1.5">
+    <div class="px-3 pb-2.5 flex items-center gap-1.5">
       <button id="printerPrimaryBtn" onclick="printerPrimaryAction()"
               class="flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition bg-amber-500 hover:bg-amber-400 text-slate-950">
         <span id="printerPrimaryLabel">Connect</span>
@@ -1685,30 +1268,9 @@
     </div>
   </div>
 
-  <!-- SAVE RESULT POP-UP (admin save buttons report here) -->
-  <div id="saveResultModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[150] flex items-center justify-center hidden p-4">
-    <div class="save-pop bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
-      <div id="saveResultIconWrap" class="w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl bg-emerald-100 text-emerald-600">
-        <i id="saveResultIcon" class="fa-solid fa-check font-black"></i>
-      </div>
-      <div>
-        <h3 id="saveResultTitle" class="font-black text-slate-800 text-lg">Saved</h3>
-        <p id="saveResultMessage" class="text-xs text-slate-500 mt-1 whitespace-pre-line"></p>
-      </div>
-      <button onclick="hideSaveResultModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm transition">OK</button>
-    </div>
-  </div>
-
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxP9hY3S8KJkBhFXH6nIn3jV28cN4S3O5r2jr-gBPgcZgrPBBXuJu9vho2kg4u5FObeRQ/exec";
-
-    // Reuse the boot-screen logo (already embedded as a data URI) for the header pill.
-    (function () {
-      const pill = document.getElementById("brandPillLogo");
-      const bootLogo = document.querySelector(".boot-logo");
-      if (pill && bootLogo) pill.src = bootLogo.src;
-    })();
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzEZ_Spmx-PygusRdgrkalSdlucjnGwTNsNQrtmWJFMF8jntiRCnq7S7sfI2rp0UjVs/exec";
 
     let state = {
       menu: [],
@@ -1735,78 +1297,14 @@
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       categoryColors: {},
-      receiptLayout: null,    // editable block list, loaded from Apps Script
-      orderGuides: null,      // editable tutorial copy per self-order portal
-      pickupConfig: null,     // opening hours used to build pickup slots
-      announcements: null,    // portal entry pop-ups
-      kdsStatus: null,        // Admin-editable status strip labels
-      posDiscount: null,      // { pct, by } applied to the drink being rung up
-      staffCards: null        // { cardCode: [username, ...] }
+      receiptLayout: null     // editable block list, loaded from Apps Script
     };
 
     let html5QrcodeScanner = null;
-    let kdsPreordersOpen = false;
     let isProcessingScan = false;
     let isModalAddMode = false;
     let scanMode = "pay"; // "pay" | "bind" | "clear"
     let soundEnabled = localStorage.getItem("mfcafe_sound") !== "off";
-
-    // ===== LOCAL ORDER OVERRIDES =====
-    // Apps Script is eventually consistent: a poll can land before our own
-    // assignOrder write is visible, so the checkbox "reverted" and the KDS
-    // card jumped back into the pending block. Local intent wins for a short
-    // window; it is handed back to the server as soon as the server agrees (or
-    // the ticket moves on to a later state such as READY).
-    const ORDER_OVERRIDE_KEY = "mfcafe_order_overrides";
-    const ORDER_OVERRIDE_TTL_MS = 30000;
-    let localOrderOverrides = (function () {
-      try {
-        const raw = JSON.parse(localStorage.getItem(ORDER_OVERRIDE_KEY) || "{}");
-        const now = Date.now();
-        const out = {};
-        Object.keys(raw || {}).forEach(k => {
-          const v = raw[k];
-          if (v && v.status && typeof v.at === "number" && now - v.at < ORDER_OVERRIDE_TTL_MS) out[k] = v;
-        });
-        return out;
-      } catch (e) { return {}; }
-    })();
-
-    function saveOrderOverrides() {
-      try { localStorage.setItem(ORDER_OVERRIDE_KEY, JSON.stringify(localOrderOverrides)); } catch (e) {}
-    }
-
-    function rememberOrderStatus(orderNum, status) {
-      localOrderOverrides[String(orderNum).trim()] = { status: String(status).toUpperCase(), at: Date.now() };
-      saveOrderOverrides();
-    }
-
-    function forgetOrderStatus(orderNum) {
-      delete localOrderOverrides[String(orderNum).trim()];
-      saveOrderOverrides();
-    }
-
-    // Merge a server snapshot with locally-intended statuses. Assignment states
-    // are the only ones we hold on to; anything else (READY/SERVED/CANCELLED,
-    // which someone worked on another device) always wins immediately.
-    function applyLocalOrderOverrides(serverOrders) {
-      const now = Date.now();
-      const assignmentStates = ["PENDING", "ASSIGNED", "RESERVED"];
-      const out = serverOrders.map(so => {
-        const key = String(so.orderNum).trim();
-        const ov = localOrderOverrides[key];
-        if (!ov) return so;
-        if (now - ov.at > ORDER_OVERRIDE_TTL_MS) { delete localOrderOverrides[key]; return so; }
-        const srv = String(so.status || "").toUpperCase();
-        if (srv === ov.status || !assignmentStates.includes(srv)) {
-          delete localOrderOverrides[key];
-          return so;
-        }
-        return Object.assign({}, so, { status: ov.status });
-      });
-      saveOrderOverrides();
-      return out;
-    }
 
     // ===== SAFE PRICE HELPER (prevents crash on undefined) =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
@@ -1836,26 +1334,6 @@
         toast.style.transform = "translateX(120%)";
         setTimeout(() => toast.remove(), 300);
       }, duration);
-    }
-
-    // ===== SAVE RESULT POP-UP =====
-    // Admin save buttons report through this modal instead of a corner toast,
-    // so the outcome cannot be missed while the admin panel is open.
-    function showSaveResultModal(ok, title, message) {
-      const modal = document.getElementById("saveResultModal");
-      if (!modal) { showToast(message || title, ok ? "success" : "error"); return; }
-      const wrap = document.getElementById("saveResultIconWrap");
-      const icon = document.getElementById("saveResultIcon");
-      document.getElementById("saveResultTitle").innerText = title;
-      document.getElementById("saveResultMessage").innerText = message || "";
-      wrap.className = "w-12 h-12 rounded-full flex items-center justify-center mx-auto text-xl " + (ok ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600");
-      icon.className = "fa-solid font-black " + (ok ? "fa-check" : "fa-xmark");
-      modal.classList.remove("hidden");
-    }
-
-    function hideSaveResultModal() {
-      const modal = document.getElementById("saveResultModal");
-      if (modal) modal.classList.add("hidden");
     }
 
     // ===== PUSH MESSAGE BROADCAST =====
@@ -1908,10 +1386,6 @@
         document.getElementById("confirmModal").classList.add("hidden");
         if (confirmCallback) { confirmCallback(false); confirmCallback = null; }
       });
-      // Restore the printer card's collapsed state from the last session.
-      let printerBarCollapsed = false;
-      try { printerBarCollapsed = localStorage.getItem(PRINTER_BAR_COLLAPSED_KEY) === "1"; } catch (e) {}
-      setPrinterBarCollapsed(printerBarCollapsed);
     });
 
     // ===== SOUND TOGGLE =====
@@ -1923,29 +1397,6 @@
         icon.className = soundEnabled ? "fa-solid fa-volume-high text-emerald-600" : "fa-solid fa-volume-xmark text-rose-500";
       }
       showToast(soundEnabled ? "Sound notifications ON" : "Sound notifications OFF", soundEnabled ? "success" : "warning");
-    }
-
-    // ===== FLOATING PRINTER CARD: COLLAPSE / RESTORE =====
-    const PRINTER_BAR_COLLAPSED_KEY = "mfcafe_printer_bar_collapsed";
-
-    function setPrinterBarCollapsed(collapsed) {
-      const bar = document.getElementById("printerBar");
-      if (!bar) return;
-      bar.classList.toggle("is-collapsed", collapsed);
-      const toggle = document.getElementById("printerBarToggle");
-      if (toggle) {
-        const label = collapsed ? "Show printer status" : "Hide printer status";
-        toggle.setAttribute("aria-label", label);
-        toggle.title = label;
-        toggle.setAttribute("aria-expanded", String(!collapsed));
-      }
-      try { localStorage.setItem(PRINTER_BAR_COLLAPSED_KEY, collapsed ? "1" : "0"); } catch (e) {}
-    }
-
-    function togglePrinterBar() {
-      const bar = document.getElementById("printerBar");
-      if (!bar) return;
-      setPrinterBarCollapsed(!bar.classList.contains("is-collapsed"));
     }
 
     // ===== THEME =====
@@ -1974,12 +1425,7 @@
       const cur = document.documentElement.getAttribute("data-theme") || "light";
       const next = cur === "dark" ? "light" : "dark";
       localStorage.setItem("mfcafe_theme", next);
-      // Animate colour only for this deliberate switch, then switch it off
-      // again so hovers and scrolling stay instant.
-      const root = document.documentElement;
-      root.classList.add("theme-animating");
       applyTheme(next);
-      setTimeout(() => root.classList.remove("theme-animating"), 260);
       showToast(`Theme: ${next === "dark" ? "Dark" : "Light"} mode`, "info");
     }
 
@@ -2082,41 +1528,10 @@
         : "bg-slate-200 text-slate-600");
     }
 
-    // Sessions expire after 24 hours — the user must sign in again.
-    const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-
-    function sessionAgeMs() {
-      const ts = Number(getCookie("mfcafe_login_ts") || localStorage.getItem("mfcafe_login_ts") || 0);
-      return ts ? Date.now() - ts : Infinity;
-    }
-
-    function clearStoredSession() {
-      setCookie("mfcafe_user", "", -1);
-      setCookie("mfcafe_role", "", -1);
-      setCookie("mfcafe_canprint", "", -1);
-      setCookie("mfcafe_login_ts", "", -1);
-      localStorage.removeItem("mfcafe_user");
-      localStorage.removeItem("mfcafe_role");
-      localStorage.removeItem("mfcafe_canprint");
-      localStorage.removeItem("mfcafe_login_ts");
-    }
-
-    // Mid-shift watchdog: once the 24h window elapses, drop back to the
-    // login screen even if the tab has stayed open the whole time.
-    function startSessionWatch() {
-      if (startSessionWatch._timer) clearInterval(startSessionWatch._timer);
-      startSessionWatch._timer = setInterval(() => {
-        if (state.currentUser && sessionAgeMs() > SESSION_TTL_MS) {
-          logout();
-          showToast("Session expired after 24 hours — please sign in again.", "warning");
-        }
-      }, 30000);
-    }
-
     function checkAuth() {
       const savedUser = getCookie("mfcafe_user") || localStorage.getItem("mfcafe_user");
       const savedRole = getCookie("mfcafe_role") || localStorage.getItem("mfcafe_role");
-      if (savedUser && sessionAgeMs() <= SESSION_TTL_MS) {
+      if (savedUser) {
         state.currentUser = savedUser;
         state.currentUserRole = savedRole || "Staff";
         const savedCanPrint = getCookie("mfcafe_canprint") || localStorage.getItem("mfcafe_canprint");
@@ -2126,9 +1541,7 @@
         updateRoleLabel(state.currentUserRole);
         document.getElementById("loginOverlay").classList.add("hidden");
         applyRoleVisibility();
-        startSessionWatch();
       } else {
-        if (savedUser) clearStoredSession(); // expired — force relogin
         document.getElementById("loginOverlay").classList.remove("hidden");
       }
     }
@@ -2186,15 +1599,12 @@
       state.currentUser = res.username;
       state.currentUserRole = res.role || "Staff";
       state.currentUserCanPrint = !!res.canPrint;
-      const loginTs = String(Date.now());
-      setCookie("mfcafe_user", res.username, 1);
-      setCookie("mfcafe_role", state.currentUserRole, 1);
-      setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 1);
-      setCookie("mfcafe_login_ts", loginTs, 1);
+      setCookie("mfcafe_user", res.username, 7);
+      setCookie("mfcafe_role", state.currentUserRole, 7);
+      setCookie("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0", 7);
       localStorage.setItem("mfcafe_user", res.username);
       localStorage.setItem("mfcafe_role", state.currentUserRole);
       localStorage.setItem("mfcafe_canprint", state.currentUserCanPrint ? "1" : "0");
-      localStorage.setItem("mfcafe_login_ts", loginTs);
       document.getElementById("lblUsername").innerText = res.username;
       document.getElementById("posCashierName").value = res.username;
       updateRoleLabel(state.currentUserRole);
@@ -2202,179 +1612,10 @@
       const errEl = document.getElementById("loginError");
       if (errEl) errEl.classList.add("hidden");
       applyRoleVisibility();
-      startSessionWatch();
       // Keep the boot screen up until the first data load completes, then
       // drop the user straight into the POS.
       bootStart("Signing in…");
       fetchFromSheet({ boot: true });
-    }
-
-    // ============ STAFF CARDS ============
-    function staffCardMap() {
-      const m = state.staffCards;
-      return (m && typeof m === "object") ? m : {};
-    }
-
-    function resolveCardAccounts(code) {
-      const key = String(code || "").trim();
-      if (!key) return [];
-      const names = staffCardMap()[key];
-      if (!Array.isArray(names)) return [];
-      return names
-        .map(n => (state.users || []).find(u => String(u.username || "").toLowerCase() === String(n).toLowerCase()))
-        .filter(Boolean);
-    }
-
-    async function lookupCardAccounts(code) {
-      if (!code) return [];
-      // Before login the Users sheet has not been loaded into state yet, so
-      // ask the backend to resolve the card on the spot.
-      if ((state.users || []).length) return resolveCardAccounts(code);
-      try {
-        const res = await apiPost({ action: "getCardAccounts", card: code });
-        return (res && Array.isArray(res.accounts)) ? res.accounts : [];
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function loginAsAccount(user) {
-      if (!user) return;
-      completeLogin({ username: user.username, role: user.role || "Staff", canPrint: !!user.canPrint });
-    }
-
-    function showCardAccountChooser(accounts) {
-      const list = document.getElementById("cardAccountList");
-      const modal = document.getElementById("cardAccountModal");
-      if (!list || !modal) return;
-      window.__cardAccounts = accounts;
-      list.innerHTML = accounts.map((u, i) => `
-        <button onclick="pickCardAccount(${i})" class="w-full flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl px-4 py-3 transition">
-          <span class="text-sm font-black text-slate-800">${escapeHtml(u.username)}</span>
-          <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">${escapeHtml(u.role || "Staff")}</span>
-        </button>`).join("");
-      modal.classList.remove("hidden");
-    }
-
-    function pickCardAccount(index) {
-      const accounts = window.__cardAccounts || [];
-      const user = accounts[index];
-      if (!user) return;
-      closeCardAccountChooser();
-      loginAsAccount(user);
-    }
-
-    function closeCardAccountChooser() {
-      document.getElementById("cardAccountModal")?.classList.add("hidden");
-    }
-
-    async function scanStaffCardLogin() {
-      const input = document.getElementById("loginCardCode");
-      const errEl = document.getElementById("loginError");
-      const code = input ? input.value.trim() : "";
-      if (!code) return;
-      if (input) input.value = "";
-      const accounts = await lookupCardAccounts(code);
-      if (accounts.length === 0) {
-        if (errEl) {
-          errEl.innerText = `Card ${code} is not linked to any account. Ask an Admin to bind it.`;
-          errEl.classList.remove("hidden");
-        }
-        return;
-      }
-      if (errEl) errEl.classList.add("hidden");
-      if (accounts.length === 1) { loginAsAccount(accounts[0]); return; }
-      showCardAccountChooser(accounts);
-    }
-
-    // ============ POS DISCOUNT ============
-    let discountDraftPct = 0;
-
-    function posBasePrice() {
-      return state.selectedPosItem ? getPosItemPrice(state.selectedPosItem, state.selectedPosTemp) : 0;
-    }
-
-    function posDiscountPrice() {
-      const base = posBasePrice();
-      const pct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
-      return Math.max(0, Math.round(base * (100 - pct)) / 100);
-    }
-
-    function updatePosTotal() {
-      const txt = document.getElementById("posSubmitBtnText");
-      const badge = document.getElementById("posDiscountBadge");
-      const clearBtn = document.getElementById("posDiscountClear");
-      const pct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
-      if (txt) txt.innerText = `Confirm & Submit (${fmtPrice(posDiscountPrice())})`;
-      if (!badge || !clearBtn) return;
-      if (pct > 0) {
-        badge.innerText = `${pct === 100 ? "FREE" : "-" + pct + "%"} · ${state.posDiscount.by}`;
-        badge.classList.remove("hidden");
-        clearBtn.classList.remove("hidden");
-      } else {
-        badge.classList.add("hidden");
-        clearBtn.classList.add("hidden");
-      }
-    }
-
-    function highlightDiscountPct() {
-      document.querySelectorAll(".discount-pct-btn").forEach(btn => {
-        const on = Number(btn.dataset.pct) === discountDraftPct;
-        btn.classList.toggle("bg-amber-100", on);
-        btn.classList.toggle("border-amber-300", on);
-        btn.classList.toggle("text-amber-800", on);
-        btn.classList.toggle("bg-slate-50", !on);
-      });
-    }
-
-    function openDiscountModal() {
-      if (!state.selectedPosItem) return showToast("Select a drink first.", "warning");
-      discountDraftPct = state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0;
-      const nameEl = document.getElementById("discountItemName");
-      if (nameEl) nameEl.innerText = `${state.selectedPosItem.name} (${state.selectedPosTemp || ""}) · ${fmtPrice(posBasePrice())}`;
-      const custom = document.getElementById("discountCustomPct");
-      if (custom) custom.value = discountDraftPct || "";
-      const card = document.getElementById("discountCardInput");
-      if (card) card.value = "";
-      document.getElementById("discountError")?.classList.add("hidden");
-      selectDiscountPct(discountDraftPct);
-      document.getElementById("discountModal")?.classList.remove("hidden");
-      setTimeout(() => document.getElementById("discountCardInput")?.focus(), 200);
-    }
-
-    function closeDiscountModal() {
-      document.getElementById("discountModal")?.classList.add("hidden");
-    }
-
-    function selectDiscountPct(pct) {
-      discountDraftPct = Math.max(0, Math.min(100, Number(pct) || 0));
-      const custom = document.getElementById("discountCustomPct");
-      if (custom && String(custom.value) !== String(discountDraftPct)) custom.value = discountDraftPct || "";
-      const eff = Math.max(0, Math.round(posBasePrice() * (100 - discountDraftPct)) / 100);
-      const preview = document.getElementById("discountPreview");
-      if (preview) preview.innerText = fmtPrice(eff);
-      highlightDiscountPct();
-    }
-
-    async function confirmDiscount() {
-      const errEl = document.getElementById("discountError");
-      const showErr = msg => { if (errEl) { errEl.innerText = msg; errEl.classList.remove("hidden"); } };
-      if (discountDraftPct <= 0) return showErr("Choose a discount percentage first.");
-      const cardInput = document.getElementById("discountCardInput");
-      const code = cardInput ? cardInput.value.trim() : "";
-      if (!code) return showErr("Scan a staff card to authorise this discount.");
-      const accounts = await lookupCardAccounts(code);
-      if (accounts.length === 0) return showErr(`Card ${code} is not linked to a staff account.`);
-      state.posDiscount = { pct: discountDraftPct, by: accounts[0].username };
-      if (cardInput) cardInput.value = "";
-      closeDiscountModal();
-      updatePosTotal();
-      showToast(`Discount applied by ${accounts[0].username}`, "success");
-    }
-
-    function clearPosDiscount() {
-      state.posDiscount = null;
-      updatePosTotal();
     }
 
     function attemptLogin() {
@@ -2409,7 +1650,12 @@
     }
 
     function logout() {
-      clearStoredSession();
+      setCookie("mfcafe_user", "", -1);
+      setCookie("mfcafe_role", "", -1);
+      setCookie("mfcafe_canprint", "", -1);
+      localStorage.removeItem("mfcafe_user");
+      localStorage.removeItem("mfcafe_role");
+      localStorage.removeItem("mfcafe_canprint");
       state.currentUser = null;
       state.currentUserRole = "Staff";
       state.currentUserCanPrint = false;
@@ -2500,14 +1746,6 @@
         .replace(/'/g, "&#039;");
     }
 
-    // Safe argument for a double-quoted inline handler. HTML decodes entities
-    // before the JS engine parses the attribute, so a value containing an
-    // apostrophe used to close the '...' literal early. JSON-quote it first,
-    // then HTML-escape it: the attribute stays balanced for every character.
-    function jsArg(v) {
-      return escapeHtml(JSON.stringify(String(v ?? "")));
-    }
-
     // Stream text in glyph by glyph: 120ms blur-in, 30ms stagger.
     function streamText(el, text) {
       if (!el) return;
@@ -2534,17 +1772,12 @@
       return `${mins}:${secs}`;
     }
 
-    // KDS count-up starts when payment is cleared, not when the pre-order was
-    // placed — Open Day guests often pay well after submitting the ticket.
-    function orderTimerStart(order) {
-      if (String(order.paymentStatus || "").toUpperCase() === "UNPAID") return "";
-      return String(order.paidTime || order.orderTime || "");
-    }
-
     function updateTimers() {
       document.querySelectorAll('.kds-timer').forEach(el => {
-        const start = el.getAttribute('data-ordertime');
-        el.innerText = start ? getElapsedTimeStr(start) : "—";
+        const orderTime = el.getAttribute('data-ordertime');
+        if (orderTime) {
+          el.innerText = getElapsedTimeStr(orderTime);
+        }
       });
     }
 
@@ -2609,7 +1842,6 @@
       setTimeout(() => {
         const screen = document.getElementById("bootScreen");
         if (screen) {
-          document.body.classList.add("pos-reveal");
           screen.style.opacity = "0";
           setTimeout(() => { screen.style.display = "none"; }, 320);
         }
@@ -2658,21 +1890,15 @@
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
-          if (data.orderGuides && typeof data.orderGuides === "object") state.orderGuides = data.orderGuides;
-          if (data.pickupConfig) state.pickupConfig = data.pickupConfig;
-          if (data.announcements) state.announcements = data.announcements;
-          if (data.kdsStatus) state.kdsStatus = data.kdsStatus;
-          if (data.staffCards) state.staffCards = data.staffCards;
 
           // Show any active push message from the server
           handlePushMessage();
 
           if (Array.isArray(data.orders)) {
-            const merged = applyLocalOrderOverrides(data.orders);
             const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            const newReady = merged.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            state.orders = merged;
-            reconcileAssignedOrderMap(merged);
+            const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+            state.orders = data.orders;
+            reconcileAssignedOrderMap(data.orders);
             if (newReady > oldReady) triggerChime();
           }
           renderAll();
@@ -2696,9 +1922,7 @@
     }
 
     function renderTabBadges() {
-      const kdsCount = state.orders
-        .filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase()))
-        .filter(kdsOrderVisible).length;
+      const kdsCount = state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).length;
       const readyCount = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
       const helperCount = readyCount; // same as ready orders needing clearing
 
@@ -2742,7 +1966,7 @@
         let html = "";
         cats.forEach(cat => {
           const active = state.selectedCategory === cat;
-          html += `<button onclick="selectCategory(${jsArg(cat)})" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+          html += `<button onclick="selectCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
         });
         tabs.innerHTML = html;
       }
@@ -2808,7 +2032,7 @@
 
       if (nameEl) nameEl.innerText = item.name;
       if (priceEl) priceEl.innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
-      updatePosTotal();
+      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -2835,7 +2059,7 @@
       const hotkeys = state.remarkHotkeys.split(',').map(s => s.trim()).filter(Boolean);
       hotkeys.forEach(hk => {
         pillsContainer.innerHTML += `
-          <button type="button" onclick="addNotePill(${jsArg(hk)})" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
+          <button type="button" onclick="addNotePill('${escapeHtml(hk)}')" class="bg-white border border-slate-200 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg hover:border-amber-400 transition">${escapeHtml(hk)}</button>
         `;
       });
 
@@ -2850,7 +2074,7 @@
       if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (state.selectedPosItem) {
         document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
-        updatePosTotal();
+        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
       }
     }
 
@@ -2904,14 +2128,7 @@
       }
     }
 
-    // Enter is wired globally (and on the QR field), so a held key fires this
-    // once per repeat while the first createOrder is still in flight — each
-    // press used to post another identical order. The button's disabled state
-    // cannot stop a keyboard-triggered call, so guard the request itself.
-    let posOrderInFlight = false;
-
     function submitPosOrder() {
-      if (posOrderInFlight) return;
       if (!state.selectedPosItem) return showToast("Please select a drink first!", "warning");
       if (!state.selectedPosCupType) return showToast("Please select Cup Type: In-Store or Takeaway!", "warning", 4000);
       const guestInput = document.getElementById('posGuestName');
@@ -2944,7 +2161,6 @@
         return;
       }
 
-      posOrderInFlight = true;
       const btnSubmit = document.getElementById('btnSubmitPos');
       if (btnSubmit) {
         btnSubmit.disabled = true;
@@ -2959,8 +2175,6 @@
         temp: state.selectedPosTemp,
         customization: notes,
         price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
-        discountPct: state.posDiscount ? Number(state.posDiscount.pct) || 0 : 0,
-        discountBy: state.posDiscount ? state.posDiscount.by : "",
         status: "PENDING",
         qrTile: qrTile,
         cupType: cupType
@@ -2973,7 +2187,6 @@
       })
       .then(res => res.json())
       .then(res => {
-        posOrderInFlight = false;
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
@@ -2987,8 +2200,7 @@
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
           clearPosTileError();
-          state.posDiscount = null;
-          updatePosTotal();
+          document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
           
           fetchFromSheet();
 
@@ -3001,7 +2213,6 @@
         }
       })
       .catch(err => {
-        posOrderInFlight = false;
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
@@ -3065,7 +2276,7 @@
             </div>
             <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})${o.qrTile ? ` · Tile ${escapeHtml(o.qrTile)}` : ''}</p>
           </div>
-          <button onclick="confirmOrderPayment(${jsArg(o.orderNum)})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
+          <button onclick="confirmOrderPayment('${escapeHtml(o.orderNum)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
             Confirm & Pay
           </button>
         `;
@@ -3167,101 +2378,72 @@
       }
     }
 
-    function cameraErrorMessage(err) {
-      const name = (err && err.name) ? String(err.name) : "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
-        return "camera permission is blocked. Click the camera icon in the address bar, allow access, then try again.";
-      }
-      if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-        return "no camera found on this device. Use the scanner gun or type the code.";
-      }
-      if (name === "NotReadableError" || name === "TrackStartError") {
-        return "the camera is already in use by another app or tab. Close it and try again.";
-      }
-      if (name === "OverconstrainedError") {
-        return "this device has no suitable camera. Use the scanner gun or type the code.";
-      }
-      const msg = (err && err.message) ? err.message : String(err);
-      return msg + " — allow camera permission, or use the scanner gun.";
-    }
-
-    async function startQRScanner() {
+    function startQRScanner() {
       if (scannerStarting) return;
-      scannerStarting = true;
 
-      // The library is fetched from mirrors on demand — a blocked CDN retries.
-      const libReady = await loadScannerLibrary();
-      if (!libReady) {
-        scannerStarting = false;
-        showToast("Camera scanner could not load (network blocked). Use the scanner gun or type the code.", "error", 8000);
+      if (typeof Html5Qrcode === "undefined") {
+        showToast("Scanner library not loaded. Check the internet connection, or use the scanner gun / manual input.", "error", 6000);
         return;
       }
 
       // Browsers only allow camera access on HTTPS or localhost
       if (!window.isSecureContext) {
-        scannerStarting = false;
         showToast("Camera needs a secure (HTTPS) connection. Open this page via https:// or localhost, or use the scanner gun.", "error", 8000);
-        return;
-      }
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        scannerStarting = false;
-        showToast("This browser does not expose a camera to web pages. Use Chrome/Edge, or the scanner gun.", "error", 8000);
         return;
       }
 
       const modal = document.getElementById('qrScannerModal');
-      if (!modal) { scannerStarting = false; return; }
+      if (!modal) return;
       modal.classList.remove('hidden');
       isProcessingScan = false;
+      scannerStarting = true;
 
-      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-        await html5QrcodeScanner.stop().catch(() => {});
-      }
-      if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
-      }
+      const stopExisting = (html5QrcodeScanner && html5QrcodeScanner.isScanning)
+        ? html5QrcodeScanner.stop().catch(() => {})
+        : Promise.resolve();
 
-      // Let the modal paint before the camera viewport is measured
-      await new Promise(r => setTimeout(r, 300));
-
-      const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.EAN_13
-      ] : undefined;
-
-      const config = {
-        fps: 12,
-        qrbox: (viewWidth, viewHeight) => {
-          const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
-          return { width: edge, height: edge };
-        },
-        aspectRatio: 1.0,
-        disableFlip: false,
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-      };
-      if (formats) config.formatsToSupport = formats;
-
-      try {
-        // Prefer the rear camera, but fall back to any available camera so
-        // laptops and single-lens webcams still scan.
-        try {
-          await html5QrcodeScanner.start({ facingMode: "environment" }, config, handleScanResult, () => {});
-        } catch (firstErr) {
-          const name = (firstErr && firstErr.name) ? String(firstErr.name) : "";
-          const retryable = name === "OverconstrainedError" || name === "NotFoundError" || name === "DevicesNotFoundError";
-          if (!retryable) throw firstErr;
-          const cameras = await Html5Qrcode.getCameras().catch(() => []);
-          if (!cameras.length) throw firstErr;
-          await html5QrcodeScanner.start({ deviceId: { exact: cameras[cameras.length - 1].id } }, config, handleScanResult, () => {});
+      stopExisting.then(() => {
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5Qrcode("qr-reader", { verbose: false });
         }
-        scannerStarting = false;
-      } catch (err) {
-        scannerStarting = false;
-        showToast("Camera unavailable: " + cameraErrorMessage(err), "error", 8000);
-        stopQRScanner();
-      }
+
+        // Let the modal paint before the camera viewport is measured
+        setTimeout(() => {
+          const formats = (typeof Html5QrcodeSupportedFormats !== "undefined") ? [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.PDF_417
+          ] : undefined;
+
+          const config = {
+            fps: 12,
+            qrbox: (viewWidth, viewHeight) => {
+              const edge = Math.floor(Math.min(viewWidth, viewHeight) * 0.75);
+              return { width: edge, height: edge };
+            },
+            aspectRatio: 1.0,
+            disableFlip: false,
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+          };
+          if (formats) config.formatsToSupport = formats;
+
+          html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            config,
+            handleScanResult,
+            () => {}
+          ).then(() => {
+            scannerStarting = false;
+          }).catch(err => {
+            scannerStarting = false;
+            const msg = (err && err.message) ? err.message : String(err);
+            showToast("Camera failed: " + msg + " — allow camera permission or use the scanner gun.", "error", 6000);
+            stopQRScanner();
+          });
+        }, 250);
+      });
     }
 
     function scanQRTileForOrder() {
@@ -3382,156 +2564,16 @@
       return state.categoryColors[category] || "#64748b";
     }
 
-    // ============ KDS STATUS STRIP (on-screen stand-in for the lamp system) ============
-    const KDS_STATUS_DEFAULTS = {
-      enabled: true,
-      title: "Bar Status",
-      labels: { idle: "Clear", normal: "Steady", busy: "Busy", critical: "Behind" }
-    };
-
-    function kdsStatusConfig() {
-      const c = state.kdsStatus || {};
-      return {
-        enabled: c.enabled !== false,
-        title: String(c.title || KDS_STATUS_DEFAULTS.title).trim() || KDS_STATUS_DEFAULTS.title,
-        labels: Object.assign({}, KDS_STATUS_DEFAULTS.labels, c.labels || {})
-      };
-    }
-
-    function kdsLevelOf(count) {
-      if (count <= 0) return "idle";
-      if (count <= 2) return "normal";
-      if (count <= 5) return "busy";
-      return "critical";
-    }
-
-    function renderKdsStatus(activeAll) {
-      const strip = document.getElementById("kdsStatusStrip");
-      const chips = document.getElementById("kdsStatusChips");
-      const title = document.getElementById("kdsStatusTitle");
-      if (!strip || !chips) return;
-
-      const cfg = kdsStatusConfig();
-      if (!cfg.enabled) { strip.classList.add("hidden"); return; }
-      strip.classList.remove("hidden");
-      if (title) title.innerText = cfg.title;
-
-      const visible = activeAll.filter(kdsOrderVisible);
-      const cats = (state.categories || []).slice();
-      visible.forEach(o => {
-        const c = getOrderCategory(o);
-        if (c && cats.indexOf(c) === -1) cats.push(c);
-      });
-
-      const counts = {};
-      cats.forEach(cat => { counts[cat] = 0; });
-      visible.forEach(o => {
-        const c = getOrderCategory(o);
-        counts[c] = (counts[c] || 0) + 1;
-      });
-
-      const tones = {
-        idle: "bg-slate-100 text-slate-500",
-        normal: "bg-emerald-100 text-emerald-700",
-        busy: "bg-amber-100 text-amber-700",
-        critical: "bg-rose-100 text-rose-700"
-      };
-
-      let html = "";
-      cats.forEach(cat => {
-        const count = counts[cat] || 0;
-        const level = kdsLevelOf(count);
-        html += `<span class="flex-shrink-0 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full pl-2 pr-2.5 py-1">
-          <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${getCategoryColor(cat)}"></span>
-          <span class="text-[11px] font-extrabold text-slate-700">${escapeHtml(cat)}</span>
-          <span class="text-[11px] font-black text-slate-900">${count}</span>
-          <span class="text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full ${tones[level]}">${escapeHtml(cfg.labels[level])}</span>
-        </span>`;
-      });
-
-      const later = activeAll.filter(o => !kdsOrderVisible(o)).length;
-      if (later > 0) {
-        html += `<span class="flex-shrink-0 inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1 text-[10px] font-extrabold text-slate-500">
-          <i class="fa-solid fa-clock-rotate-left text-[9px]"></i>${later} later
-        </span>`;
-      }
-
-      chips.innerHTML = html;
-    }
-
-    function renderKdsPreorderDrawer(activeAll) {
-      const list = document.getElementById('kdsPreorderList');
-      const label = document.getElementById('kdsPreorderLabel');
-      if (!list) return;
-
-      const preorders = activeAll
-        .filter(isPreOrder)
-        .sort((a, b) => {
-          const ma = pickupMinutesOf(a.pickupTime);
-          const mb = pickupMinutesOf(b.pickupTime);
-          return (ma == null ? Infinity : ma) - (mb == null ? Infinity : mb);
-        });
-
-      if (label) label.innerText = `Pre-orders ${preorders.length}`;
-
-      if (preorders.length === 0) {
-        list.innerHTML = `<p class="text-xs font-medium text-slate-400">No scheduled pre-orders right now.</p>`;
-        return;
-      }
-
-      list.innerHTML = preorders.map(o => {
-        const onBoard = kdsOrderVisible(o);
-        const target = pickupMinutesOf(o.pickupTime);
-        let hint = "Ready now";
-        if (target != null && target >= 1440) {
-          hint = "Tomorrow";
-        } else if (target != null) {
-          const d = new Date();
-          const diff = target - (d.getHours() * 60 + d.getMinutes());
-          hint = diff > 0 ? `${diff} min to pickup` : "Pickup time passed";
-        }
-        const tone = onBoard
-          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-          : "bg-slate-100 text-slate-600 border-slate-200";
-        const statusText = onBoard ? "On board" : `Shows ${pickupLeadMinutes()} min before`;
-        // Off-board pre-orders can be promoted early: assigning the ticket puts
-        // it on the main KDS grid immediately, and the normal Ready → print →
-        // clear flow takes it from there.
-        const startBtn = onBoard ? "" : `<button onclick="assignOrder(${jsArg(o.orderNum)}, true)"
-              class="mt-1 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full transition flex items-center gap-1 ml-auto">
-              <i class="fa-solid fa-play text-[8px]"></i> Start now
-            </button>`;
-        return `<div class="flex justify-between items-start gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
-          <div class="min-w-0">
-            <p class="text-sm font-black text-slate-800">#${escapeHtml(o.orderNum)} · ${escapeHtml(o.guestName || "Guest")}</p>
-            <p class="text-[11px] font-bold text-slate-500 truncate">${escapeHtml(o.productName)} (${escapeHtml(o.temp || "")}) · Pickup ${escapeHtml(o.pickupTime || "—")}</p>
-          </div>
-          <div class="text-right flex-shrink-0">
-            <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full border ${tone}">${escapeHtml(statusText)}</span>
-            <p class="text-[10px] font-bold text-slate-400 mt-1">${escapeHtml(hint)}</p>
-            ${startBtn}
-          </div>
-        </div>`;
-      }).join("");
-    }
-
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
 
-      const activeAll = state.orders
-        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()));
-
-      // Scheduled pre-orders stay off the board until the bar actually needs
-      // them; they are still reachable through the Pre-orders drawer.
-      const activeOrders = activeAll.filter(kdsOrderVisible);
-
-      activeOrders
-        // Assigned tickets jump to the top so the bar starts them first; within
-        // each group the oldest order still comes first.
+      const activeOrders = state.orders
+        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
         .sort((a, b) => {
           const sa = (a.status || "").toUpperCase();
           const sb = (b.status || "").toUpperCase();
+          // Assigned orders always float to the top of the KDS.
           const rankA = sa === "ASSIGNED" ? 0 : 1;
           const rankB = sb === "ASSIGNED" ? 0 : 1;
           if (rankA !== rankB) return rankA - rankB;
@@ -3543,8 +2585,7 @@
             const nb = tb == null ? Infinity : tb;
             if (na !== nb) return na - nb;
           }
-          // Same-second timestamps used to tie, so the browser's stable sort
-          // could reshuffle the grid; the order number is a fixed tiebreaker.
+          // Pending / reserved keep their arrival order.
           const byTime = String(a.orderTime).localeCompare(String(b.orderTime));
           return byTime || (Number(a.orderNum) || 0) - (Number(b.orderNum) || 0);
         });
@@ -3552,32 +2593,21 @@
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
 
-      // 40+ pulsing halos is a strobe, not an alert.
-      const unassignedCount = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED").length;
-      grid.classList.toggle('kds-many', unassignedCount > 24);
-
-      renderKdsPreorderDrawer(activeAll);
-      renderKdsStatus(activeAll);
-
-      // ---- Marquee: every active order the bar still needs to prepare ----
+      // ---- Marquee: every order not yet assigned by the head chef ----
+      const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
       const marqueeWrap = document.getElementById('kdsMarqueeWrap');
       const marqueeTrack = document.getElementById('kdsMarqueeTrack');
       if (marqueeWrap && marqueeTrack) {
-        if (activeOrders.length === 0) {
+        if (unassigned.length === 0) {
           marqueeWrap.classList.add('hidden');
           marqueeTrack.innerHTML = "";
         } else {
-          const line = activeOrders.map(o => {
+          const line = unassigned.map(o => {
             const cat = getOrderCategory(o);
             return `#${o.orderNum} ${o.productName} (${o.temp}) · ${cat}${o.qrTile ? ` · Tile ${o.qrTile}` : ""}`;
           }).join("   •   ");
-          // Duplicate content so the scroll loops seamlessly; a short queue
-          // stays static instead of duplicating three words forever.
-          const scrolling = activeOrders.length > 3;
-          marqueeTrack.innerHTML = scrolling
-            ? `<span class="pr-8">${escapeHtml(line)}</span><span class="pr-8">${escapeHtml(line)}</span>`
-            : `<span class="pr-8">${escapeHtml(line)}</span>`;
-          marqueeTrack.classList.toggle('is-static', !scrolling);
+          // Duplicate content so the scroll loops seamlessly
+          marqueeTrack.innerHTML = `<span class="pr-8">${escapeHtml(line)}</span><span class="pr-8">${escapeHtml(line)}</span>`;
           marqueeWrap.classList.remove('hidden');
         }
       }
@@ -3590,8 +2620,7 @@
       let html = "";
       activeOrders.forEach(o => {
         const status = (o.status || "").toUpperCase();
-        const timerStart = orderTimerStart(o);
-        const timeAgo = timerStart ? getElapsedTimeStr(timerStart) : "—";
+        const timeAgo = getElapsedTimeStr(o.orderTime);
         const isReserved = status === "RESERVED";
         const isAssigned = status === "ASSIGNED";
         const pickupLabel = o.pickupTime ? escapeHtml(o.pickupTime) : 'Scheduled';
@@ -3602,12 +2631,12 @@
           <div class="bg-white border-4 ${isReserved ? 'ring-2 ring-purple-200' : ''} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-color: ${color};">
             <div class="space-y-3">
               <div class="flex justify-between items-start gap-2">
-                <div class="min-w-0 flex-1">
-                  <h3 class="text-2xl font-black text-slate-900 tracking-tight line-clamp-2 break-words" title="${escapeHtml(o.qrTile ? `Tile ${o.qrTile}` : `#${o.orderNum}`)}">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
-                  <p class="text-xs text-slate-400 font-semibold mt-0.5 break-words" style="overflow-wrap:anywhere">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
+                <div>
+                  <h3 class="text-2xl font-black text-slate-900 tracking-tight">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
+                  <p class="text-xs text-slate-400 font-semibold mt-0.5">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
                 </div>
-                <div class="flex flex-col items-end gap-1.5 shrink-0">
-                  <span class="${timerStart ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200'} font-bold px-2.5 py-1 rounded-full text-xs kds-timer border" data-ordertime="${timerStart}" title="${timerStart ? 'Time since payment' : 'Starts counting after payment'}">
+                <div class="flex flex-col items-end gap-1.5">
+                  <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
                     ${timeAgo}
                   </span>
                   <span class="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style="background-color: ${color};">
@@ -3647,16 +2676,16 @@
 
             <div class="space-y-2">
               <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer">
-                <input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignOrder(${jsArg(o.orderNum)}, this.checked)" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+                <input type="checkbox" ${isAssigned ? 'checked' : ''} onchange="assignOrder('${escapeHtml(o.orderNum)}', this.checked)" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
                 <span class="text-xs font-bold ${isAssigned ? 'text-emerald-700' : 'text-slate-600'}">
                   ${isAssigned ? 'Assigned to department' : 'Assigned — click to stop alert'}
                 </span>
               </label>
               <div class="flex gap-2">
-                <button onclick="markOrderReady(${jsArg(o.orderNum)})" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
+                <button onclick="markOrderReady('${o.orderNum}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
                   Call Drink Ready (#${escapeHtml(o.orderNum)})
                 </button>
-                <button onclick="reprintDrinkLabel(${jsArg(o.orderNum)})" title="Print drink label" aria-label="Print drink label"
+                <button onclick="reprintDrinkLabel('${o.orderNum}')" title="Print drink label" aria-label="Print drink label"
                         class="w-12 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl flex items-center justify-center transition">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>
@@ -3723,7 +2752,6 @@
 
       const prevStatus = o.status;
       o.status = isChecked ? "ASSIGNED" : "PENDING";
-      rememberOrderStatus(targetNum, o.status);
       if (isChecked) recordAssigned(targetNum); else clearAssigned(targetNum);
       renderAll();
 
@@ -3739,7 +2767,6 @@
       .then(res => {
         if (!res.success) {
           o.status = prevStatus;
-          forgetOrderStatus(targetNum);
           if (isChecked) clearAssigned(targetNum); else recordAssigned(targetNum);
           renderAll();
           showToast(res.error || "Failed to update assignment", "error");
@@ -3750,7 +2777,6 @@
       })
       .catch(() => {
         o.status = prevStatus;
-        forgetOrderStatus(targetNum);
         if (isChecked) clearAssigned(targetNum); else recordAssigned(targetNum);
         renderAll();
         showToast("Network error — reverted", "error");
@@ -3797,20 +2823,24 @@
       const tile = String(order.qrTile || "").trim();
       const num = String(order.orderNum || "").trim();
       const primary = tile || `#${num}`;
+      const secondary = tile && num ? `Order #${escapeHtml(num)}` : "";
       const isUnpaid = String(order.paymentStatus || "").trim().toUpperCase() === "UNPAID";
-      const unpaidBadge = (isReady && isUnpaid)
-        ? `<div class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm z-10">UNPAID</div>`
+      const showUnpaidBadge = isReady && isUnpaid;
+      const unpaidBadge = showUnpaidBadge
+        ? `<div class="absolute -top-2 -right-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-sm z-10">UNPAID</div>`
         : "";
-      // McDonald's logic: the number is the only thing that matters. Ready
-      // numbers dominate, preparing numbers stay quiet so the eye lands on
-      // "your drink is up" first.
-      const cls = isReady
-        ? "relative bg-emerald-600 text-white rounded-2xl font-black px-2 py-4 shadow-md"
-        : "relative bg-white rounded-2xl font-black px-2 py-3 text-slate-500 border border-slate-200";
-      const size = isReady ? "text-5xl md:text-6xl" : "text-3xl md:text-4xl";
+      let cls = "relative ";
+      if (isReady) {
+        cls += showUnpaidBadge
+          ? "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md border-4 border-rose-500"
+          : "bg-emerald-600 text-white p-3 rounded-xl font-black text-4xl animate-pulse shadow-md";
+      } else {
+        cls += "bg-slate-100 border border-slate-200 p-3 rounded-xl font-black text-3xl text-slate-700";
+      }
       return `<div class="${cls}">
         ${unpaidBadge}
-        <div class="pickup-number leading-none ${size}">${escapeHtml(primary)}</div>
+        <div class="pickup-number leading-none">${escapeHtml(primary)}</div>
+        ${secondary ? `<div class="pickup-sub text-[11px] font-bold opacity-70 mt-1">${secondary}</div>` : ""}
       </div>`;
     }
 
@@ -3819,35 +2849,17 @@
       const readyList = document.getElementById('pickupReadyList');
       if (!prepList || !readyList) return;
 
-      const ts = o => {
-        const t = Date.parse(o.orderTime);
-        return Number.isFinite(t) ? t : 0;
-      };
+      let prepHtml = "";
+      state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
+        prepHtml += pickupNumberCard(o, false);
+      });
+      prepList.innerHTML = prepHtml;
 
-      const preparing = state.orders
-        .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
-        // Keep future pre-orders off the public display until their lead window.
-        .filter(kdsOrderVisible)
-        .sort((a, b) => ts(a) - ts(b));
-
-      const ready = state.orders
-        .filter(o => (o.status || "").toUpperCase() === "READY")
-        .sort((a, b) => ts(a) - ts(b));
-
-      prepList.innerHTML = preparing.length
-        ? preparing.map(o => pickupNumberCard(o, false)).join("")
-        : `<p class="col-span-full text-slate-400 text-sm font-medium py-6">Nothing in the queue.</p>`;
-      readyList.innerHTML = ready.length
-        ? ready.map(o => pickupNumberCard(o, true)).join("")
-        : `<p class="col-span-full text-emerald-700/60 text-sm font-medium py-6">Waiting for the next order.</p>`;
-
-      const prepCount = document.getElementById('pickupPrepCount');
-      const readyCount = document.getElementById('pickupReadyCount');
-      if (prepCount) prepCount.innerText = preparing.length;
-      if (readyCount) readyCount.innerText = ready.length;
-
-      // Oldest ticket first, no auto-scrolling: the person who has waited
-      // longest stays on screen, and the grid never jumps under the reader.
+      let readyHtml = "";
+      state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
+        readyHtml += pickupNumberCard(o, true);
+      });
+      readyList.innerHTML = readyHtml;
     }
 
     function renderHelper() {
@@ -3871,7 +2883,7 @@
               <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
               <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
             </div>
-            <button onclick="clearOrder(${jsArg(o.orderNum)})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
+            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
               Clear
             </button>
           </div>`;
@@ -3929,127 +2941,41 @@
     let btCharTx = null;
     let btBusy   = false;
 
-    // Tiny string → byte helper (Latin-1 + GB2312 for CJK)
+    // Tiny string → byte helper (Latin-1 only; SJ-P3-B handles GB2312 internally)
     // ESC/POS is a byte protocol: a stray ESC/GS byte from customer text, or a
     // CJK code unit whose low byte is 0x1B / 0x1D, corrupts every command after
-    // it. Map typographic glyphs to ASCII; leave CJK intact so the GB2312
-    // encoder below can handle it.
+    // it. Map typographic glyphs to ASCII and collapse wide runs to one "?".
     const PRINT_GLYPHS = {
       "\u2014": "-", "\u2013": "-", "\u2010": "-", "\u2011": "-", "\u2212": "-",
       "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
       "\u2026": "...", "\u2022": "*", "\u00b7": "-", "\u00d7": "x", "\u00f7": "/",
       "\u2103": "C", "\u00b0": " deg", "\u2248": "~", "\u2192": "->", "\u2190": "<-",
-      "\u2713": "v", "\u2717": "x", "\u00a0": " ", "\u3000": " ",
-      "\u2764": "<3", "\u2615": "[coffee]", "\ud83c\udf75": "[cup]",
-      "\ud83c\udfcb": "[tea]", "\ud83c\udf5e": "[cake]"
+      "\u2713": "v", "\u2717": "x", "\u00a0": " ", "\u3000": " "
     };
 
     function sanitizePrintText(value) {
       let out = "";
-      let lastReplaced = false;
+      let wideRun = false;
       for (const ch of String(value == null ? "" : value)) {
         const code = ch.codePointAt(0);
-        // Strip all C0 / DEL control chars (except tab/newline which we fold to space)
         if (code < 0x20 || code === 0x7f) {
           if (code === 9 || code === 10 || code === 13) out += " ";
           continue;
         }
         const mapped = PRINT_GLYPHS[ch];
-        if (mapped !== undefined) { out += mapped; lastReplaced = false; continue; }
-        out += ch;
-        lastReplaced = false;
+        if (mapped !== undefined) { out += mapped; wideRun = false; continue; }
+        if (code <= 0xff) { out += ch; wideRun = false; continue; }
+        if (!wideRun) out += "?";
+        wideRun = true;
       }
       return out;
     }
 
-    // GBK encoder. TextEncoder only implements UTF-8 per the Encoding
-    // Standard — `new TextEncoder("gbk")` throws — so asking it for CJK bytes
-    // silently fell back to UTF-8, and the printer read those bytes as GBK.
-    // That was the mojibake. Instead we build the reverse table once with
-    // TextDecoder("gbk") (all browsers ship GBK decoding) and encode ourselves.
-    let GBK_MAP = null;
-    function gbkMap() {
-      if (GBK_MAP) return GBK_MAP;
-      const map = new Map();
-      let dec;
-      try { dec = new TextDecoder("gbk"); } catch (e) { GBK_MAP = map; return map; }
-      for (let lead = 0x81; lead <= 0xfe; lead++) {
-        for (let trail = 0x40; trail <= 0xfe; trail++) {
-          if (trail === 0x7f) continue;
-          let ch = "";
-          try { ch = dec.decode(new Uint8Array([lead, trail])); } catch (e) { continue; }
-          // Skip invalid pairs (decoder emits U+FFFD) and duplicates
-          if (ch.length === 1 && ch.charCodeAt(0) >= 0x80 && ch.charCodeAt(0) !== 0xfffd && !map.has(ch)) {
-            map.set(ch, [lead, trail]);
-          }
-        }
-      }
-      GBK_MAP = map;
-      return map;
-    }
-
-    // Text → GBK bytes: ASCII stays single byte, CJK becomes its two GBK bytes,
-    // anything not in GBK (emoji etc.) becomes '?' so it can't stall the buffer.
-    function encodeGBK(text) {
-      const map = gbkMap();
-      const bytes = [];
-      for (const ch of text) {
-        const cp = ch.codePointAt(0);
-        if (cp < 0x80) { bytes.push(cp); continue; }
-        const pair = map.get(ch);
-        if (pair) bytes.push(pair[0], pair[1]);
-        else bytes.push(0x3f); // '?'
-      }
-      return bytes;
-    }
-
-    // Convert a string into ESC/POS-safe bytes (Latin-1 + GB2312 for CJK).
-    // Characters that would inject a stray ESC/GS byte after encoding are
-    // silently replaced with '?' so they can't corrupt protocol framing.
     function esc(str) {
       const clean = sanitizePrintText(str);
-      const bytes = encodeGBK(clean);
-      for (let i = 0; i < bytes.length; i++) {
-        if (bytes[i] === 0x1b || bytes[i] === 0x1d || bytes[i] === 0x00) {
-          bytes[i] = 0x3f; // '?'
-        }
-      }
-      return Array.from(bytes);
-    }
-
-    // --- Column-aware text wrapping ---
-    // Each ASCII char = 1 column, each CJK ideograph/letter = 2 columns.
-    // SJ-P3-B 58mm paper default width = 32 columns (size 1), 16 (size 2), 10 (size 3).
-    function charDisplayWidth(ch) {
-      const cp = ch.codePointAt(0);
-      if (cp <= 0x7f) return 1;
-      // CJK Unified Ideographs + CJK Ext A + CJK Compatibility Ideographs
-      if ((cp >= 0x3400 && cp <= 0x4dbf) ||  // CJK Ext A
-          (cp >= 0x4e00 && cp <= 0x9fff) ||  // CJK Unified
-          (cp >= 0xf900 && cp <= 0xfaff) ||  // CJK Compatibility
-          (cp >= 0x3000 && cp <= 0x303f) ||  // CJK Symbols + fullwidth
-          (cp >= 0xff00 && cp <= 0xff60) ||  // Fullwidth ASCII variants
-          (cp >= 0xffe0 && cp <= 0xffe6))    // Fullwidth symbols
-        return 2;
-      return 1;
-    }
-
-    function columnWrap(text, maxCols) {
-      const lines = [];
-      let curLine = "";
-      let curCols = 0;
-      for (const ch of text) {
-        const w = charDisplayWidth(ch);
-        if (curCols + w > maxCols && curLine.length > 0) {
-          lines.push(curLine);
-          curLine = "";
-          curCols = 0;
-        }
-        curLine += ch;
-        curCols += w;
-      }
-      if (curLine.length > 0) lines.push(curLine);
-      return lines;
+      const bytes = [];
+      for (let i = 0; i < clean.length; i++) bytes.push(clean.charCodeAt(i) & 0xff);
+      return bytes;
     }
 
     // ==================== RECEIPT LAYOUT ====================
@@ -4124,54 +3050,6 @@
       return status === "RESERVED" || !!String(order.pickupTime || "").trim();
     }
 
-    // Pickup times arrive as "14:30", "2:30 PM" or "Tomorrow 2:30 PM" depending
-    // on which portal placed the order, so normalise them to minutes-of-day.
-    // "Tomorrow" shifts the result past 1440 so it can never look due today.
-    function pickupMinutesOf(raw) {
-      const s = String(raw || "").trim();
-      if (!s) return null;
-      const tomorrow = /tomorrow/i.test(s) ? 1440 : 0;
-      const m = s.replace(/tomorrow/i, "").match(/(\d{1,2})[.:](\d{1,2})?\s*(am|pm)?/i);
-      if (!m) return null;
-      let h = Number(m[1]);
-      const min = Number(m[2] || 0);
-      const ap = String(m[3] || "").toLowerCase();
-      if (ap === "pm" && h < 12) h += 12;
-      if (ap === "am" && h === 12) h = 0;
-      if (min > 59 || h > 23) return null;
-      return tomorrow + h * 60 + min;
-    }
-
-    function pickupLeadMinutes() {
-      const n = Number((state.pickupConfig || {}).leadMin);
-      return Number.isFinite(n) && n >= 0 ? n : 10;
-    }
-
-    // A scheduled ticket only reaches the board once it is inside the lead
-    // window; "Now"/blank/unreadable times are treated as ready immediately.
-    function preorderDueNow(order) {
-      const target = pickupMinutesOf(order.pickupTime);
-      if (target == null) return true;
-      if (target >= 1440) return false;
-      const now = new Date();
-      return now.getHours() * 60 + now.getMinutes() >= target - pickupLeadMinutes();
-    }
-
-    function kdsOrderVisible(order) {
-      // Already ticked by the bar: never hide work that is physically underway.
-      if (String(order.status || "").toUpperCase() === "ASSIGNED") return true;
-      if (!isPreOrder(order)) return true;
-      return preorderDueNow(order);
-    }
-
-    function toggleKdsPreorders() {
-      kdsPreordersOpen = !kdsPreordersOpen;
-      const wrap = document.getElementById('kdsPreorderWrap');
-      const chevron = document.getElementById('kdsPreorderChevron');
-      if (wrap) wrap.classList.toggle('open', kdsPreordersOpen);
-      if (chevron) chevron.style.transform = kdsPreordersOpen ? 'rotate(180deg)' : 'rotate(0deg)';
-    }
-
     function layoutFieldValue(order, field) {
       if (field === "orderNum") return String(order.orderNum || "");
       // Pre-order tag and pickup time only print for reservations — walk-in
@@ -4203,11 +3081,6 @@
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
-      // FS & / FS . are the standard ESC/POS Chinese mode pair. (GS & / GS '
-      // used here previously are not implemented on this clone, so GBK bytes
-      // were read as single-byte ASCII — that was the second half of the
-      // mojibake.)
-      buf.push(0x1c, 0x26);                  // FS & — enable Chinese mode
       const gsSize = { 1: 0x00, 2: 0x11, 3: 0x22 };
       const alignByte = { left: 0x00, center: 0x01, right: 0x02 };
 
@@ -4219,23 +3092,16 @@
         const text = receiptLineFor(block, order);
         if (!text) continue;
         const size = [1, 2, 3].indexOf(Number(block.size)) >= 0 ? Number(block.size) : 1;
-        const maxCols = Math.floor(32 / size);
-
-        // Column-aware wrap so CJK (2 cols) and ASCII (1 col) both fit
-        const wrappedLines = columnWrap(text, maxCols);
-        for (const line of wrappedLines) {
-          buf.push(0x1b, 0x61, alignByte[block.align] != null ? alignByte[block.align] : 0);
-          buf.push(0x1d, 0x21, gsSize[size]);
-          buf.push(0x1b, 0x45, block.bold ? 0x01 : 0x00);   // ESC E — bold
-          buf.push(...esc(line));
-          buf.push(0x0a);
-        }
+        buf.push(0x1b, 0x61, alignByte[block.align] != null ? alignByte[block.align] : 0);
+        buf.push(0x1d, 0x21, gsSize[size]);
+        buf.push(0x1b, 0x45, block.bold ? 0x01 : 0x00);   // ESC E — bold
+        // At size n only 32/n columns fit; sanitised text is single-byte ASCII
+        buf.push(...esc(text.slice(0, Math.floor(32 / size))));
+        buf.push(0x0a);
       }
       buf.push(0x0a, 0x0a);
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
       // don't own a cutter it can stall the buffer for the next job.
-      // Close Chinese mode before resetting so the end of label is clean.
-      buf.push(0x1c, 0x2e);                  // FS . — cancel Chinese mode
       return new Uint8Array(buf);
     }
 
@@ -4368,16 +3234,17 @@
             try { localStorage.setItem(RECEIPT_LOCAL_KEY, JSON.stringify(res.layout)); } catch (e) {}
           }
           renderLayoutEditor();
-          showSaveResultModal(true, "Receipt layout saved", "New labels follow this layout from the next print.");
+          showToast("Receipt layout saved", "success", 2000);
         } else {
           renderLayoutEditor();
-          showSaveResultModal(false, "Saved on this device only", ((res && res.error) || "The server did not accept it") + " — the layout prints from this device only.");
+          showToast("Saved on this device only — " + ((res && res.error) || "server did not accept it"), "warning", 5000);
         }
       } catch (e) {
         renderLayoutEditor();
         const msg = /failed to fetch|load failed|networkerror/i.test(e.message || "")
-          ? "Server unreachable" : e.message;
-        showSaveResultModal(false, "Saved on this device only", msg + " — the layout prints from this device only.");
+          ? "server unreachable — saved on this device only"
+          : e.message;
+        showToast("Saved on this device only — " + msg, "warning", 6000);
       }
     }
 
@@ -4834,27 +3701,9 @@
     // a label can actually come out.
     let printerBarState = "offline";
     let printerBarTransientUntil = 0;
-    // Last known hub from Apps Script (another browser owns the BLE link).
-    let printerHubCache = { hub: null, at: 0 };
 
     function connectionIsLive() {
       return !!(btDevice && btDevice.gatt && btDevice.gatt.connected && btCharTx);
-    }
-
-    function remoteHubIsLive() {
-      return !!(printerHubCache.hub && Date.now() - printerHubCache.at < 25000);
-    }
-
-    // Every device asks who owns the printer, not just the hub itself — that is
-    // why the status card on the other terminals never lit up before.
-    async function pollHubStatus() {
-      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
-      try {
-        const res = await fetch(`${APPS_SCRIPT_URL}?action=getHub&_t=${Date.now()}`, { cache: "no-cache" });
-        const data = await res.json();
-        printerHubCache = { hub: (data && data.hub) || null, at: Date.now() };
-      } catch (e) { /* keep the last known state; the next tick retries */ }
-      syncPrinterBar(true);
     }
 
     function updatePrinterBar(status, text, transient) {
@@ -4878,7 +3727,6 @@
 
       const tones = {
         online:     { dot: "bg-emerald-500",             wrap: "bg-emerald-50 text-emerald-600", label: "Test Print" },
-        remote:     { dot: "bg-emerald-500",             wrap: "bg-emerald-50 text-emerald-600", label: "Remote" },
         connecting: { dot: "bg-amber-500 animate-pulse", wrap: "bg-amber-50 text-amber-600",     label: "Connecting" },
         offline:    { dot: "bg-rose-500",                wrap: "bg-rose-50 text-rose-600",       label: "Connect" }
       };
@@ -4886,17 +3734,14 @@
 
       dot.className = "w-2 h-2 rounded-full flex-shrink-0 " + tone.dot;
       if (iconWrap) iconWrap.className = "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 " + tone.wrap;
-      textEl.innerText = text || (status === "online" ? "Connected"
-        : status === "remote" ? "Connected on another device" : "Not connected");
-      textEl.title = textEl.innerText;
+      textEl.innerText = text || (status === "online" ? "Connected" : "Not connected");
 
       if (primaryBtn && primaryLabel) {
         primaryLabel.innerText = tone.label;
-        primaryBtn.disabled = status === "connecting" || status === "remote";
+        primaryBtn.disabled = status === "connecting";
         primaryBtn.className = "flex-1 font-extrabold py-1.5 rounded-lg text-[10px] transition " +
           (status === "online" ? "bg-slate-100 hover:bg-slate-200 text-slate-700" : "bg-amber-500 hover:bg-amber-400 text-slate-950") +
-          (status === "connecting" ? " opacity-60 cursor-wait" : "") +
-          (status === "remote" ? " opacity-50 cursor-default" : "");
+          (status === "connecting" ? " opacity-60 cursor-wait" : "");
       }
     }
 
@@ -4923,16 +3768,7 @@
         if (force || printerBarState !== "online") {
           updatePrinterBar("online", (btDevice && btDevice.name) || PRINTER_DEVICE_NAME);
         }
-        return;
-      }
-      if (remoteHubIsLive()) {
-        const name = printerHubCache.hub.printerName || "another device";
-        if (force || printerBarState !== "remote") {
-          updatePrinterBar("remote", `Online · ${name}`);
-        }
-        return;
-      }
-      if (printerBarState === "online" || printerBarState === "remote") {
+      } else if (printerBarState === "online") {
         updatePrinterBar("offline", "Disconnected");
       }
     }
@@ -4940,415 +3776,6 @@
     // The card starts in its offline state and is never hidden.
     updatePrinterBar("offline", "Not connected");
     setInterval(syncPrinterBar, 1500);
-    pollHubStatus();
-    setInterval(pollHubStatus, 5000);
-
-    // ==================== ORDER GUIDE EDITOR ====================
-    // Edits the pop-up copy for each self-order portal. Saves to the Apps Script
-    // ORDER_GUIDE script property; the portals pick it up on their 15s poll.
-    let guidePortal = "customer";
-
-    // Built-in wording. The editor always shows four step rows so the fields
-    // never vanish when the saved guide has no steps yet; the defaults are used
-    // as placeholders (empty input still falls back to them on the portal).
-    const DEFAULT_ORDER_GUIDES = {
-      customer: {
-        kicker: "How self-ordering works",
-        heading: "You're all set",
-        steps: [
-          { title: "Keep this ticket", body: "Your barcode is the proof of this order. Staff will scan it when you pick up." },
-          { title: "Show it at 2/F Chill Zone", body: "Hand the barcode to the counter so we can confirm your drink and pickup time." },
-          { title: "Watch for your number", body: "Your order number is called on the pickup screen as soon as it's ready." },
-          { title: "Collect and enjoy", body: "Pick your drink up at the service counter. Keep this page open to check status." }
-        ]
-      },
-      openday: {
-        kicker: "How self-ordering works",
-        heading: "Almost there",
-        steps: [
-          { title: "Show the barcode to pay", body: "Take this ticket to the 2/F Chill Zone cashier. Scanning it confirms your payment." },
-          { title: "Payment comes first", body: "Drinks are only crafted after payment is confirmed. No payment, no drink." },
-          { title: "Watch for your number", body: "The pickup screen calls your order number once your drink is ready." },
-          { title: "Collect and enjoy", body: "Grab your drink at the service counter. Keep this page open to track the order." }
-        ]
-      }
-    };
-
-    function renderGuideTabs() {
-      document.querySelectorAll("[data-guide-tab]").forEach(btn => {
-        const active = btn.dataset.guideTab === guidePortal;
-        btn.className = `px-3 py-2 rounded-xl text-[11px] font-extrabold transition ${
-          active ? "bg-amber-500 text-slate-950 shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-        }`;
-      });
-    }
-
-    function renderGuideEditor() {
-      const stepsEl = document.getElementById("guideSteps");
-      if (!stepsEl) return;
-      renderGuideTabs();
-      const guides = state.orderGuides || {};
-      const d = DEFAULT_ORDER_GUIDES[guidePortal];
-      const g = guides[guidePortal] || {};
-      document.getElementById("guideKicker").value = g.kicker || "";
-      document.getElementById("guideKicker").placeholder = d.kicker;
-      document.getElementById("guideHeading").value = g.heading || "";
-      document.getElementById("guideHeading").placeholder = d.heading;
-      const steps = Array.isArray(g.steps) ? g.steps : [];
-      // Always render four rows: an empty saved guide used to collapse the
-      // whole step list, which looked like the page had lost its content.
-      const rows = Math.max(4, steps.length);
-      stepsEl.innerHTML = Array.from({ length: rows }, (_, i) => {
-        const s = steps[i] || {};
-        const fallback = d.steps[i] || { title: "", body: "" };
-        return `
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
-          <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Step ${i + 1}</p>
-          <input id="guideStepTitle${i}" maxlength="60" placeholder="${layoutEsc(fallback.title || "Step title")}"
-            value="${layoutEsc(s.title || "")}"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          <textarea id="guideStepBody${i}" rows="2" maxlength="220" placeholder="${layoutEsc(fallback.body || "Step description")}"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700">${layoutEsc(s.body || "")}</textarea>
-        </div>`;
-      }).join("");
-    }
-
-    function switchGuidePortal(portal) {
-      guidePortal = portal === "openday" ? "openday" : "customer";
-      renderGuideEditor();
-    }
-
-    function collectGuideFromEditor() {
-      const steps = [];
-      for (let i = 0; i < 4; i++) {
-        const t = document.getElementById(`guideStepTitle${i}`);
-        const b = document.getElementById(`guideStepBody${i}`);
-        if (!t || !b) continue;
-        steps.push({ title: t.value.trim(), body: b.value.trim() });
-      }
-      return {
-        kicker: document.getElementById("guideKicker").value.trim(),
-        heading: document.getElementById("guideHeading").value.trim(),
-        steps: steps
-      };
-    }
-
-    async function saveOrderGuideAdmin() {
-      const res = await apiPost({ action: "saveOrderGuide", mode: guidePortal, guide: collectGuideFromEditor() });
-      if (res && res.success) {
-        state.orderGuides = res.orderGuides || state.orderGuides;
-        renderGuideEditor();
-        showSaveResultModal(true, "Order guide saved", "The portal shows the new wording on its next visit.");
-      } else if (!res) {
-        // doPost answers with an empty body when the deployed script has no
-        // matching action — i.e. the Apps Script project is older than this
-        // page. Naming the cause beats a generic "could not save".
-        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
-      } else {
-        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the order guide.");
-      }
-    }
-
-    async function resetOrderGuide() {
-      const label = guidePortal === "openday" ? "Open Day" : "Teacher / Pre-Order";
-      const ok = await showConfirm(`Reset the ${label} guide back to the original wording?`);
-      if (!ok) return;
-      const res = await apiPost({ action: "saveOrderGuide", mode: guidePortal, guide: {} });
-      if (res && res.success) {
-        state.orderGuides = res.orderGuides || state.orderGuides;
-        renderGuideEditor();
-        showSaveResultModal(true, "Guide reset", "The guide is back to the original wording.");
-      } else {
-        showSaveResultModal(false, "Could not reset", (res && res.error) || "The server did not reset the order guide.");
-      }
-    }
-
-    // ==================== PICKUP TIME CONFIG ====================
-    function renderPickupConfigEditor() {
-      const cfg = state.pickupConfig || { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10, customSlots: [] };
-      const on = document.getElementById("pickupEnabled");
-      if (!on) return;
-      on.checked = cfg.enabled !== false;
-      document.getElementById("pickupOpen").value = cfg.open || "08:00";
-      document.getElementById("pickupClose").value = cfg.close || "18:00";
-      document.getElementById("pickupInterval").value = cfg.intervalMin || 15;
-      document.getElementById("pickupLead").value = cfg.leadMin != null ? cfg.leadMin : 10;
-      document.getElementById("pickupCustomSlots").value = (cfg.customSlots || []).join("\n");
-      updatePickupPreview();
-    }
-
-    function parseCustomSlots(text) {
-      const out = []; const seen = {};
-      String(text || "").split(/[\n,]+/).forEach(part => {
-        const m = /^(\d{1,2}):([0-5]\d)$/.exec(part.trim());
-        if (!m || Number(m[1]) > 23) return;
-        const t = m[1].padStart(2, "0") + ":" + m[2];
-        if (!seen[t]) { seen[t] = true; out.push(t); }
-      });
-      return out.sort();
-    }
-
-    function readPickupConfigFromEditor() {
-      return {
-        enabled: document.getElementById("pickupEnabled").checked,
-        open: document.getElementById("pickupOpen").value || "08:00",
-        close: document.getElementById("pickupClose").value || "18:00",
-        intervalMin: Number(document.getElementById("pickupInterval").value) || 15,
-        leadMin: Number(document.getElementById("pickupLead").value) || 0,
-        customSlots: parseCustomSlots(document.getElementById("pickupCustomSlots").value)
-      };
-    }
-
-    function updatePickupPreview() {
-      const cfg = readPickupConfigFromEditor();
-      const el = document.getElementById("pickupPreview");
-      if (!el) return;
-      if (!cfg.enabled) {
-        el.innerText = "Filter off — the portal accepts any pickup time.";
-        return;
-      }
-      if (cfg.customSlots.length) {
-        const shown = cfg.customSlots.slice(0, 5).join(", ");
-        el.innerText = `Custom list: ${cfg.customSlots.length} slot${cfg.customSlots.length > 1 ? "s" : ""} (${shown}${cfg.customSlots.length > 5 ? "…" : ""}). The opening-hour fields above are ignored while this list is filled.`;
-        return;
-      }
-      const toMin = t => { const p = String(t).split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); };
-      const span = toMin(cfg.close) - toMin(cfg.open);
-      if (span <= 0) {
-        el.innerText = "Closing time must be after opening time.";
-        return;
-      }
-      const count = Math.floor(span / Math.max(5, cfg.intervalMin)) + 1;
-      el.innerText = `${count} slots between ${cfg.open} and ${cfg.close}, ${cfg.intervalMin}-min apart, earliest pickup now + ${cfg.leadMin} min.`;
-    }
-
-    function renderKdsStatusEditor() {
-      const cfg = kdsStatusConfig();
-      const on = document.getElementById("kdsStatusEnabled");
-      if (!on) return;
-      on.checked = cfg.enabled !== false;
-      document.getElementById("kdsStatusTitleInput").value = cfg.title;
-      document.getElementById("kdsLabelIdle").value = cfg.labels.idle;
-      document.getElementById("kdsLabelNormal").value = cfg.labels.normal;
-      document.getElementById("kdsLabelBusy").value = cfg.labels.busy;
-      document.getElementById("kdsLabelCritical").value = cfg.labels.critical;
-    }
-
-    function readKdsStatusFromEditor() {
-      return {
-        enabled: document.getElementById("kdsStatusEnabled").checked,
-        title: document.getElementById("kdsStatusTitleInput").value.trim().slice(0, 24),
-        labels: {
-          idle: document.getElementById("kdsLabelIdle").value.trim().slice(0, 18),
-          normal: document.getElementById("kdsLabelNormal").value.trim().slice(0, 18),
-          busy: document.getElementById("kdsLabelBusy").value.trim().slice(0, 18),
-          critical: document.getElementById("kdsLabelCritical").value.trim().slice(0, 18)
-        }
-      };
-    }
-
-    async function saveKdsStatusAdmin() {
-      const cfg = readKdsStatusFromEditor();
-      const res = await apiPost({ action: "saveKdsStatus", config: cfg });
-      if (res && res.success) {
-        state.kdsStatus = res.kdsStatus || cfg;
-        renderKdsStatusEditor();
-        renderKDS();
-        showSaveResultModal(true, "Status badges saved", "The Bar KDS picks up the new badge names on its next refresh.");
-      } else if (!res) {
-        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
-      } else {
-        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the badge names.");
-      }
-    }
-
-    function renderStaffCardsEditor() {
-      const list = document.getElementById("staffCardUserList");
-      if (list) {
-        const users = state.users || [];
-        list.innerHTML = users.length
-          ? users.map(u => `
-            <label class="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-              <input type="checkbox" class="staff-card-user w-4 h-4 accent-amber-500" value="${escapeHtml(u.username)}">
-              <span class="truncate">${escapeHtml(u.username)} <span class="text-slate-400">(${escapeHtml(u.role || "Staff")})</span></span>
-            </label>`).join("")
-          : `<p class="text-[11px] text-slate-400 col-span-full">No accounts loaded.</p>`;
-      }
-      renderStaffCardBindings();
-    }
-
-    function renderStaffCardBindings() {
-      const wrap = document.getElementById("staffCardBindings");
-      if (!wrap) return;
-      const map = staffCardMap();
-      const codes = Object.keys(map);
-      wrap.innerHTML = codes.length
-        ? codes.map(code => `
-          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 gap-2">
-            <div class="min-w-0">
-              <p class="text-[11px] font-black text-slate-800 truncate">${escapeHtml(code)}</p>
-              <p class="text-[10px] font-bold text-slate-400 truncate">${escapeHtml((map[code] || []).join(", "))}</p>
-            </div>
-            <button onclick="removeStaffCard('${encodeURIComponent(code).replace(/'/g, "%27")}')" class="text-[10px] font-bold text-slate-400 hover:text-rose-500 flex-shrink-0">Remove</button>
-          </div>`).join("")
-        : `<p class="text-[11px] text-slate-400">No cards bound yet.</p>`;
-    }
-
-    async function postStaffCards(map, okTitle) {
-      const res = await apiPost({ action: "saveStaffCards", cards: map });
-      if (res && res.success) {
-        state.staffCards = res.staffCards || map;
-        renderStaffCardsEditor();
-        showSaveResultModal(true, okTitle, "Staff card logins and discount authorisations use this list immediately.");
-      } else if (!res) {
-        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
-      } else {
-        showSaveResultModal(false, "Could not save", (res && res.error) || "The server rejected the card list.");
-      }
-    }
-
-    async function saveStaffCardBinding() {
-      const codeEl = document.getElementById("staffCardCode");
-      const code = codeEl ? codeEl.value.trim() : "";
-      const picked = Array.from(document.querySelectorAll(".staff-card-user:checked")).map(cb => cb.value);
-      if (!code) return showToast("Scan or type a card code first.", "warning");
-      if (!picked.length) return showToast("Tick at least one account for this card.", "warning");
-      const map = Object.assign({}, staffCardMap());
-      map[code] = picked;
-      await postStaffCards(map, "Card bound");
-      if (codeEl) codeEl.value = "";
-      document.querySelectorAll(".staff-card-user:checked").forEach(cb => { cb.checked = false; });
-    }
-
-    async function removeStaffCard(encodedCode) {
-      const code = decodeURIComponent(encodedCode);
-      const map = Object.assign({}, staffCardMap());
-      delete map[code];
-      await postStaffCards(map, "Card unbound");
-    }
-
-    async function savePickupConfigAdmin() {
-      const cfg = readPickupConfigFromEditor();
-      const res = await apiPost({ action: "savePickupConfig", config: cfg });
-      if (res && res.success) {
-        state.pickupConfig = res.pickupConfig || cfg;
-        renderPickupConfigEditor();
-        showSaveResultModal(true, "Pickup times saved", "The self-order portals pick up the new times on their next visit.");
-      } else if (!res) {
-        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
-      } else {
-        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the pickup times.");
-      }
-    }
-
-    // ==================== PORTAL POP-UPS ====================
-    // Edits live in this working copy until Save, so a background poll cannot
-    // wipe half-typed copy out from under the admin.
-    let adminAnnouncements = null;
-
-    function announcementsWorkingCopy() {
-      if (!adminAnnouncements) {
-        const src = (state.announcements && state.announcements.items) || [];
-        adminAnnouncements = {
-          enabled: !state.announcements || state.announcements.enabled !== false,
-          items: JSON.parse(JSON.stringify(src))
-        };
-      }
-      return adminAnnouncements;
-    }
-
-    function announcementCardHtml(item, idx) {
-      const checkedPage = p => (item.showOn || []).includes(p) ? "checked" : "";
-      return `
-        <div class="border border-slate-200 rounded-2xl p-3 space-y-2 bg-slate-50">
-          <div class="flex items-center justify-between gap-2">
-            <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
-              <input type="checkbox" ${item.enabled !== false ? "checked" : ""} onchange="updateAnnouncement(${idx}, 'enabled', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
-              Enabled
-            </label>
-            <button type="button" onclick="removeAnnouncement(${idx})" class="text-[10px] font-bold text-rose-500 hover:text-rose-700 px-2 py-1 rounded-lg bg-white border border-rose-100">
-              <i class="fa-solid fa-trash mr-1"></i>Remove
-            </button>
-          </div>
-          <div class="flex flex-wrap gap-3 text-[11px] font-bold text-slate-600">
-            <label class="flex items-center gap-1.5">
-              <input type="checkbox" ${checkedPage("customer")} onchange="updateAnnouncementPage(${idx}, 'customer', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
-              Teacher / Pre-Order
-            </label>
-            <label class="flex items-center gap-1.5">
-              <input type="checkbox" ${checkedPage("openday")} onchange="updateAnnouncementPage(${idx}, 'openday', this.checked)" class="w-3.5 h-3.5 accent-amber-500">
-              Open Day
-            </label>
-          </div>
-          <input value="${escapeHtml(item.title || "")}" maxlength="70" placeholder="Heading (optional)" oninput="updateAnnouncement(${idx}, 'title', this.value)"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          <textarea rows="3" maxlength="600" placeholder="Message text" oninput="updateAnnouncement(${idx}, 'body', this.value)"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 resize-y">${escapeHtml(item.body || "")}</textarea>
-          <input value="${escapeHtml(item.imageUrl || "")}" maxlength="2000" placeholder="Image URL (optional, shows the image instead of text)" oninput="updateAnnouncement(${idx}, 'imageUrl', this.value)"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-medium text-slate-600">
-          <input value="${escapeHtml(item.buttonText || "")}" maxlength="30" placeholder="Button text (default: Got it)" oninput="updateAnnouncement(${idx}, 'buttonText', this.value)"
-            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-        </div>`;
-    }
-
-    function renderAnnouncementsEditor() {
-      const list = document.getElementById("announcementEditorList");
-      const master = document.getElementById("announcementsEnabled");
-      if (!list || !master) return;
-      const work = announcementsWorkingCopy();
-      master.checked = work.enabled !== false;
-      if (!work.items.length) {
-        list.innerHTML = `<p class="text-[11px] text-slate-400 border border-dashed border-slate-200 rounded-2xl p-4 text-center">No pop-ups yet. Press <b>Add</b> to create one.</p>`;
-        return;
-      }
-      list.innerHTML = work.items.map(announcementCardHtml).join("");
-    }
-
-    function updateAnnouncement(idx, field, value) {
-      const work = announcementsWorkingCopy();
-      if (!work.items[idx]) return;
-      work.items[idx][field] = value;
-    }
-
-    function updateAnnouncementPage(idx, page, checked) {
-      const work = announcementsWorkingCopy();
-      const item = work.items[idx];
-      if (!item) return;
-      const pages = (item.showOn || []).filter(p => p !== page);
-      if (checked) pages.push(page);
-      item.showOn = pages.length ? pages : ["customer", "openday"];
-    }
-
-    function addAnnouncement() {
-      const work = announcementsWorkingCopy();
-      if (work.items.length >= 12) {
-        showToast("Up to 12 pop-ups", "error");
-        return;
-      }
-      work.items.push({ id: "ann-" + Date.now(), enabled: true, showOn: ["customer", "openday"], title: "", body: "", imageUrl: "", buttonText: "" });
-      renderAnnouncementsEditor();
-    }
-
-    function removeAnnouncement(idx) {
-      announcementsWorkingCopy().items.splice(idx, 1);
-      renderAnnouncementsEditor();
-    }
-
-    async function saveAnnouncementsAdmin() {
-      const work = announcementsWorkingCopy();
-      work.enabled = document.getElementById("announcementsEnabled").checked;
-      const res = await apiPost({ action: "saveAnnouncements", config: work });
-      if (res && res.success) {
-        state.announcements = res.announcements || work;
-        adminAnnouncements = null;
-        renderAnnouncementsEditor();
-        showSaveResultModal(true, "Pop-ups saved", "The portals show the new pop-ups on their next visit.");
-      } else if (!res) {
-        showSaveResultModal(false, "Could not save", "Backend is out of date: paste the latest Code.gs into Apps Script and deploy a new version.");
-      } else {
-        showSaveResultModal(false, "Could not save", (res && res.error) || "The server did not accept the pop-ups.");
-      }
-    }
 
     // ==================== ADMIN SIDEBAR NAV ====================
     // Categorises all existing admin sections under a left-hand side nav.
@@ -5362,11 +3789,6 @@
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
       { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
       { key: "printer",      label: "Printer Control",    icon: "fa-print" },
-      { key: "guide",        label: "Order Guide",        icon: "fa-book-open" },
-      { key: "pickup",       label: "Pickup Times",       icon: "fa-clock" },
-      { key: "kdsstatus",    label: "KDS Status",          icon: "fa-signal" },
-      { key: "staffcards",   label: "Staff Cards",         icon: "fa-id-card" },
-      { key: "popups",       label: "Portal Pop-ups",     icon: "fa-window-restore" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
       { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
     ];
@@ -5402,11 +3824,6 @@
         sec.classList.toggle("hidden", !show);
       });
       if (key === "layout") renderLayoutEditor();
-      if (key === "guide") renderGuideEditor();
-      if (key === "pickup") renderPickupConfigEditor();
-      if (key === "popups") renderAnnouncementsEditor();
-      if (key === "kdsstatus") renderKdsStatusEditor();
-      if (key === "staffcards") renderStaffCardsEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================
@@ -5568,7 +3985,7 @@
           : state.categories.map(cat => {
               const color = state.categoryColors[cat] || "#64748b";
               return `<label class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl cursor-pointer">
-                <input type="color" value="${color}" onchange="saveCategoryColorSubmit(${jsArg(cat)}, this.value)" class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0">
+                <input type="color" value="${color}" onchange="saveCategoryColorSubmit('${escapeHtml(cat)}', this.value)" class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0">
                 <span class="text-xs font-bold text-slate-700">${escapeHtml(cat)}</span>
               </label>`;
             }).join('');
@@ -5588,7 +4005,7 @@
                 <span class="font-black text-lg text-slate-800">#${escapeHtml(t.code)}</span>
                 <span class="text-[9px] font-bold ${bound ? 'text-rose-600' : 'text-emerald-600'}">${bound ? 'Bound' : 'Free'}</span>
                 ${t.boundOrder ? `<span class="text-[8px] text-slate-500">→${escapeHtml(t.boundOrder)}</span>` : ''}
-                <button onclick="deleteQRTileSubmit(${jsArg(t.code)})" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full text-[10px] font-bold hover:bg-rose-600 transition">×</button>
+                <button onclick="deleteQRTileSubmit('${escapeHtml(t.code)}')" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white rounded-full text-[10px] font-bold hover:bg-rose-600 transition">×</button>
               </div>`;
           });
           tilesGrid.innerHTML = html;
@@ -5604,7 +4021,7 @@
           const toggleHtml = adminForcedOn
             ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300"><i class="fa-solid fa-lock mr-1"></i>ADMIN</span>`
             : `<label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" ${canPrint ? "checked" : ""} onchange="toggleUserCanPrint(${jsArg(u.username)}, this.checked)" class="sr-only peer">
+                <input type="checkbox" ${canPrint ? "checked" : ""} onchange="toggleUserCanPrint('${escapeHtml(u.username)}', this.checked)" class="sr-only peer">
                 <div class="w-9 h-5 bg-slate-200 peer-checked:bg-amber-500 rounded-full peer after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
               </label>`;
           html += `
@@ -5619,10 +4036,10 @@
                   : `<span class="text-[10px] font-bold text-slate-400">Not linked</span>`}
               </td>
               <td class="py-3 px-3 text-right space-x-1">
-                <button onclick="openEditUserModal(${jsArg(u.username)})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                <button onclick="openEditUserModal('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
                   Edit
                 </button>
-                <button onclick="deleteUserSubmit(${jsArg(u.username)})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                <button onclick="deleteUserSubmit('${escapeHtml(u.username)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
                   Delete
                 </button>
               </td>
@@ -5650,14 +4067,14 @@
                 ${String(item.tempOptions).includes("Cold") ? `<span class="font-bold px-2 py-0.5 rounded-full text-[10px] ml-1 ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
               </td>
               <td class="py-3 px-3 text-right space-x-1">
-                <button onclick="togglePauseItem(${jsArg(item.name)}, ${jsArg(isPaused ? 'Active' : 'Paused')})" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
+                <button onclick="togglePauseItem('${escapeHtml(item.name)}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
                   ${isPaused ? 'Unpause' : 'Pause'}
                 </button>
-                ${String(item.tempOptions).includes("Cold") ? `<button onclick="toggleItemColdPause(${jsArg(item.name)})" class="px-2.5 py-1 rounded-lg text-xs font-bold ${item.coldPaused ? 'bg-sky-50 text-sky-700 hover:bg-sky-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${item.coldPaused ? 'Unpause Cold' : 'Pause Cold'}</button>` : ''}
-                <button onclick="openEditMenuModal(${jsArg(item.name)})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                ${String(item.tempOptions).includes("Cold") ? `<button onclick="toggleItemColdPause('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${item.coldPaused ? 'bg-sky-50 text-sky-700 hover:bg-sky-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${item.coldPaused ? 'Unpause Cold' : 'Pause Cold'}</button>` : ''}
+                <button onclick="openEditMenuModal('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
                   Edit
                 </button>
-                <button onclick="deleteMenuItem(${jsArg(item.name)})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
+                <button onclick="deleteMenuItem('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
                   Delete
                 </button>
               </td>
@@ -5704,7 +4121,7 @@
               </div>
               <div class="flex items-center space-x-3">
                 <span class="font-black text-emerald-600 text-sm">${fmtPrice(o.price)}</span>
-                <button onclick="deleteOrderSubmit(${jsArg(o.orderNum)})" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
+                <button onclick="deleteOrderSubmit('${o.orderNum}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
                   Delete
                 </button>
               </div>

@@ -298,10 +298,6 @@
     }
 
     function applyView(paused, reason) {
-      // applyView runs on every 15s menu poll. Only a real paused -> open
-      // transition should reset the scroll; otherwise the guest gets yanked
-      // back to the top while reading the menu.
-      var wasPaused = lastPaused;
       lastPaused = !!paused;
       lastReason = String(reason || "");
       var ticketEl = document.getElementById("qrTicketView");
@@ -322,7 +318,7 @@
 
       var reasonEl = document.getElementById("pausedOverlayReason");
       if (reasonEl && lastReason) reasonEl.innerText = lastReason;
-      if (wasPaused && !paused) {
+      if (!paused) {
         try { window.scrollTo(0, 0); } catch (e) {}
       }
     }

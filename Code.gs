@@ -146,12 +146,10 @@ function ensureOrdersSheet(ss) {
     sheet.appendRow([
       "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
       "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus",
-      "CupType",  // "In-Store" or "Takeaway"
-      "PaidTime", // when payment cleared — KDS count-up starts here
-      "DiscountPct", "DiscountAmount", "DiscountBy"
+      "CupType"  // NEW: "In-Store" or "Takeaway"
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 17).getValues()[0];
+    const headers = sheet.getRange(1, 1, 1, 13).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -169,23 +167,6 @@ function ensureOrdersSheet(ss) {
         const existing = String(data[i][12] || "").trim();
         if (!existing) sheet.getRange(i + 1, 13).setValue("In-Store");
       }
-    }
-    // PaidTime column (col 14) — existing paid rows are treated as paid at
-    // order time so their KDS timers keep working after the migration.
-    if (!headers[13] || String(headers[13]).trim() === "") {
-      sheet.getRange(1, 14).setValue("PaidTime");
-      const data = sheet.getDataRange().getValues();
-      for (let i = 1; i < data.length; i++) {
-        const pay = String(data[i][11] || "").trim().toUpperCase();
-        const orderTime = data[i][1];
-        if (pay === "PAID" && orderTime) {
-          sheet.getRange(i + 1, 14).setValue(orderTime instanceof Date ? orderTime.toISOString() : String(orderTime));
-        }
-      }
-    }
-    // Discount columns (15–17) — added when staff discounts shipped.
-    if (!headers[14] || String(headers[14]).trim() === "") {
-      sheet.getRange(1, 15, 1, 3).setValues([["DiscountPct", "DiscountAmount", "DiscountBy"]]);
     }
   }
   return sheet;
@@ -246,18 +227,13 @@ function authenticateUser(username, password) {
 //   4. In the Apps Script editor run:  setGoogleClientId("xxxx.apps.googleusercontent.com")
 // The client ID is public by design; security comes from verifying the token
 // audience server-side and matching the email against the Users sheet.
-const DEFAULT_GOOGLE_CLIENT_ID = "406055726787-9f7upjseefhfdam3j5e41bd22dvjnd91.apps.googleusercontent.com";
-// Fallback so a fresh deployment works without running setGoogleClientId().
-function getGoogleClientId() {
-  return (PropertiesService.getScriptProperties().getProperty("GOOGLE_CLIENT_ID") || DEFAULT_GOOGLE_CLIENT_ID).trim();
-}
 function setGoogleClientId(id) {
   PropertiesService.getScriptProperties().setProperty("GOOGLE_CLIENT_ID", String(id || "").trim());
-  return { success: true, googleClientId: getGoogleClientId() };
+  return { success: true, googleClientId: String(id || "").trim() };
 }
 
 function authenticateGoogle(credential) {
-  const clientId = getGoogleClientId();
+  const clientId = PropertiesService.getScriptProperties().getProperty("GOOGLE_CLIENT_ID");
   if (!clientId) return { success: false, error: "Google login is not configured yet" };
   if (!credential) return { success: false, error: "Missing Google credential" };
   let info;
@@ -265,25 +241,16 @@ function authenticateGoogle(credential) {
     const resp = UrlFetchApp.fetch(
       "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential),
       { muteHttpExceptions: true });
-    const code = resp.getResponseCode();
-    if (code !== 200) {
-      const body = resp.getContentText();
-      return { success: false, error: "Google token verification failed (HTTP " + code + "): " + body.slice(0, 300) };
-    }
+    if (resp.getResponseCode() !== 200) return { success: false, error: "Google token verification failed" };
     info = JSON.parse(resp.getContentText());
   } catch (err) {
-    const msg = String(err.message || err);
+    const msg = String((err && err.message) || err || "");
     if (/permission|scope|external_request|UrlFetchApp/i.test(msg)) {
-      return {
-        success: false,
-        error: "Google sign-in needs the script.external_request permission. In the Apps Script editor open appsscript.json, add \"https://www.googleapis.com/auth/script.external_request\", then run any function once and approve access, and deploy a new version."
-      };
+      return { success: false, error: "Apps Script lacks the external-request permission. Open appsscript.json in the editor, keep the script.external_request scope, run any function once to approve access, then deploy a new version." };
     }
-    return { success: false, error: "Google token verification failed (exception): " + msg };
+    return { success: false, error: "Google token verification failed" };
   }
-  if (String(info.aud || "") !== clientId) {
-    return { success: false, error: "Google token audience mismatch (got " + String(info.aud) + ", expected " + clientId + ")" };
-  }
+  if (String(info.aud || "") !== clientId) return { success: false, error: "Google token audience mismatch" };
   if (String(info.email_verified || "") !== "true") return { success: false, error: "Google email is not verified" };
   const email = String(info.email || "").trim().toLowerCase();
   if (!email) return { success: false, error: "Google account has no email" };
@@ -583,11 +550,7 @@ function getInitialData() {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store",
-        paidTime: row[13] ? String(row[13]) : "",
-        discountPct: Number(row[14]) || 0,
-        discountAmount: Number(row[15]) || 0,
-        discountBy: String(row[16] || "").trim()
+        cupType: String(row[12] || "In-Store").trim() || "In-Store"
       });
     }
   }
@@ -620,12 +583,7 @@ function getInitialData() {
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
     categoryColors: getCategoryColors(),
-    receiptLayout: getReceiptLayout(),
-    orderGuides: getOrderGuides(),
-    pickupConfig: getPickupConfig(),
-    announcements: getAnnouncements(),
-    kdsStatus: getKdsStatusConfig(),
-    staffCards: getStaffCards()
+    receiptLayout: getReceiptLayout()
   };
 }
 
@@ -658,11 +616,7 @@ function getOrderHistory(limit) {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store",
-        paidTime: row[13] ? String(row[13]) : "",
-        discountPct: Number(row[14]) || 0,
-        discountAmount: Number(row[15]) || 0,
-        discountBy: String(row[16] || "").trim()
+        cupType: String(row[12] || "In-Store").trim() || "In-Store"
       });
       if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
     }
@@ -757,17 +711,6 @@ function createOrderLocked(order) {
     }
     cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
 
-    // Staff discount: Price always stores what the guest actually pays, so
-    // every existing revenue/KDS calculation keeps working unchanged.
-    const originalPrice = Number(order.price) || 0;
-    let discountPct = Number(order.discountPct) || 0;
-    if (!isFinite(discountPct) || discountPct < 0) discountPct = 0;
-    if (discountPct > 100) discountPct = 100;
-    discountPct = Math.round(discountPct * 100) / 100;
-    const discountAmount = discountPct > 0 ? Math.round(originalPrice * discountPct) / 100 : 0;
-    const finalPrice = Math.max(0, Math.round((originalPrice - discountAmount) * 100) / 100);
-    const discountBy = String(order.discountBy || "").trim().slice(0, 40);
-
     const createdOrder = {
       orderNum: assignedOrderNum,
       orderTime: orderTime,
@@ -777,23 +720,18 @@ function createOrderLocked(order) {
       productName: order.productName,
       temp: order.temp,
       customization: rawNote.replace(/^'/, ""),
-      price: finalPrice,
+      price: Number(order.price) || 0,
       status: status,
       qrTile: qrTile,
       paymentStatus: paymentStatus,
-      cupType: cupType,
-      paidTime: paymentStatus === "PAID" ? orderTime : "",
-      discountPct: discountPct,
-      discountAmount: discountAmount,
-      discountBy: discountPct > 0 ? discountBy : ""
+      cupType: cupType
     };
 
     sheet.appendRow([
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus, cupType, createdOrder.paidTime,
-      createdOrder.discountPct, createdOrder.discountAmount, createdOrder.discountBy
+      createdOrder.paymentStatus, cupType
     ]);
 
     // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -866,13 +804,11 @@ function confirmPaymentStatus(orderNum) {
 
   const currentStatus = String(data[matchIndex][9] || "").trim().toUpperCase();
   const nextStatus = currentStatus === "UNPAID" ? "PENDING" : currentStatus;
-  const paidAt = new Date().toISOString();
   sheet.getRange(matchIndex + 1, 10).setValue(nextStatus);
   sheet.getRange(matchIndex + 1, 12).setValue("PAID");
-  sheet.getRange(matchIndex + 1, 14).setValue(paidAt);
   SpreadsheetApp.flush();
   bumpVersion();
-  return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID", paidTime: paidAt };
+  return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID" };
 }
 
 // Clear an order from a scanned code. The scanner may read either:
@@ -1462,284 +1398,6 @@ function saveReceiptLayout(layout) {
   return { success: true, layout: clean };
 }
 
-// ==================== KDS STATUS BADGES ====================
-// The Bar KDS shows a live status strip; Admin owns every word on it.
-const KDS_STATUS_KEY = "KDS_STATUS_CONFIG";
-const KDS_STATUS_DEFAULTS = {
-  enabled: true,
-  title: "Bar Status",
-  labels: { idle: "Clear", normal: "Steady", busy: "Busy", critical: "Behind", free: "Ready for next" }
-};
-
-function normalizeKdsStatusConfig(raw) {
-  const src = (raw && typeof raw === "object") ? raw : {};
-  const labels = (src.labels && typeof src.labels === "object") ? src.labels : {};
-  const out = {
-    enabled: src.enabled === undefined ? KDS_STATUS_DEFAULTS.enabled : !!src.enabled,
-    title: String(src.title || KDS_STATUS_DEFAULTS.title).trim().slice(0, 24) || KDS_STATUS_DEFAULTS.title,
-    labels: {}
-  };
-  Object.keys(KDS_STATUS_DEFAULTS.labels).forEach(k => {
-    const v = String(labels[k] || "").trim().slice(0, 18);
-    out.labels[k] = v || KDS_STATUS_DEFAULTS.labels[k];
-  });
-  return out;
-}
-
-function getKdsStatusConfig() {
-  const raw = PropertiesService.getScriptProperties().getProperty(KDS_STATUS_KEY);
-  if (!raw) return normalizeKdsStatusConfig(null);
-  try {
-    return normalizeKdsStatusConfig(JSON.parse(raw));
-  } catch (e) {
-    return normalizeKdsStatusConfig(null);
-  }
-}
-
-function saveKdsStatusConfig(config) {
-  const clean = normalizeKdsStatusConfig(config);
-  PropertiesService.getScriptProperties().setProperty(KDS_STATUS_KEY, JSON.stringify(clean));
-  bumpVersion();
-  return { success: true, kdsStatus: clean };
-}
-
-// ==================== STAFF CARDS ====================
-// One physical card may open several accounts, so the map is
-// { cardCode: [username, ...] } and the portal asks which account to enter.
-const STAFF_CARD_KEY = "STAFF_CARD_MAP";
-
-function normalizeStaffCards(raw) {
-  const src = (raw && typeof raw === "object") ? raw : {};
-  const out = {};
-  let kept = 0;
-  Object.keys(src).forEach(code => {
-    if (kept >= 60) return;
-    const key = String(code).trim().slice(0, 40);
-    if (!key) return;
-    const list = Array.isArray(src[code]) ? src[code] : [];
-    const accounts = list.map(x => String(x).trim()).filter(Boolean).slice(0, 12);
-    const unique = accounts.filter((x, i) => accounts.indexOf(x) === i);
-    if (unique.length) {
-      out[key] = unique;
-      kept++;
-    }
-  });
-  return out;
-}
-
-function getStaffCards() {
-  const raw = PropertiesService.getScriptProperties().getProperty(STAFF_CARD_KEY);
-  if (!raw) return {};
-  try {
-    return normalizeStaffCards(JSON.parse(raw));
-  } catch (e) {
-    return {};
-  }
-}
-
-function saveStaffCards(config) {
-  const clean = normalizeStaffCards(config);
-  PropertiesService.getScriptProperties().setProperty(STAFF_CARD_KEY, JSON.stringify(clean));
-  bumpVersion();
-  return { success: true, staffCards: clean };
-}
-
-// Resolve a scanned card before the client has loaded the Users sheet
-// (the login screen appears before initial data is fetched).
-function getCardAccounts(cardCode) {
-  const code = String(cardCode || "").trim();
-  if (!code) return [];
-  const map = getStaffCards();
-  const names = Array.isArray(map[code]) ? map[code] : [];
-  if (!names.length) return [];
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Users");
-  const rows = sheet ? sheet.getDataRange().getValues() : [];
-  const out = [];
-  rows.slice(1).forEach(row => {
-    const uname = String(row[0] || "").trim();
-    if (!uname) return;
-    if (!names.some(n => String(n).toLowerCase() === uname.toLowerCase())) return;
-    out.push({
-      username: uname,
-      role: String(row[2] || "Staff").trim(),
-      canPrint: String(row[4] || "").trim().toUpperCase() === "TRUE"
-    });
-  });
-  return out;
-}
-
-// ==================== SELF-ORDER GUIDE ====================
-// Copy for the "How self-ordering works" pop-up. One guide per portal so the
-// teacher counter and Open Day can explain themselves differently.
-const ORDER_GUIDE_KEY = "ORDER_GUIDE";
-
-const DEFAULT_ORDER_GUIDES = {
-  customer: {
-    kicker: "How self-ordering works",
-    heading: "You're all set",
-    steps: [
-      { title: "Keep this ticket", body: "Your barcode is the proof of this order. Staff will scan it when you pick up." },
-      { title: "Show it at 2/F Chill Zone", body: "Hand the barcode to the counter so we can confirm your drink and pickup time." },
-      { title: "Watch for your number", body: "Your order number is called on the pickup screen as soon as it's ready." },
-      { title: "Collect and enjoy", body: "Pick your drink up at the service counter. Keep this page open to check status." }
-    ]
-  },
-  openday: {
-    kicker: "How self-ordering works",
-    heading: "Almost there",
-    steps: [
-      { title: "Show the barcode to pay", body: "Take this ticket to the 2/F Chill Zone cashier. Scanning it confirms your payment." },
-      { title: "Payment comes first", body: "Drinks are only crafted after payment is confirmed. No payment, no drink." },
-      { title: "Watch for your number", body: "The pickup screen calls your order number once your drink is ready." },
-      { title: "Collect and enjoy", body: "Grab your drink at the service counter. Keep this page open to track the order." }
-    ]
-  }
-};
-
-function normalizeOrderGuide(saved, fallback) {
-  const src = saved || {};
-  const savedSteps = Array.isArray(src.steps) ? src.steps : [];
-  return {
-    kicker: String(src.kicker || fallback.kicker).trim().slice(0, 40) || fallback.kicker,
-    heading: String(src.heading || fallback.heading).trim().slice(0, 40) || fallback.heading,
-    steps: fallback.steps.map((def, i) => {
-      const s = savedSteps[i] || {};
-      return {
-        title: String(s.title || "").trim().slice(0, 60) || def.title,
-        body: String(s.body || "").trim().slice(0, 220) || def.body
-      };
-    })
-  };
-}
-
-function getOrderGuides() {
-  let saved = {};
-  try {
-    saved = JSON.parse(PropertiesService.getScriptProperties().getProperty(ORDER_GUIDE_KEY) || "{}");
-  } catch (e) {
-    saved = {};
-  }
-  return {
-    customer: normalizeOrderGuide(saved.customer, DEFAULT_ORDER_GUIDES.customer),
-    openday: normalizeOrderGuide(saved.openday, DEFAULT_ORDER_GUIDES.openday)
-  };
-}
-
-function saveOrderGuide(mode, guide) {
-  if (mode !== "customer" && mode !== "openday") {
-    return { success: false, error: "Unknown guide: " + mode };
-  }
-  const props = PropertiesService.getScriptProperties();
-  let all = {};
-  try {
-    all = JSON.parse(props.getProperty(ORDER_GUIDE_KEY) || "{}");
-  } catch (e) {
-    all = {};
-  }
-  // An empty guide resets that portal back to the shipped defaults.
-  all[mode] = normalizeOrderGuide(guide || {}, DEFAULT_ORDER_GUIDES[mode]);
-  props.setProperty(ORDER_GUIDE_KEY, JSON.stringify(all));
-  bumpVersion();
-  return { success: true, orderGuides: getOrderGuides() };
-}
-
-// ==================== PICKUP TIME SLOTS ====================
-// The self-order portals build their "pickup time" menu from these opening
-// hours, so a guest can never pick a slot while the bar is closed.
-const PICKUP_CONFIG_KEY = "PICKUP_CONFIG";
-const DEFAULT_PICKUP_CONFIG = { enabled: true, open: "08:00", close: "18:00", intervalMin: 15, leadMin: 10, customSlots: [] };
-
-function normalizePickupConfig(src) {
-  src = src || {};
-  const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
-  const open = timeRe.test(String(src.open || "")) ? String(src.open) : DEFAULT_PICKUP_CONFIG.open;
-  const close = timeRe.test(String(src.close || "")) ? String(src.close) : DEFAULT_PICKUP_CONFIG.close;
-  let intervalMin = Number(src.intervalMin);
-  if (!isFinite(intervalMin) || intervalMin <= 0) intervalMin = DEFAULT_PICKUP_CONFIG.intervalMin;
-  intervalMin = Math.min(120, Math.max(5, Math.round(intervalMin)));
-  let leadMin = Number(src.leadMin);
-  if (!isFinite(leadMin) || leadMin < 0) leadMin = DEFAULT_PICKUP_CONFIG.leadMin;
-  leadMin = Math.min(180, Math.round(leadMin));
-  // Admin-defined exact times. When any are present they replace the
-  // generated open/close/interval grid on the portals.
-  const customSlots = [];
-  const seen = {};
-  (Array.isArray(src.customSlots) ? src.customSlots : []).forEach(function (raw) {
-    const m = /^(\d{1,2}):([0-5]\d)$/.exec(String(raw || "").trim());
-    if (!m || Number(m[1]) > 23 || customSlots.length >= 48) return;
-    const t = (m[1].length === 1 ? "0" + m[1] : m[1]) + ":" + m[2];
-    if (!seen[t]) { seen[t] = true; customSlots.push(t); }
-  });
-  customSlots.sort();
-  return { enabled: src.enabled !== false, open: open, close: close, intervalMin: intervalMin, leadMin: leadMin, customSlots: customSlots };
-}
-
-function getPickupConfig() {
-  try {
-    const raw = PropertiesService.getScriptProperties().getProperty(PICKUP_CONFIG_KEY);
-    return normalizePickupConfig(raw ? JSON.parse(raw) : {});
-  } catch (e) {
-    return normalizePickupConfig({});
-  }
-}
-
-function savePickupConfig(config) {
-  const normalized = normalizePickupConfig(config || {});
-  PropertiesService.getScriptProperties().setProperty(PICKUP_CONFIG_KEY, JSON.stringify(normalized));
-  bumpVersion();
-  return { success: true, pickupConfig: normalized };
-}
-
-// ==================== PORTAL ANNOUNCEMENTS ====================
-// Entry pop-ups for customer.html / openday.html. Stored as one property so
-// saving is atomic; the portals show them again on every page load.
-const ANNOUNCEMENTS_KEY = "PORTAL_ANNOUNCEMENTS";
-const MAX_ANNOUNCEMENTS = 12;
-
-function normalizeAnnouncement(a, i) {
-  a = a || {};
-  const pages = ["customer", "openday"];
-  const showOn = Array.isArray(a.showOn) ? a.showOn.filter(p => pages.indexOf(p) !== -1) : pages;
-  return {
-    id: String(a.id || ("ann-" + (i + 1))).trim().slice(0, 40),
-    enabled: a.enabled !== false,
-    showOn: showOn.length ? showOn : pages,
-    title: String(a.title || "").trim().slice(0, 70),
-    body: String(a.body || "").trim().slice(0, 600),
-    imageUrl: String(a.imageUrl || "").trim().slice(0, 2000),
-    buttonText: String(a.buttonText || "").trim().slice(0, 30)
-  };
-}
-
-function getAnnouncements() {
-  let saved = {};
-  try {
-    saved = JSON.parse(PropertiesService.getScriptProperties().getProperty(ANNOUNCEMENTS_KEY) || "{}");
-  } catch (e) {
-    saved = {};
-  }
-  const items = Array.isArray(saved.items) ? saved.items : [];
-  return {
-    enabled: saved.enabled !== false,
-    items: items.slice(0, MAX_ANNOUNCEMENTS).map(normalizeAnnouncement)
-  };
-}
-
-function saveAnnouncements(config) {
-  config = config || {};
-  const rawItems = Array.isArray(config.items) ? config.items : [];
-  if (rawItems.length > MAX_ANNOUNCEMENTS) {
-    return { success: false, error: "Too many pop-ups (max " + MAX_ANNOUNCEMENTS + ")" };
-  }
-  const clean = {
-    enabled: config.enabled !== false,
-    items: rawItems.map(normalizeAnnouncement)
-  };
-  PropertiesService.getScriptProperties().setProperty(ANNOUNCEMENTS_KEY, JSON.stringify(clean));
-  bumpVersion();
-  return { success: true, announcements: clean };
-}
-
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -1764,9 +1422,6 @@ function doPost(e) {
     if (action === "toggleOpenDayReservation") return jsonResponse(setOpenDayReservationOpen(data.open));
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
-    if (action === "saveKdsStatus") return jsonResponse(saveKdsStatusConfig(data.config));
-    if (action === "saveStaffCards") return jsonResponse(saveStaffCards(data.cards));
-    if (action === "getCardAccounts") return jsonResponse({ success: true, accounts: getCardAccounts(data.card) });
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
@@ -1801,9 +1456,6 @@ function doPost(e) {
     if (action === "hubHeartbeat")  return jsonResponse(setHub(data.hubId, data.printerName));
     if (action === "getHub")         return jsonResponse(getHubInfo());
     if (action === "saveReceiptLayout") return jsonResponse(saveReceiptLayout(data.layout));
-    if (action === "saveOrderGuide") return jsonResponse(saveOrderGuide(data.mode, data.guide));
-    if (action === "savePickupConfig") return jsonResponse(savePickupConfig(data.config));
-    if (action === "saveAnnouncements") return jsonResponse(saveAnnouncements(data.config));
 
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
