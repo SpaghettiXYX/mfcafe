@@ -323,35 +323,35 @@
         <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">8 available</span>
       </div>
       <div id="customerCategoryTabs" class="flex flex-wrap gap-1.5 mb-3"><button onclick="selectCustomerCategory('All')" class="px-3 py-1.5 rounded-full text-xs font-bold transition bg-amber-500 text-slate-950">All</button></div>
-      <div class="grid grid-cols-2 gap-2.5" id="customerMenuList"><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+      <div class="grid grid-cols-2 gap-2.5" id="customerMenuList"><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Espresso</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$13.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Americano</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$14.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Cafe Latte</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$20.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Cappuccino</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$20.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Mocha</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$23.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Chocolate</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$18.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Matcha Latte🍵</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$21.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
+        </button><button class="ui-menu-card p-3 text-left">
           <p class="font-extrabold text-xs text-slate-800">Test Drink</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
           <p class="text-amber-600 font-black text-xs mt-1.5">$0.00</p>
@@ -664,7 +664,7 @@
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `ui-menu-card p-3 text-left ${isSelected ? 'is-selected' : ''}`;
-        btn.onclick = () => selectItem(item);
+        btn.onclick = () => selectItem(item, btn);
         const img = String(item.imageUrl || "").trim();
         btn.innerHTML = `
           ${img ? `<div class="mb-2 rounded-xl overflow-hidden" style="aspect-ratio:4/3;background:var(--surface-3)">
@@ -717,8 +717,13 @@
       });
     }
 
-    function selectItem(item) {
+    function selectItem(item, btn) {
       state.selectedItem = item;
+      // The grid is not re-rendered on selection, so the amber state has to be
+      // moved by hand — otherwise the tapped drink looks unselected.
+      document.querySelectorAll('.ui-menu-card.is-selected')
+        .forEach(el => el.classList.remove('is-selected'));
+      if (btn) btn.classList.add('is-selected');
       setItemOptionsOpen(true);
 
       const opts = item.tempOptions || "Hot & Cold";

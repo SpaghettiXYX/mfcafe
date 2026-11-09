@@ -2574,9 +2574,92 @@
       return state.categoryColors[category] || "#64748b";
     }
 
+    // ===== SLIDE TO CALL READY =====
+    // A tap can be brushed by a cup or a sleeve, and a mis-fired "ready" sends
+    // a guest to the counter for a drink that is not made. A deliberate drag
+    // is unambiguous. State lives outside the DOM because the grid is
+    // re-rendered on every poll.
+    const kdsSwipe = { active: false, pendingRender: false, el: null, startX: 0, travel: 0, max: 1 };
+    const KDS_SWIPE_CONFIRM = 0.85;
+
+    function kdsSwipeReset(el) {
+      el.classList.remove('is-dragging', 'is-armed');
+      const knob = el.querySelector('.kds-swipe-knob');
+      const fill = el.querySelector('.kds-swipe-fill');
+      if (knob) knob.style.transform = 'translateX(0)';
+      if (fill) fill.style.transform = 'scaleX(0)';
+    }
+
+    function kdsSwipeStart(e) {
+      const el = e.target.closest && e.target.closest('.kds-swipe');
+      if (!el || el.classList.contains('is-done')) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const knob = el.querySelector('.kds-swipe-knob');
+      if (!knob) return;
+      kdsSwipe.active = true;
+      kdsSwipe.el = el;
+      kdsSwipe.startX = e.clientX;
+      kdsSwipe.travel = 0;
+      kdsSwipe.max = Math.max(1, el.clientWidth - knob.offsetWidth - 8);
+      el.classList.add('is-dragging');
+    }
+
+    function kdsSwipeMove(e) {
+      if (!kdsSwipe.active || !kdsSwipe.el) return;
+      const el = kdsSwipe.el;
+      const dx = Math.min(kdsSwipe.max, Math.max(0, e.clientX - kdsSwipe.startX));
+      kdsSwipe.travel = dx;
+      const knob = el.querySelector('.kds-swipe-knob');
+      const fill = el.querySelector('.kds-swipe-fill');
+      if (knob) knob.style.transform = `translateX(${dx}px)`;
+      if (fill) fill.style.transform = `scaleX(${dx / kdsSwipe.max})`;
+      el.classList.toggle('is-armed', dx / kdsSwipe.max >= KDS_SWIPE_CONFIRM);
+    }
+
+    function kdsSwipeEnd() {
+      if (!kdsSwipe.active || !kdsSwipe.el) return;
+      const el = kdsSwipe.el;
+      const ratio = kdsSwipe.travel / kdsSwipe.max;
+      kdsSwipe.active = false;
+      kdsSwipe.el = null;
+      kdsSwipe.travel = 0;
+
+      el.classList.remove('is-dragging');
+      kdsSwipeReset(el);
+
+      if (ratio >= KDS_SWIPE_CONFIRM) {
+        el.classList.add('is-done');
+        const orderNum = el.dataset.order;
+        if (orderNum) markOrderReady(orderNum);
+      }
+
+      if (kdsSwipe.pendingRender) {
+        kdsSwipe.pendingRender = false;
+        renderKDS();
+      }
+    }
+
+    document.addEventListener('pointerdown', kdsSwipeStart);
+    document.addEventListener('pointermove', kdsSwipeMove, { passive: true });
+    document.addEventListener('pointerup', kdsSwipeEnd);
+    document.addEventListener('pointercancel', kdsSwipeEnd);
+
+    // Keyboard and assistive path — a swipe must never be the only way in.
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const el = e.target && e.target.closest && e.target.closest('.kds-swipe');
+      if (!el || el.classList.contains('is-done')) return;
+      e.preventDefault();
+      el.classList.add('is-done');
+      if (el.dataset.order) markOrderReady(el.dataset.order);
+    });
+
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
+      // Never tear down the grid mid-drag — the control would vanish under the
+      // user's finger. One render is queued for when the drag ends.
+      if (kdsSwipe.active) { kdsSwipe.pendingRender = true; return; }
 
       const activeOrders = state.orders
         .filter(o => ["PENDING", "ASSIGNED", "RESERVED"].includes((o.status || "").toUpperCase()))
@@ -2695,10 +2778,17 @@
                 </span>
               </label>
               <div class="flex gap-2">
-                <button onclick="markOrderReady('${o.orderNum}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3 rounded-2xl text-xs shadow-sm transition">
-                  Call Drink Ready (#${escapeHtml(o.orderNum)})
-                </button>
-                <button onclick="reprintDrinkLabel('${o.orderNum}')" title="Print drink label" aria-label="Print drink label"
+                <div class="kds-swipe flex-1" data-order="${escapeHtml(o.orderNum)}" tabindex="0" role="button"
+                     aria-label="Slide to call drink ready for order ${escapeHtml(o.orderNum)}">
+                  <span class="kds-swipe-fill"></span>
+                  <span class="kds-swipe-label">Slide to call ready</span>
+                  <span class="kds-swipe-knob" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 12h12"/><path d="M13 6l6 6-6 6"/>
+                    </svg>
+                  </span>
+                </div>
+                <button onclick="reprintDrinkLabel('${escapeHtml(o.orderNum)}')" title="Print drink label" aria-label="Print drink label"
                         class="w-12 shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl flex items-center justify-center transition">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 13h10v8H7z"/>

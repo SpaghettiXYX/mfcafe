@@ -45,6 +45,9 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   --tracking-display: -0.021em;
+
+  /* Header is theme-aware through the variable so one selector owns it. */
+  --header-bg: rgba(255, 255, 255, 0.82);
 }
 
 [data-theme="dark"] {
@@ -62,6 +65,7 @@
   --e1: 0 1px 2px rgba(0, 0, 0, 0.35);
   --e2: 0 12px 28px -16px rgba(0, 0, 0, 0.55);
   --e3: 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+  --header-bg: rgba(22, 28, 40, 0.82);
 }
 
 /* ---------- Base ---------- */
@@ -129,22 +133,18 @@ html body [role="button"]:active {
 /* ---------- Focus ---------- */
 
 :where(button, a, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand, #f59e0b);
   outline-offset: 2px;
 }
 
 /* ---------- Header ---------- */
 
 html body .ui-header {
-  background: rgba(255, 255, 255, 0.82) !important;
+  background: var(--header-bg) !important;
   -webkit-backdrop-filter: saturate(180%) blur(14px);
   backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--border) !important;
   box-shadow: none !important;
-}
-
-[data-theme="dark"] html body .ui-header {
-  background: rgba(22, 28, 40, 0.82) !important;
 }
 
 /* ---------- Segmented control (main navigation) ---------- */
@@ -206,7 +206,7 @@ html body .ui-kds::before {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: var(--kds-accent, var(--brand));
+  background: var(--kds-accent, #f59e0b);
   border-radius: var(--r-lg) 0 0 var(--r-lg);
   pointer-events: none;
 }
@@ -272,6 +272,87 @@ html body .ui-card {
 }
 
 [data-theme="dark"] .ui-chip.is-live { color: #6ee7b7; }
+
+/* ---------- Slide-to-confirm (KDS call ready) ----------
+   A tap can be brushed by a cup; a deliberate 44px drag cannot.
+   The knob is 44px wide so it stays a valid touch target. */
+
+.kds-swipe {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  border-radius: var(--r-md);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.kds-swipe-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background-color: #f59e0b;
+  opacity: 0.2;
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 220ms var(--ease-out);
+}
+
+.kds-swipe-label {
+  width: 100%;
+  padding: 0 12px 0 52px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+  pointer-events: none;
+  transition: opacity var(--dur-ui) ease;
+}
+
+.kds-swipe-knob {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--r-md) - 4px);
+  background-color: #f59e0b;
+  color: #23150a;
+  box-shadow: var(--e1);
+  pointer-events: none;
+  will-change: transform;
+  transition: transform 220ms var(--ease-out);
+}
+
+.kds-swipe.is-dragging .kds-swipe-knob,
+.kds-swipe.is-dragging .kds-swipe-fill { transition: none; }
+
+.kds-swipe.is-armed .kds-swipe-label { color: #b45309; }
+
+[data-theme="dark"] .kds-swipe.is-armed .kds-swipe-label { color: #f59e0b; }
+
+.kds-swipe:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kds-swipe-knob,
+  .kds-swipe-fill { transition: none; }
+}
 
 /* ---------- Motion preferences ---------- */
 

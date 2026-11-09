@@ -641,7 +641,7 @@
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
         btn.className = `ui-menu-card p-3 text-left ${isSelected ? 'is-selected' : ''}`;
-        btn.onclick = () => selectItem(item);
+        btn.onclick = () => selectItem(item, btn);
         const img = String(item.imageUrl || "").trim();
         btn.innerHTML = `
           ${img ? `<div class="mb-2 rounded-xl overflow-hidden" style="aspect-ratio:4/3;background:var(--surface-3)">
@@ -694,8 +694,13 @@
       });
     }
 
-    function selectItem(item) {
+    function selectItem(item, btn) {
       state.selectedItem = item;
+      // The grid is not re-rendered on selection, so the amber state has to be
+      // moved by hand — otherwise the tapped drink looks unselected.
+      document.querySelectorAll('.ui-menu-card.is-selected')
+        .forEach(el => el.classList.remove('is-selected'));
+      if (btn) btn.classList.add('is-selected');
       setItemOptionsOpen(true);
 
       const opts = item.tempOptions || "Hot & Cold";
