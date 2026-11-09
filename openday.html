@@ -12,6 +12,8 @@
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Shared visual language: tokens, surfaces, components, motion -->
+  <link rel="stylesheet" href="ui.css">
   <!-- JsBarcode for Code 128 ticket + downloadable receipt -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
@@ -154,8 +156,7 @@
       display: grid; grid-template-rows: 0fr;
       padding-top: 0 !important; padding-bottom: 0 !important;
       border-width: 0 !important; opacity: 0;
-      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease,
-                  padding 280ms cubic-bezier(.4,0,.2,1), border-width 280ms ease;
+      transition: grid-template-rows 280ms var(--ease-out, cubic-bezier(.23,1,.32,1)), opacity 180ms ease;
     }
     #itemOptions.hidden { display: none !important; }
     #itemOptions > #itemOptionsInner { min-height: 0; overflow: hidden; }
@@ -639,7 +640,7 @@
       filtered.forEach(item => {
         const isSelected = state.selectedItem?.name === item.name;
         const btn = document.createElement('button');
-        btn.className = `p-3 rounded-2xl border text-left transition shadow-sm ${isSelected ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:border-slate-300'}`;
+        btn.className = `ui-menu-card p-3 text-left ${isSelected ? 'is-selected' : ''}`;
         btn.onclick = () => selectItem(item);
         const img = String(item.imageUrl || "").trim();
         btn.innerHTML = `

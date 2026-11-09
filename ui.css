@@ -1,0 +1,294 @@
+/* ============================================================
+   MFCafe UI v2 — shared visual language
+   Loaded before each page's inline <style>, so page-specific and
+   dark-mode rules can still win on individual decisions.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces — four layers, 2–3% luminance apart. Borders are a film. */
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #eef2f7;
+  --border: rgba(15, 23, 42, 0.075);
+  --border-strong: rgba(15, 23, 42, 0.14);
+
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --ink-3: #64748b;
+  --ink-4: #94a3b8;
+
+  --brand: #f59e0b;
+  --brand-deep: #b45309;
+  --brand-soft: rgba(245, 158, 11, 0.12);
+
+  /* Radius — one step per hierarchy level, never ad hoc. */
+  --r-sm: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* Elevation — two working levels, one for overlays. */
+  --e1: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --e2: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px -16px rgba(15, 23, 42, 0.22);
+  --e3: 0 24px 64px -24px rgba(15, 23, 42, 0.38);
+
+  /* Motion — strong custom curves, UI work stays under 300ms. */
+  --dur-press: 140ms;
+  --dur-ui: 180ms;
+  --dur-panel: 240ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --tracking-display: -0.021em;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #10151f;
+  --surface: #161c28;
+  --surface-2: #1c2331;
+  --surface-3: #232b3b;
+  --border: rgba(226, 232, 240, 0.075);
+  --border-strong: rgba(226, 232, 240, 0.14);
+  --ink: #eef2f8;
+  --ink-2: #d6dde8;
+  --ink-3: #aab5c6;
+  --ink-4: #7f8a9d;
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --e2: 0 12px 28px -16px rgba(0, 0, 0, 0.55);
+  --e3: 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+}
+
+/* ---------- Base ---------- */
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 { letter-spacing: var(--tracking-display); }
+
+/* ---------- Typography: drop one weight step ----------
+   Inter 900 is loud on a back-of-counter screen. 800 keeps the
+   hierarchy while letting the layout carry the emphasis. */
+
+html body .font-black { font-weight: 800 !important; letter-spacing: var(--tracking-display); }
+html body .font-extrabold { font-weight: 700 !important; }
+html body .font-bold { font-weight: 600 !important; }
+html body .font-semibold { font-weight: 500 !important; }
+
+/* ---------- Radius: one scale for every surface ---------- */
+
+html body .rounded-3xl { border-radius: var(--r-lg) !important; }
+html body .rounded-2xl { border-radius: var(--r-md) !important; }
+html body .rounded-xl { border-radius: var(--r-sm) !important; }
+
+/* ---------- Elevation ---------- */
+
+html body .shadow-sm { box-shadow: var(--e1) !important; }
+html body .shadow-md { box-shadow: var(--e2) !important; }
+html body .shadow-lg { box-shadow: var(--e2) !important; }
+html body .shadow-2xl { box-shadow: var(--e3) !important; }
+
+/* ---------- Borders ---------- */
+
+html body .border-slate-100 { border-color: var(--border) !important; }
+html body .border-slate-200 { border-color: var(--border) !important; }
+html body .border-slate-300 { border-color: var(--border-strong) !important; }
+
+/* ---------- Press feedback ----------
+   Every pressable surface answers in 140ms. Tailwind's `.transition`
+   outranks an element selector, so this needs !important. */
+
+html body button,
+html body [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-ui) ease,
+    border-color var(--dur-ui) ease,
+    color var(--dur-ui) ease,
+    box-shadow var(--dur-ui) ease !important;
+}
+
+html body button:active,
+html body [role="button"]:active {
+  transform: scale(0.975);
+}
+
+/* ---------- Focus ---------- */
+
+:where(button, a, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* ---------- Header ---------- */
+
+html body .ui-header {
+  background: rgba(255, 255, 255, 0.82) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] html body .ui-header {
+  background: rgba(22, 28, 40, 0.82) !important;
+}
+
+/* ---------- Segmented control (main navigation) ---------- */
+
+.ui-seg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+
+.ui-seg-btn {
+  position: relative;
+  padding: 8px 14px;
+  border-radius: calc(var(--r-md) - 4px);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--ink-3);
+  background: transparent;
+}
+
+.ui-seg-btn:hover { color: var(--ink); }
+
+.ui-seg-btn.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--e1);
+}
+
+[data-theme="dark"] .ui-seg-btn.is-active {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+/* ---------- KDS order card ----------
+   The category colour moves from a 4px frame to a quiet accent bar,
+   so the number and the drink name carry the hierarchy instead. */
+
+html body .ui-kds {
+  position: relative;
+  border-width: 1px !important;
+  border-color: var(--border) !important;
+  background: var(--surface);
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--e1) !important;
+  padding-left: 1.5rem !important;
+}
+
+html body .ui-kds::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--kds-accent, var(--brand));
+  border-radius: var(--r-lg) 0 0 var(--r-lg);
+  pointer-events: none;
+}
+
+html body .kds-unassigned { --kds-card-radius: var(--r-lg); }
+
+html body .ui-order-num {
+  font-size: 1.75rem;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Guest menu cards ---------- */
+
+html body .ui-menu-card {
+  border-radius: var(--r-md) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    border-color var(--dur-ui) ease,
+    background-color var(--dur-ui) ease !important;
+}
+
+html body .ui-menu-card:active { transform: scale(0.98); }
+
+html body .ui-menu-card.is-selected {
+  border-color: var(--brand) !important;
+  background: var(--brand-soft) !important;
+  box-shadow: 0 0 0 1px var(--brand) inset !important;
+}
+
+/* ---------- Cards ---------- */
+
+html body .ui-card {
+  background: var(--surface);
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-lg);
+  box-shadow: var(--e1) !important;
+}
+
+/* ---------- Chips ---------- */
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--surface-3);
+  color: var(--ink-3);
+}
+
+.ui-chip.is-live {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+[data-theme="dark"] .ui-chip.is-live { color: #6ee7b7; }
+
+/* ---------- Motion preferences ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html body button,
+  html body [role="button"] {
+    transition-duration: 0ms !important;
+  }
+  html body button:active,
+  html body [role="button"]:active {
+    transform: none;
+  }
+}
+
+/* ---------- Fine pointers only ---------- */
+
+@media (hover: none) {
+  .ui-seg-btn:hover { color: var(--ink-3); }
+  html body .ui-menu-card:hover { border-color: var(--border) !important; }
+}

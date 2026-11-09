@@ -12,6 +12,8 @@
   <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Shared visual language: tokens, surfaces, components, motion -->
+  <link rel="stylesheet" href="ui.css">
   <!-- Camera scanner library (jsDelivr primary, unpkg fallback for blocked networks) -->
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"
     onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js';document.head.appendChild(s);"></script>
@@ -104,7 +106,7 @@
     @keyframes kds-marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
     .kds-marquee-track {
       display: inline-flex; white-space: nowrap; will-change: transform;
-      animation: kds-marquee-scroll 22s linear infinite;
+      animation: kds-marquee-scroll 40s linear infinite;
     }
     /* New-order flash: a pseudo-element ring. Box-shadow is stripped by the
        dark theme's .shadow-sm reset, and Safari's outline animation is
@@ -128,6 +130,8 @@
       0%, 100% { opacity: 0; }
       50% { opacity: 1; }
     }
+    /* Busy board: stop animating every card, keep the ring visible. */
+    #kdsGrid.kds-many .kds-unassigned::after { animation: none; opacity: 1; }
     @media (prefers-reduced-motion: reduce) {
       .kds-marquee-track { animation: none; }
       .kds-unassigned::after { animation: none; opacity: 1; }
@@ -239,10 +243,16 @@
     body.display-mode #displayExitBtn { display: flex; }
 
     /* Toast slide animation */
-    #toastContainer > div { transition: opacity 0.3s, transform 0.3s; }
+    #toastContainer > div {
+      transition: opacity var(--dur-ui, 180ms) ease, transform var(--dur-panel, 240ms) var(--ease-out, cubic-bezier(.23,1,.32,1));
+    }
 
-    /* Smooth theme transition */
-    *, *::before, *::after { transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
+    /* Smooth theme transition — scoped to the surfaces that actually change
+       colour. A global rule animated every element on every re-render, which
+       made the KDS stutter while it polled. */
+    body, .ui-header, .ui-kds, .ui-card, .ui-menu-card {
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
 
     /* ===== MOBILE RESPONSIVE (<= 1024px) ===== */
     @media (max-width: 1024px) {
@@ -376,7 +386,7 @@
   </div>
 
   <!-- Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+  <header class="ui-header sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
       <div class="flex items-center space-x-3">
         <div class="bg-amber-500 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
@@ -395,26 +405,26 @@
 
       <!-- Navigation Tabs & User Profile -->
       <div class="flex items-center space-x-3">
-        <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+        <nav class="ui-seg">
+          <button onclick="switchView('cashier')" id="tab-cashier" class="ui-seg-btn">
             <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
           </button>
-          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative">
+          <button onclick="switchView('kds')" id="tab-kds" class="ui-seg-btn is-active">
             <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
             <span id="badge-kds" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+          <button onclick="switchView('pickup')" id="tab-pickup" class="ui-seg-btn">
             <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
             <span id="badge-ready" class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
+          <button onclick="switchView('helper')" id="tab-helper" class="ui-seg-btn">
             <i class="fa-solid fa-square-check mr-1"></i> Clearing
             <span id="badge-helper" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
           </button>
-          <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <button onclick="switchView('admin')" id="tab-admin" class="ui-seg-btn">
             <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
           </button>
-          <button onclick="switchView('money')" id="tab-money" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
+          <button onclick="switchView('money')" id="tab-money" class="ui-seg-btn">
             <i class="fa-solid fa-money-bill-count mr-1"></i> Count Money
           </button>
         </nav>
@@ -1681,16 +1691,16 @@
         if (viewEl) viewEl.classList.add('hidden');
         
         const tab = document.getElementById(`tab-${v}`);
-        // Keep `relative` — the unread badges are absolutely positioned inside
-        // these buttons; dropping it made them anchor to the page corner.
-        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative";
+        // Keep the badge anchor — the unread counters are absolutely
+        // positioned inside these buttons.
+        if (tab) tab.className = "ui-seg-btn";
       });
 
       const activeView = document.getElementById(`view-${viewName}`);
       if (activeView) activeView.classList.remove('hidden');
 
       const activeTab = document.getElementById(`tab-${viewName}`);
-      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative";
+      if (activeTab) activeTab.className = "ui-seg-btn is-active";
       
       if (viewName === 'money') initMoneyCounter();
       if (viewName === 'admin') fetchOrderHistory();
@@ -2595,6 +2605,9 @@
 
       // ---- Marquee: every order not yet assigned by the head chef ----
       const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
+      // Past ~24 cards the pulsing halo on every card becomes visual noise and
+      // keeps the GPU busy on a screen that never sleeps. Keep a static ring.
+      grid.classList.toggle('kds-many', unassigned.length > 24);
       const marqueeWrap = document.getElementById('kdsMarqueeWrap');
       const marqueeTrack = document.getElementById('kdsMarqueeTrack');
       if (marqueeWrap && marqueeTrack) {
@@ -2628,14 +2641,14 @@
         const color = getCategoryColor(category);
 
         html += `
-          <div class="bg-white border-4 ${isReserved ? 'ring-2 ring-purple-200' : ''} ${isAssigned ? '' : 'kds-unassigned'} p-5 rounded-3xl shadow-sm flex flex-col justify-between space-y-4" style="border-color: ${color};">
+          <div class="ui-kds ${isReserved ? 'ring-2 ring-purple-200' : ''} ${isAssigned ? '' : 'kds-unassigned'} p-5 flex flex-col justify-between space-y-4" style="--kds-accent:${color};">
             <div class="space-y-3">
               <div class="flex justify-between items-start gap-2">
-                <div>
-                  <h3 class="text-2xl font-black text-slate-900 tracking-tight">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
-                  <p class="text-xs text-slate-400 font-semibold mt-0.5">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
+                <div class="min-w-0">
+                  <h3 class="ui-order-num text-slate-900 line-clamp-2 break-words" title="${escapeHtml(o.qrTile ? `Tile ${o.qrTile}` : `#${o.orderNum}`)}">${o.qrTile ? `Tile ${escapeHtml(o.qrTile)}` : `#${escapeHtml(o.orderNum)}`}</h3>
+                  <p class="text-xs text-slate-400 font-semibold mt-0.5 break-words">Order #${escapeHtml(o.orderNum)} · Guest: ${escapeHtml(o.guestName)}</p>
                 </div>
-                <div class="flex flex-col items-end gap-1.5">
+                <div class="flex flex-col items-end gap-1.5 shrink-0">
                   <span class="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-xs kds-timer border border-emerald-200" data-ordertime="${o.orderTime}">
                     ${timeAgo}
                   </span>
