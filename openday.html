@@ -548,6 +548,7 @@
       coldPaused: false,
       openDayReservationOpen: true,
       openDayPauseReason: "",
+      openingHours: { enabled: true, start: "07:30", end: "15:30" },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
       promoCodes: [],
       promoCode: null,        // { code, type, value } applied to this order
@@ -620,6 +621,7 @@
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
           if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
+          if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
           if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
@@ -644,6 +646,7 @@
             if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
             if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
             if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
+            if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
             if (data.menu) state.menu = data.menu;
             if (data.categories) state.categories = data.categories;
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
@@ -657,15 +660,39 @@
       }, 15000);
     }
 
+    function isWithinOpeningHours(hours) {
+      if (!hours || hours.enabled === false) return true;
+      const toMin = v => {
+        const p = String(v || "0:0").split(":");
+        return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+      };
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const start = toMin(hours.start);
+      const end = toMin(hours.end);
+      return start < end ? (nowMin >= start && nowMin < end) : (nowMin >= start || nowMin < end);
+    }
+
+    function closedHoursReason() {
+      const h = state.openingHours || {};
+      return `Pre-orders are closed. We open ${h.start || "07:30"}–${h.end || "15:30"} — please order at the counter.`;
+    }
+
     function applyReservationState() {
-      const paused = !state.openDayReservationOpen;
-      if (selfOrderHistory) return selfOrderHistory.applyView(paused, state.openDayPauseReason || "The Open Day order portal is temporarily closed due to high volume. Please order at the counter.");
+      const hoursClosed = !isWithinOpeningHours(state.openingHours);
+      const paused = !state.openDayReservationOpen || hoursClosed;
+      const reason = hoursClosed
+        ? closedHoursReason()
+        : (state.openDayPauseReason || "The Open Day order portal is temporarily closed due to high volume. Please order at the counter.");
+      if (selfOrderHistory) return selfOrderHistory.applyView(paused, reason);
       document.getElementById('pausedOverlay').classList.toggle('hidden', !paused);
       document.getElementById('orderView').classList.toggle('hidden', paused);
       document.getElementById('orderFooter').classList.toggle('hidden', paused);
 
+      const titleEl = document.getElementById('pausedOverlayTitle');
+      if (titleEl) titleEl.innerText = hoursClosed ? "We're Closed" : "Online Order Not Available";
       const reasonEl = document.getElementById('pausedOverlayReason');
-      if (reasonEl) reasonEl.innerText = state.openDayPauseReason || "The Open Day order portal is temporarily closed due to high volume. Please order at the counter.";
+      if (reasonEl) reasonEl.innerText = reason;
     }
 
     function renderMenu() {
@@ -965,6 +992,9 @@
     }
 
     function submitSelfOrder() {
+      if (!isWithinOpeningHours(state.openingHours)) {
+        return showToast(closedHoursReason(), "warning", 4000);
+      }
       const nameInput = document.getElementById('custName');
       const pickupInput = document.getElementById('custPickupTime');
 

@@ -445,6 +445,63 @@ function setPauseReason(target, reason) {
   return { success: true, target: target, reason: reason };
 }
 
+// ===== OPENING HOURS =====
+// Only online pre-orders (createReservedOrder) are gated by the café's
+// opening hours. Staff can always take walk-in orders at the POS.
+const DEFAULT_OPENING_HOURS = { enabled: true, start: "07:30", end: "15:30" };
+
+function normalizeHhMm_(value, fallback) {
+  const m = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return fallback;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (h > 23 || mi > 59) return fallback;
+  return (h < 10 ? "0" : "") + h + ":" + (mi < 10 ? "0" : "") + mi;
+}
+
+function getOpeningHours() {
+  const raw = PropertiesService.getScriptProperties().getProperty("OPENING_HOURS");
+  if (!raw) return Object.assign({}, DEFAULT_OPENING_HOURS);
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: parsed.enabled !== false,
+      start: normalizeHhMm_(parsed.start, DEFAULT_OPENING_HOURS.start),
+      end: normalizeHhMm_(parsed.end, DEFAULT_OPENING_HOURS.end)
+    };
+  } catch (e) {
+    return Object.assign({}, DEFAULT_OPENING_HOURS);
+  }
+}
+
+function setOpeningHours(hours) {
+  const start = normalizeHhMm_(hours && hours.start, DEFAULT_OPENING_HOURS.start);
+  const end = normalizeHhMm_(hours && hours.end, DEFAULT_OPENING_HOURS.end);
+  if (start === end) return { success: false, error: "Opening and closing time cannot be the same" };
+  const payload = { enabled: !(hours && hours.enabled === false), start: start, end: end };
+  PropertiesService.getScriptProperties().setProperty("OPENING_HOURS", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, openingHours: payload };
+}
+
+function isPreorderWindowOpen() {
+  const hours = getOpeningHours();
+  if (!hours.enabled) return { open: true, hours: hours };
+  const toMin = s => { const p = s.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+  const nowHhMm = Utilities.formatDate(new Date(), "Asia/Hong_Kong", "HH:mm").split(":");
+  const now = Number(nowHhMm[0]) * 60 + Number(nowHhMm[1]);
+  const start = toMin(hours.start);
+  const end = toMin(hours.end);
+  // Supports overnight windows (e.g. 22:00–02:00) as well as normal ones.
+  const open = start < end ? (now >= start && now < end) : (now >= start || now < end);
+  return { open: open, hours: hours };
+}
+
+function closedPreorderMessage_(hours) {
+  return "Pre-orders are closed right now. We open at " + hours.start +
+    " and close at " + hours.end + ". Please order at the counter.";
+}
+
 // Push message broadcast to all portal users
 const PUSH_MESSAGE_TTL_MS = 48 * 60 * 60 * 1000; // 48h auto-expire
 
@@ -734,6 +791,7 @@ function getInitialData() {
     teacherPauseReason: teacherPauseReason,
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
+    openingHours: getOpeningHours(),
     promoPopup: getPromoPopup(),
     promoCodes: getPromoCodes(),
     categoryColors: getCategoryColors(),
@@ -1585,6 +1643,7 @@ function doPost(e) {
     if (action === "toggleOpenDayReservation") return jsonResponse(setOpenDayReservationOpen(data.open));
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
+    if (action === "saveOpeningHours") return jsonResponse(setOpeningHours(data.hours));
     if (action === "savePromoPopup") return jsonResponse(setPromoPopup(data.title, data.body, data.imageUrl, data.active));
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
@@ -1594,7 +1653,13 @@ function doPost(e) {
 
     if (action === "createOrder" || action === "createUnpaidOrder" || action === "createReservedOrder") {
       if (action === "createUnpaidOrder") data.order.status = "UNPAID";
-      if (action === "createReservedOrder") data.order.status = "RESERVED";
+      if (action === "createReservedOrder") {
+        const win = isPreorderWindowOpen();
+        if (!win.open) {
+          return jsonResponse({ success: false, error: closedPreorderMessage_(win.hours) });
+        }
+        data.order.status = "RESERVED";
+      }
       return jsonResponse(createOrderLocked(data.order));
     }
     if (action === "confirmPayment") return jsonResponse(confirmPaymentStatus(data.orderNum));

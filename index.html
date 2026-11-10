@@ -775,6 +775,24 @@
             <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
           </div>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Limit Pre-Order to Opening Hours</span>
+            <button id="adminToggleOpeningHoursBtn" onclick="toggleOpeningHoursSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">On</button>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Opens At</label>
+            <input type="time" id="adminOpeningStart" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Closes At</label>
+            <div class="flex items-center gap-2">
+              <input type="time" id="adminOpeningEnd" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <button onclick="saveOpeningHoursSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
+            </div>
+          </div>
+        </div>
+        <p class="text-[10px] text-slate-400 font-semibold">Only online pre-orders (customer &amp; open day pages) respect these hours. The staff POS is never blocked.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-500 mb-1">Teacher Pause Reason</label>
@@ -1399,6 +1417,7 @@
       openDayReservationOpen: true,
       teacherPauseReason: "",
       openDayPauseReason: "",
+      openingHours: { enabled: true, start: "07:30", end: "15:30" },
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
       promoCodes: [],
@@ -2055,6 +2074,7 @@
           if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
+          if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
           if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
           if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
@@ -2894,6 +2914,36 @@
       if (el.dataset.order) markOrderReady(el.dataset.order);
     });
 
+    // Pre-orders stay off the main board until 15 minutes before their pickup
+    // time, so the bar isn't cluttered with drinks that aren't due yet.
+    const PREORDER_LEAD_MINUTES = 15;
+
+    function parsePickupTimeToDate(raw) {
+      const text = String(raw || "").trim().toLowerCase();
+      if (!text) return null;
+      if (text === "now" || text === "asap") return new Date();
+      const m = text.match(/(\d{1,2})\s*[:.]\s*(\d{2})\s*(am|pm)?/);
+      if (!m) return null;
+      let h = Number(m[1]);
+      const mi = Number(m[2]);
+      if (mi > 59) return null;
+      const meridiem = m[3];
+      if (meridiem === "pm" && h < 12) h += 12;
+      if (meridiem === "am" && h === 12) h = 0;
+      if (!meridiem && h > 23) return null;
+      const d = new Date();
+      d.setHours(h, mi, 0, 0);
+      return d;
+    }
+
+    function isPreorderNotDueYet(order, now) {
+      if ((order.status || "").toUpperCase() === "ASSIGNED") return false;
+      if (!isPreOrder(order)) return false;
+      const due = parsePickupTimeToDate(order.pickupTime);
+      if (!due) return false;
+      return due.getTime() - now > PREORDER_LEAD_MINUTES * 60 * 1000;
+    }
+
     function renderKDS() {
       const grid = document.getElementById('kdsGrid');
       if (!grid) return;
@@ -2923,11 +2973,26 @@
           return byTime || (Number(a.orderNum) || 0) - (Number(b.orderNum) || 0);
         });
 
+      // Split: drinks due now vs. scheduled pre-orders still too early to make.
+      const nowTs = Date.now();
+      const scheduledOrders = activeOrders
+        .filter(o => isPreorderNotDueYet(o, nowTs))
+        .sort((a, b) => {
+          const da = parsePickupTimeToDate(a.pickupTime);
+          const db = parsePickupTimeToDate(b.pickupTime);
+          return (da ? da.getTime() : Infinity) - (db ? db.getTime() : Infinity);
+        });
+      const boardOrders = activeOrders.filter(o => !isPreorderNotDueYet(o, nowTs));
+
       const badge = document.getElementById('kdsPendingCount');
-      if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+      if (badge) {
+        badge.innerText = scheduledOrders.length > 0
+          ? `${boardOrders.length} Active · ${scheduledOrders.length} Scheduled`
+          : `${boardOrders.length} Active Orders`;
+      }
 
       // Pressure light: thresholds tuned for a 2–3 person bar.
-      const load = activeOrders.length;
+      const load = boardOrders.length;
       const loadDot = document.getElementById('kdsBarLoadDot');
       const loadText = document.getElementById('kdsBarLoadText');
       if (loadDot && loadText) {
@@ -2947,7 +3012,7 @@
       }
 
       // ---- Marquee: every order not yet assigned by the head chef ----
-      const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
+      const unassigned = boardOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
       // Past ~24 cards the pulsing halo on every card becomes visual noise and
       // keeps the GPU busy on a screen that never sleeps. Keep a static ring.
       grid.classList.toggle('kds-many', unassigned.length > 24);
@@ -2968,13 +3033,13 @@
         }
       }
 
-      if (activeOrders.length === 0) {
+      if (boardOrders.length === 0 && scheduledOrders.length === 0) {
         grid.innerHTML = `<p class="text-slate-400 col-span-4 text-center py-12 font-medium">No active kitchen orders.</p>`;
         return;
       }
 
       let html = "";
-      activeOrders.forEach(o => {
+      boardOrders.forEach(o => {
         const status = (o.status || "").toUpperCase();
         const timeAgo = getElapsedTimeStr(o.orderTime);
         const isReserved = status === "RESERVED";
@@ -3058,6 +3123,31 @@
             </div>
           </div>`;
       });
+
+      // Scheduled pre-orders are folded into a compact, collapsible strip.
+      if (scheduledOrders.length > 0) {
+        const rows = scheduledOrders.map(o => `
+          <div class="flex items-center justify-between gap-3 px-3 py-2 border-b border-slate-100 last:border-b-0">
+            <div class="min-w-0">
+              <p class="text-xs font-extrabold text-slate-700 truncate">#${escapeHtml(o.orderNum)} · ${escapeHtml(o.guestName)}</p>
+              <p class="text-[10px] font-semibold text-slate-400 truncate">${escapeHtml(o.productName)} (${escapeHtml(o.temp)})</p>
+            </div>
+            <span class="shrink-0 text-[10px] font-black text-purple-700 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full">${escapeHtml(o.pickupTime || "Scheduled")}</span>
+          </div>`).join("");
+        html = `
+          <details class="col-span-full bg-white/80 border border-slate-200 rounded-2xl overflow-hidden">
+            <summary class="cursor-pointer select-none px-4 py-2.5 text-xs font-extrabold text-slate-600">
+              <i class="fa-solid fa-clock mr-1 text-purple-500"></i> Scheduled pre-orders · ${scheduledOrders.length}
+              <span class="text-[10px] font-semibold text-slate-400 ml-1">(auto-shown ${PREORDER_LEAD_MINUTES} min before pickup)</span>
+            </summary>
+            <div>${rows}</div>
+          </details>` + html;
+      }
+
+      if (boardOrders.length === 0) {
+        html += `<p class="text-slate-400 col-span-full text-center py-8 font-medium">No drinks due yet.</p>`;
+      }
+
       grid.innerHTML = html;
     }
 
@@ -4339,6 +4429,8 @@
       const openDayReasonInput = document.getElementById('adminOpenDayPauseReasonInput');
       if (openDayReasonInput) openDayReasonInput.value = state.openDayPauseReason;
 
+      renderOpeningHoursUI();
+
       const catInput = document.getElementById('adminCategoriesInput');
       if (catInput) catInput.value = state.categories.join(", ");
 
@@ -4620,6 +4712,58 @@
         else showToast(res.error || "Failed to update Open Day switch", "error");
       })
       .catch(() => showToast("Network error updating Open Day switch", "error"));
+    }
+
+    function saveOpeningHoursSubmit() {
+      const startEl = document.getElementById('adminOpeningStart');
+      const endEl = document.getElementById('adminOpeningEnd');
+      const hours = {
+        enabled: (state.openingHours && state.openingHours.enabled !== false),
+        start: (startEl && startEl.value) || "07:30",
+        end: (endEl && endEl.value) || "15:30"
+      };
+      postOpeningHours(hours, "Opening hours saved");
+    }
+
+    function toggleOpeningHoursSubmit() {
+      const cur = state.openingHours || { enabled: true, start: "07:30", end: "15:30" };
+      postOpeningHours({ enabled: !(cur.enabled !== false), start: cur.start, end: cur.end },
+        cur.enabled !== false ? "Pre-order hours limit turned off" : "Pre-order hours limit turned on");
+    }
+
+    function postOpeningHours(hours, okMessage) {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveOpeningHours", hours: hours })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.openingHours) {
+          state.openingHours = res.openingHours;
+          renderOpeningHoursUI();
+          showToast(okMessage, "success");
+        } else {
+          showToast(res.error || "Failed to save opening hours", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving opening hours", "error"));
+    }
+
+    function renderOpeningHoursUI() {
+      const hours = state.openingHours || { enabled: true, start: "07:30", end: "15:30" };
+      const startEl = document.getElementById('adminOpeningStart');
+      const endEl = document.getElementById('adminOpeningEnd');
+      if (startEl && document.activeElement !== startEl) startEl.value = hours.start;
+      if (endEl && document.activeElement !== endEl) endEl.value = hours.end;
+      const btn = document.getElementById('adminToggleOpeningHoursBtn');
+      if (btn) {
+        const on = hours.enabled !== false;
+        btn.innerText = on ? "On" : "Off";
+        btn.className = on
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
+      }
     }
 
     function savePauseReasonsSubmit() {
