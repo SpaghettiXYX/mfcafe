@@ -518,7 +518,10 @@ const DEFAULT_OPENING_HOURS = {
   enabled: true,
   start: "07:30",
   end: "15:30",
-  slots: []
+  slots: [],
+  specificTimes: [],
+  slotsPerHour: 0,
+  minLead: 0
 };
 
 function normalizeHhMm_(value, fallback) {
@@ -544,6 +547,23 @@ function normalizePickupSlots_(slots) {
   return out;
 }
 
+// One-off pickup times, e.g. 12:30 and 14:45.
+function normalizeSpecificTimes_(times) {
+  const list = Array.isArray(times) ? times : [];
+  const out = [];
+  list.forEach(t => {
+    const v = normalizeHhMm_(t, "");
+    if (v && out.indexOf(v) < 0 && out.length < 48) out.push(v);
+  });
+  return out.sort();
+}
+
+function clampInt_(value, min, max, fallback) {
+  const n = Math.round(Number(value));
+  if (!isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
 function getOpeningHours() {
   const raw = PropertiesService.getScriptProperties().getProperty("OPENING_HOURS");
   if (!raw) return Object.assign({}, DEFAULT_OPENING_HOURS);
@@ -553,7 +573,10 @@ function getOpeningHours() {
       enabled: parsed.enabled !== false,
       start: normalizeHhMm_(parsed.start, DEFAULT_OPENING_HOURS.start),
       end: normalizeHhMm_(parsed.end, DEFAULT_OPENING_HOURS.end),
-      slots: normalizePickupSlots_(parsed.slots)
+      slots: normalizePickupSlots_(parsed.slots),
+      specificTimes: normalizeSpecificTimes_(parsed.specificTimes),
+      slotsPerHour: clampInt_(parsed.slotsPerHour, 0, 12, 0),
+      minLead: clampInt_(parsed.minLead, 0, 240, 0)
     };
   } catch (e) {
     return Object.assign({}, DEFAULT_OPENING_HOURS);
@@ -569,7 +592,10 @@ function setOpeningHours(hours) {
     enabled: h.enabled !== false,
     start: start,
     end: end,
-    slots: normalizePickupSlots_(h.slots)
+    slots: normalizePickupSlots_(h.slots),
+    specificTimes: normalizeSpecificTimes_(h.specificTimes),
+    slotsPerHour: clampInt_(h.slotsPerHour, 0, 12, 0),
+    minLead: clampInt_(h.minLead, 0, 240, 0)
   };
   PropertiesService.getScriptProperties().setProperty("OPENING_HOURS", JSON.stringify(payload));
   bumpVersion();
@@ -609,8 +635,18 @@ const DEFAULT_SELF_ORDER_INSTRUCTIONS = {
   note: ""
 };
 
-function getSelfOrderInstructions() {
-  const raw = PropertiesService.getScriptProperties().getProperty("SELF_ORDER_INSTRUCTIONS");
+// The teacher page and the Open Day page keep separate copies.
+function instructionsKey_(audience) {
+  return audience === "openday" ? "SELF_ORDER_INSTRUCTIONS_OPENDAY" : "SELF_ORDER_INSTRUCTIONS_TEACHER";
+}
+
+function getSelfOrderInstructions(audience) {
+  const key = instructionsKey_(audience);
+  let raw = PropertiesService.getScriptProperties().getProperty(key);
+  // First run after the split: inherit the old shared copy for the teacher page.
+  if (!raw && audience !== "openday") {
+    raw = PropertiesService.getScriptProperties().getProperty("SELF_ORDER_INSTRUCTIONS");
+  }
   if (!raw) return DEFAULT_SELF_ORDER_INSTRUCTIONS;
   try {
     const parsed = JSON.parse(raw);
@@ -630,7 +666,8 @@ function getSelfOrderInstructions() {
   }
 }
 
-function setSelfOrderInstructions(title, heading, steps, note) {
+function setSelfOrderInstructions(audience, title, heading, steps, note) {
+  const key = instructionsKey_(audience);
   const cleanTitle = String(title || "").trim();
   const cleanHeading = String(heading || "").trim();
   const list = Array.isArray(steps) ? steps : [];
@@ -642,9 +679,9 @@ function setSelfOrderInstructions(title, heading, steps, note) {
   const props = PropertiesService.getScriptProperties();
   // Empty everything = reset back to the built-in copy.
   if (!cleanTitle && !cleanHeading && !cleanSteps.length && !cleanNote) {
-    props.deleteProperty("SELF_ORDER_INSTRUCTIONS");
+    props.deleteProperty(key);
     bumpVersion();
-    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, reset: true };
+    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, audience: audience === "openday" ? "openday" : "teacher", reset: true };
   }
   const payload = {
     title: cleanTitle || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
@@ -653,9 +690,9 @@ function setSelfOrderInstructions(title, heading, steps, note) {
     note: cleanNote,
     timestamp: Date.now()
   };
-  props.setProperty("SELF_ORDER_INSTRUCTIONS", JSON.stringify(payload));
+  props.setProperty(key, JSON.stringify(payload));
   bumpVersion();
-  return { success: true, instructions: payload };
+  return { success: true, instructions: payload, audience: audience === "openday" ? "openday" : "teacher" };
 }
 
 // ==================== PROMO POPUP (guest self-order) ====================
@@ -958,7 +995,9 @@ function getInitialData() {
     openingHours: getOpeningHours(),
     promoPopup: getPromoPopup(),
     promoCodes: getPromoCodes(),
-    instructions: getSelfOrderInstructions(),
+    instructions: getSelfOrderInstructions("teacher"),
+    instructionsTeacher: getSelfOrderInstructions("teacher"),
+    instructionsOpenDay: getSelfOrderInstructions("openday"),
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout()
   };
@@ -1815,7 +1854,7 @@ function doPost(e) {
     if (action === "saveKdsStatusStrip") return jsonResponse(setKdsStatusStrip(data.config));
     if (action === "saveOpeningHours") return jsonResponse(setOpeningHours(data.hours));
     if (action === "savePromoPopup") return jsonResponse(setPromoPopup(data.title, data.body, data.imageUrl, data.active));
-    if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.title, data.heading, data.steps, data.note));
+    if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.audience, data.title, data.heading, data.steps, data.note));
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
     if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal));

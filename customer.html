@@ -652,7 +652,7 @@
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (data.openingHours) { state.openingHours = data.openingHours; renderPickupOptions(); }
-          if (data.instructions) { state.instructions = data.instructions; applyInstructions(); }
+          if (data.instructionsTeacher || data.instructions) { state.instructions = data.instructionsTeacher || data.instructions; applyInstructions(); }
           if (data.promoPopup) { state.promoPopup = data.promoPopup; showPromoPopup(); }
           applyReservationState();
           renderMenu();
@@ -760,24 +760,84 @@
     // ===== PICKUP SLOTS =====
     // Opening hours may define named windows: when they do, the free-text
     // input is replaced by a dropdown so guests pick a valid slot.
+    function pickupToMinutes(value) {
+      const m = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return null;
+      return Number(m[1]) * 60 + Number(m[2]);
+    }
+
+    function minutesToPickup(min) {
+      const v = ((min % 1440) + 1440) % 1440;
+      const h = Math.floor(v / 60);
+      const m = v % 60;
+      return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+    }
+
+    // Windows + specific times + generated slots, with past slots removed by
+    // the minimum lead time. "NOW" is always available.
+    function buildPickupLabels(hours) {
+      const h = hours || {};
+      const out = [];
+      const add = label => { if (label && out.indexOf(label) < 0) out.push(label); };
+
+      (Array.isArray(h.slots) ? h.slots : []).forEach(slot => {
+        if (slot && slot.start && slot.end) add(slot.start + " - " + slot.end);
+      });
+
+      const start = pickupToMinutes(h.start);
+      const end = pickupToMinutes(h.end);
+      const overnight = start != null && end != null && end <= start;
+      const now = new Date();
+      let nowMin = now.getHours() * 60 + now.getMinutes();
+      if (overnight && nowMin < start) nowMin += 1440;
+
+      const lead = Math.max(0, Number(h.minLead) || 0);
+      const available = slotMin => {
+        const v = overnight && slotMin < start ? slotMin + 1440 : slotMin;
+        return v - lead >= nowMin;
+      };
+
+      (Array.isArray(h.specificTimes) ? h.specificTimes : []).forEach(t => {
+        const m = pickupToMinutes(t);
+        if (m != null && available(m)) add(t);
+      });
+
+      const perHour = Math.max(0, Math.min(12, Number(h.slotsPerHour) || 0));
+      if (perHour > 0 && start != null && end != null) {
+        const step = Math.max(5, Math.round((60 / perHour) / 5) * 5);
+        const spanEnd = overnight ? end + 1440 : end;
+        for (let m = Math.ceil(start / step) * step; m < spanEnd; m += step) {
+          if (available(m)) add(minutesToPickup(m));
+        }
+      }
+      return out;
+    }
+
     function renderPickupOptions() {
       const input = document.getElementById('custPickupTime');
       const select = document.getElementById('custPickupSlot');
       if (!input || !select) return;
-      const slots = (state.openingHours && Array.isArray(state.openingHours.slots)) ? state.openingHours.slots : [];
-      if (!slots.length) {
+      const hours = state.openingHours || {};
+      const configured = (Array.isArray(hours.slots) && hours.slots.length) ||
+        (Array.isArray(hours.specificTimes) && hours.specificTimes.length) ||
+        (Number(hours.slotsPerHour) || 0) > 0;
+
+      if (!configured) {
         select.dataset.signature = "";
         select.classList.add('hidden');
         input.classList.remove('hidden');
         return;
       }
-      const signature = JSON.stringify(slots);
+
+      const labels = buildPickupLabels(hours);
+      const now = new Date();
+      const signature = JSON.stringify([hours.slots, hours.specificTimes, hours.slotsPerHour, hours.minLead, hours.start, hours.end,
+        Math.floor((now.getHours() * 60 + now.getMinutes()) / 5)]);
       if (select.dataset.signature === signature) return;
       const previous = select.value;
       select.dataset.signature = signature;
       const options = ['<option value="NOW">NOW (as soon as possible)</option>'];
-      slots.forEach(slot => {
-        const label = `${slot.start} - ${slot.end}`;
+      labels.forEach(label => {
         options.push(`<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`);
       });
       select.innerHTML = options.join('');

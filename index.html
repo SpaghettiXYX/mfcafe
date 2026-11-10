@@ -177,6 +177,22 @@
     }
     .pos-tile-shake { animation: pos-tile-shake 320ms ease; }
     @media (prefers-reduced-motion: reduce) { .pos-tile-shake { animation: none; } }
+
+    /* Helper screen: swipe a ready order to the right to serve it. */
+    .helper-swipe { position: relative; overflow: hidden; touch-action: pan-y; user-select: none; }
+    .helper-swipe-hint {
+      position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
+      padding-left: 18px; font-size: 12px; font-weight: 800; color: #047857;
+      background: linear-gradient(90deg, #d1fae5 0%, #ecfdf5 70%, #ffffff 100%);
+    }
+    .helper-swipe-content {
+      position: relative; z-index: 1; background: #ffffff;
+      transition: transform 160ms ease; will-change: transform;
+    }
+    .helper-swipe.is-armed .helper-swipe-hint { background: linear-gradient(90deg, #a7f3d0 0%, #d1fae5 70%, #ffffff 100%); }
+    [data-theme="dark"] .helper-swipe-content { background: var(--surface); }
+    [data-theme="dark"] .helper-swipe-hint { background: linear-gradient(90deg, #064e3b 0%, #032a20 70%, var(--surface) 100%); color: #6ee7b7; }
+    @media (prefers-reduced-motion: reduce) { .helper-swipe-content { transition: none; } }
     /* 3. Dark mode drops every weight by 40%. */
     [data-theme="dark"] body { font-weight: 300; }
     [data-theme="dark"] .font-black { font-weight: 540 !important; }
@@ -843,6 +859,30 @@
             <p class="text-[10px] text-slate-400 font-semibold mt-1">Guests pick one of these windows when pre-ordering. Leave empty to let guests type any pickup time.</p>
           </div>
 
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Specific Pickup Times</label>
+              <div id="adminSpecificTimesList" class="flex flex-wrap gap-2 mb-2"></div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="time" id="adminSpecificTimeInput" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                <button onclick="addOpeningSpecificTime()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Add Time</button>
+              </div>
+              <p class="text-[10px] text-slate-400 font-semibold mt-1">Extra one-off times, e.g. 12:30 or 14:45. Added to the dropdown next to the slots above.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Slots per Hour</label>
+                <input type="number" id="adminSlotsPerHour" min="0" max="12" step="1" value="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                <p class="text-[10px] text-slate-400 font-semibold mt-1">0 = off. 5 → :00, :10, :20, :30, :40, :50</p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Minimum Lead (min)</label>
+                <input type="number" id="adminMinLead" min="0" max="240" step="5" value="0" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                <p class="text-[10px] text-slate-400 font-semibold mt-1">Stop taking a slot N minutes before it starts.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="flex items-center gap-2">
             <button onclick="saveOpeningHoursSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Opening Hours</button>
             <span id="adminOpeningStatus" class="text-[10px] font-bold text-slate-400"></span>
@@ -856,7 +896,14 @@
           <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
             <i class="fa-solid fa-book-open text-amber-500 mr-2"></i> Self-Order Instructions
           </h3>
-          <p class="text-[11px] text-slate-400 mt-2">Shown behind the Instructions button on the Customer and Open Day pages. Each step has a short title and a longer explanation.</p>
+          <p class="text-[11px] text-slate-400 mt-2">Shown behind the Instructions button on the selected self-order page. Each step has a short title and a longer explanation. Teacher and Open Day pages keep separate copies.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Editing Instructions For</label>
+          <select id="manualAudienceSelect" onchange="switchManualAudience(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+            <option value="teacher">Teacher Self-Order Page</option>
+            <option value="openday">Open Day Page</option>
+          </select>
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Panel Title</label>
@@ -1599,9 +1646,12 @@
       teacherPauseReason: "",
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
-      openingHours: { enabled: true, start: "07:30", end: "15:30", slots: [] },
+      openingHours: { enabled: true, start: "07:30", end: "15:30", slots: [], specificTimes: [], slotsPerHour: 0, minLead: 0 },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
       instructions: null,        // editable self-order "How to make a reservation order?" sheet
+      instructionsTeacher: null,
+      instructionsOpenDay: null,
+      manualAudience: "teacher", // which instruction sheet the admin editor is showing
       promoCodes: [],
       posPromo: null,            // { code, type, value, discount }
       posManualDiscount: null,   // { type, value, amount, approvedBy }
@@ -2266,7 +2316,11 @@
           if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
           if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
           if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
-          if (data.instructions && typeof data.instructions === "object") state.instructions = data.instructions;
+          if (data.instructions && typeof data.instructions === "object") {
+            state.instructions = data.instructions;
+            state.instructionsTeacher = data.instructionsTeacher || data.instructions;
+          }
+          if (data.instructionsOpenDay && typeof data.instructionsOpenDay === "object") state.instructionsOpenDay = data.instructionsOpenDay;
           if (data.statusStrip && typeof data.statusStrip === "object") {
             state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
             renderKdsStatusEditor();
@@ -3453,18 +3507,66 @@
         const tile = String(o.qrTile || "").trim();
         const num = String(o.orderNum || "").trim();
         html += `
-          <div class="bg-white border border-emerald-300 p-4 rounded-2xl shadow-sm flex justify-between items-center">
-            <div>
-              <span class="text-2xl font-black text-emerald-600">${escapeHtml(tile || `#${num}`)}</span>
-              <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
-              <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
+          <div class="helper-swipe bg-white border border-emerald-300 rounded-2xl shadow-sm" data-order="${escapeHtml(num)}">
+            <div class="helper-swipe-hint"><i class="fa-solid fa-arrow-right"></i> Slide to serve</div>
+            <div class="helper-swipe-content p-4 flex justify-between items-center">
+              <div>
+                <span class="text-2xl font-black text-emerald-600">${escapeHtml(tile || `#${num}`)}</span>
+                <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
+                <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
+              </div>
+              <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
+                Clear
+              </button>
             </div>
-            <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
-              Clear
-            </button>
           </div>`;
       });
       grid.innerHTML = html;
+      grid.querySelectorAll(".helper-swipe").forEach(bindHelperSwipe);
+    }
+
+    function bindHelperSwipe(card) {
+      const content = card.querySelector(".helper-swipe-content");
+      if (!content) return;
+      let startX = 0;
+      let dx = 0;
+      let active = false;
+      const threshold = () => card.clientWidth * 0.42;
+
+      const reset = () => {
+        content.style.transition = "transform 160ms ease";
+        content.style.transform = "";
+        card.classList.remove("is-armed");
+      };
+
+      card.addEventListener("pointerdown", e => {
+        if (e.target.closest("button")) return;
+        active = true;
+        startX = e.clientX;
+        dx = 0;
+        content.style.transition = "none";
+        card.setPointerCapture && card.setPointerCapture(e.pointerId);
+      });
+      card.addEventListener("pointermove", e => {
+        if (!active) return;
+        dx = Math.max(0, Math.min(e.clientX - startX, card.clientWidth));
+        content.style.transform = `translateX(${dx}px)`;
+        card.classList.toggle("is-armed", dx >= threshold());
+      });
+      const finish = () => {
+        if (!active) return;
+        active = false;
+        if (dx >= threshold()) {
+          content.style.transition = "transform 160ms ease";
+          content.style.transform = `translateX(${card.clientWidth}px)`;
+          setTimeout(() => clearOrder(card.dataset.order), 150);
+        } else {
+          reset();
+        }
+      };
+      card.addEventListener("pointerup", finish);
+      card.addEventListener("pointercancel", finish);
+      card.addEventListener("pointerleave", finish);
     }
 
     function clearOrder(orderNum) {
@@ -3957,20 +4059,25 @@
     // Write BLE bytes in chunks with back-pressure
     async function btWrite(data) {
       if (!btCharTx) throw new Error("No printer connected");
-      // BLE default ATT payload is 20 bytes. On macOS, writeValueWithoutResponse
-      // resolves immediately and macOS silently drops packets once its queue is
-      // full — the paper then stops mid-image, which looks like "printer froze".
-      // So: prefer acknowledged writes (real flow control) and pace every chunk.
-      const CHUNK = 20;
+      // Large acknowledged writes are fragmented by the OS at the link layer,
+      // so we can hand the printer ~180 bytes per round-trip instead of 20.
+      // If the firmware rejects that size we fall back to the 20-byte ATT
+      // payload before retrying, so nothing is duplicated or dropped.
       const props = btCharTx.properties || {};
       let ack = !!props.write;                      // writeValue = with response
-      const pause = ack ? 2 : 9;
-      for (let i = 0; i < data.length; i += CHUNK) {
-        const slice = data.slice(i, i + CHUNK);
+      let chunk = ack ? 180 : 20;
+      let i = 0;
+      while (i < data.length) {
+        const size = Math.min(chunk, data.length - i);
+        const slice = data.slice(i, i + size);
         try {
           if (ack) await btCharTx.writeValue(slice);
           else await btCharTx.writeValueWithoutResponse(slice);
         } catch (e) {
+          if (chunk > 20) {
+            chunk = 20;                             // retry same offset, smaller
+            continue;
+          }
           // Firmware disagrees with the advertised properties — flip the mode
           // once and retry this same chunk rather than dropping it.
           ack = !ack;
@@ -3979,7 +4086,8 @@
             else await btCharTx.writeValueWithoutResponse(slice);
           } catch (e2) { throw e; }
         }
-        await new Promise(r => setTimeout(r, ack ? 2 : 9));
+        i += size;
+        await new Promise(r => setTimeout(r, ack ? 1 : 9));
       }
       await new Promise(r => setTimeout(r, 120));   // let the last block flush
     }
@@ -4574,6 +4682,7 @@
 
     // ==================== ADMIN: OPENING HOURS & PICKUP SLOTS ====================
     let adminSlotDraft = [];
+    let adminSpecificTimesDraft = [];
 
     function setAdminStatus(id, text, ok) {
       const el = document.getElementById(id);
@@ -4595,7 +4704,45 @@
           (h.enabled !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500");
       }
       adminSlotDraft = (h.slots || []).map(s => ({ start: s.start, end: s.end }));
+      adminSpecificTimesDraft = (h.specificTimes || []).slice().sort();
+      const perHourEl = document.getElementById("adminSlotsPerHour");
+      if (perHourEl) perHourEl.value = Number(h.slotsPerHour) || 0;
+      const leadEl = document.getElementById("adminMinLead");
+      if (leadEl) leadEl.value = Number(h.minLead) || 0;
       renderAdminSlotList();
+      renderAdminSpecificTimesList();
+    }
+
+    function renderAdminSpecificTimesList() {
+      const wrap = document.getElementById("adminSpecificTimesList");
+      if (!wrap) return;
+      if (!adminSpecificTimesDraft.length) {
+        wrap.innerHTML = '<p class="text-[11px] font-bold text-slate-400">No specific times yet.</p>';
+        return;
+      }
+      wrap.innerHTML = adminSpecificTimesDraft.map((t, i) => `
+        <span class="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-2.5 py-1 text-xs font-extrabold">
+          ${escapeHtml(t)}
+          <button type="button" onclick="removeOpeningSpecificTime(${i})" class="text-rose-400 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button>
+        </span>`).join("");
+    }
+
+    function addOpeningSpecificTime() {
+      const el = document.getElementById("adminSpecificTimeInput");
+      const value = el ? el.value : "";
+      if (!value) { setAdminStatus("adminOpeningStatus", "Pick a time first.", false); return; }
+      if (adminSpecificTimesDraft.indexOf(value) >= 0) { setAdminStatus("adminOpeningStatus", "That time is already added.", false); return; }
+      adminSpecificTimesDraft.push(value);
+      adminSpecificTimesDraft.sort();
+      if (el) el.value = "";
+      renderAdminSpecificTimesList();
+      setAdminStatus("adminOpeningStatus", "Time added — remember to Save.", false);
+    }
+
+    function removeOpeningSpecificTime(index) {
+      adminSpecificTimesDraft.splice(index, 1);
+      renderAdminSpecificTimesList();
+      setAdminStatus("adminOpeningStatus", "Time removed — remember to Save.", false);
     }
 
     function renderAdminSlotList() {
@@ -4638,7 +4785,10 @@
         enabled: toggleOnly ? !(h.enabled !== false) : (h.enabled !== false),
         start: (document.getElementById("adminOpeningStart") || {}).value || h.start || "07:30",
         end: (document.getElementById("adminOpeningEnd") || {}).value || h.end || "15:30",
-        slots: adminSlotDraft
+        slots: adminSlotDraft,
+        specificTimes: adminSpecificTimesDraft,
+        slotsPerHour: Number((document.getElementById("adminSlotsPerHour") || {}).value) || 0,
+        minLead: Number((document.getElementById("adminMinLead") || {}).value) || 0
       };
       setAdminStatus("adminOpeningStatus", "Saving…");
       apiPost({ action: "saveOpeningHours", hours: payload }).then(res => {
@@ -4654,13 +4804,28 @@
     }
 
     // ==================== ADMIN: SELF-ORDER INSTRUCTIONS ====================
+    function currentManualInstructions() {
+      if (state.manualAudience === "openday") {
+        return state.instructionsOpenDay || state.instructions || null;
+      }
+      return state.instructionsTeacher || state.instructions || null;
+    }
+
+    function switchManualAudience(audience) {
+      state.manualAudience = audience === "openday" ? "openday" : "teacher";
+      renderManualEditor();
+      setAdminStatus("manualStatus", "", false);
+    }
+
     function renderManualEditor() {
-      const ins = state.instructions || {
+      const ins = currentManualInstructions() || {
         title: "How to make a reservation order?",
         heading: "In only 4 steps~",
         steps: [],
         note: ""
       };
+      const audienceEl = document.getElementById("manualAudienceSelect");
+      if (audienceEl) audienceEl.value = state.manualAudience === "openday" ? "openday" : "teacher";
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ""; };
       setVal("manualTitleInput", ins.title);
       setVal("manualHeadingInput", ins.heading);
@@ -4685,6 +4850,7 @@
     function saveManualSubmit() {
       const payload = {
         action: "saveInstructions",
+        audience: state.manualAudience === "openday" ? "openday" : "teacher",
         title: ((document.getElementById("manualTitleInput") || {}).value || "").trim(),
         heading: ((document.getElementById("manualHeadingInput") || {}).value || "").trim(),
         steps: collectManualSteps(),
@@ -4694,7 +4860,8 @@
       setAdminStatus("manualStatus", "Saving…");
       apiPost(payload).then(res => {
         if (!res || !res.success) { setAdminStatus("manualStatus", (res && res.error) || "Save failed.", false); return; }
-        state.instructions = res.instructions;
+        if (res.audience === "openday") state.instructionsOpenDay = res.instructions;
+        else { state.instructionsTeacher = res.instructions; state.instructions = res.instructions; }
         renderManualEditor();
         setAdminStatus("manualStatus", "Saved.");
       }).catch(() => setAdminStatus("manualStatus", "Network error.", false));
@@ -4703,9 +4870,11 @@
     function resetManualSubmit() {
       if (!confirm("Reset the self-order instructions back to the built-in copy?")) return;
       setAdminStatus("manualStatus", "Resetting…");
-      apiPost({ action: "saveInstructions", title: "", heading: "", steps: [], note: "" }).then(res => {
+      const audience = state.manualAudience === "openday" ? "openday" : "teacher";
+      apiPost({ action: "saveInstructions", audience, title: "", heading: "", steps: [], note: "" }).then(res => {
         if (!res || !res.success) { setAdminStatus("manualStatus", "Reset failed.", false); return; }
-        state.instructions = res.instructions;
+        if (audience === "openday") state.instructionsOpenDay = res.instructions;
+        else { state.instructionsTeacher = res.instructions; state.instructions = res.instructions; }
         renderManualEditor();
         setAdminStatus("manualStatus", "Reset to default.");
       }).catch(() => setAdminStatus("manualStatus", "Network error.", false));
