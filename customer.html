@@ -1248,6 +1248,7 @@
       document.getElementById('orderView')?.classList.add('hidden');
       document.getElementById('orderFooter')?.classList.add('hidden');
       document.getElementById('qrTicketView')?.classList.remove('hidden');
+      document.getElementById('customerCategoryTabs')?.classList.add('hidden');
       pinTicketToTop();
       try { selfOrderHistory.openTicket(order); } catch (e) { console.warn('Order history unavailable', e); }
       updateTicketStatusUI(order.status, order.paymentStatus);
@@ -1714,6 +1715,7 @@
       document.getElementById('qrTicketView')?.classList.add('hidden');
       document.getElementById('orderView')?.classList.remove('hidden');
       document.getElementById('orderFooter')?.classList.remove('hidden');
+      document.getElementById('customerCategoryTabs')?.classList.remove('hidden');
       const unpaidBadge = document.getElementById('ticketUnpaidBadge');
       if (unpaidBadge) unpaidBadge.remove();
       state.selectedItem = null;

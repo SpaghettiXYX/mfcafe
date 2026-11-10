@@ -305,16 +305,20 @@
       var overlay = document.getElementById("pausedOverlay");
       var orderView = document.getElementById("orderView");
       var footer = document.getElementById("orderFooter");
+      var tabs = document.getElementById("customerCategoryTabs");
 
       if (ticketVisible) {
-        // Never cover a live ticket with the paused screen.
+        // Never cover a live ticket with the paused screen, and the menu's
+        // category chips don't belong on the barcode ticket either.
         if (overlay) overlay.classList.add("hidden");
+        if (tabs) tabs.classList.add("hidden");
         return;
       }
 
       if (overlay) overlay.classList.toggle("hidden", !paused);
       if (orderView) orderView.classList.toggle("hidden", paused);
       if (footer) footer.classList.toggle("hidden", paused);
+      if (tabs) tabs.classList.toggle("hidden", paused);
 
       var reasonEl = document.getElementById("pausedOverlayReason");
       if (reasonEl && lastReason) reasonEl.innerText = lastReason;
