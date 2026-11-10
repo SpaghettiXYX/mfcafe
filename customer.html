@@ -572,6 +572,7 @@
       teacherPauseReason: "",
       openingHours: { enabled: true, start: "07:30", end: "15:30" },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
+      instructions: null,     // editable "How to pre-order" sheet from Admin
       promoCodes: [],
       promoCode: null,        // { code, type, value } applied to this order
       currentOrder: null
@@ -649,6 +650,7 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
           if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
+          if (data.instructions && typeof data.instructions === "object") { state.instructions = data.instructions; applyInstructions(); }
           applyReservationState();
           renderMenu();
           splashDone();
@@ -674,6 +676,7 @@
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
             if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
             if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
+            if (data.instructions && typeof data.instructions === "object") { state.instructions = data.instructions; applyInstructions(); }
             applyReservationState();
             renderMenu();
             showPromoPopup();
@@ -1474,6 +1477,32 @@
     }
 
     // ===== INSTRUCTIONS SHEET =====
+    // Admin edits the copy in the User Manual panel; we only swap it in when
+    // the backend actually returns something, otherwise the built-in text stays.
+    function applyInstructions() {
+      const ins = state.instructions;
+      if (!ins || !Array.isArray(ins.steps) || !ins.steps.length) return;
+      const titleEl = document.getElementById('instructionsTitle');
+      if (titleEl && ins.title) {
+        titleEl.innerHTML = '<i class="fa-solid fa-circle-info" style="color:#f59e0b"></i> ' + escapeHtml(ins.title);
+      }
+      const stepsEl = document.querySelector('#instructionsModal .ins-steps');
+      if (stepsEl) {
+        stepsEl.innerHTML = ins.steps.map((step, i) =>
+          `<div class="ins-step"><span class="ins-num">${i + 1}</span><span>${escapeHtml(step)}</span></div>`
+        ).join('');
+      }
+      const noteEl = document.querySelector('#instructionsModal .ins-note');
+      if (noteEl) {
+        if (ins.note) {
+          noteEl.innerHTML = '<i class="fa-solid fa-lightbulb" style="color:#f59e0b"></i> ' + escapeHtml(ins.note);
+          noteEl.style.display = '';
+        } else {
+          noteEl.style.display = 'none';
+        }
+      }
+    }
+
     function openInstructions() {
       const modal = document.getElementById('instructionsModal');
       if (!modal) return;

@@ -540,6 +540,63 @@ function setPushMessage(text, sender, active) {
   return { success: true, pushMessage: payload };
 }
 
+// ==================== SELF-ORDER INSTRUCTIONS (User Manual) ====================
+// Admins edit the "How to pre-order" sheet from the User Manual panel; the
+// student / open-day pages render whatever is saved here.
+const DEFAULT_SELF_ORDER_INSTRUCTIONS = {
+  title: "How to pre-order",
+  steps: [
+    "Enter your name and pickup time (e.g. 10:30 AM or Recess).",
+    "Choose In-Store or Takeaway cup — this is required.",
+    "Tap a drink, pick Hot or Cold, then add optional notes (less sugar, extra hot…).",
+    "Tap Submit Pre-Order to get your barcode ticket. It stays on this device.",
+    "Show the barcode to bar staff or the cashier at pickup. Your drink is prepared for your pickup time.",
+    "Changed your mind? Tap Cancel This Order before pickup, or Order Another Drink to start again."
+  ],
+  note: "Tap Download Barcode Receipt to save your ticket to Photos. During busy periods online pre-ordering may be paused — please order at the counter instead."
+};
+
+function getSelfOrderInstructions() {
+  const raw = PropertiesService.getScriptProperties().getProperty("SELF_ORDER_INSTRUCTIONS");
+  if (!raw) return DEFAULT_SELF_ORDER_INSTRUCTIONS;
+  try {
+    const parsed = JSON.parse(raw);
+    const steps = Array.isArray(parsed.steps)
+      ? parsed.steps.map(s => String(s || "").trim()).filter(Boolean)
+      : [];
+    return {
+      title: String(parsed.title || "").trim() || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
+      steps: steps.length ? steps : DEFAULT_SELF_ORDER_INSTRUCTIONS.steps,
+      note: String(parsed.note || "").trim()
+    };
+  } catch (e) {
+    return DEFAULT_SELF_ORDER_INSTRUCTIONS;
+  }
+}
+
+function setSelfOrderInstructions(title, steps, note) {
+  const cleanTitle = String(title || "").trim();
+  const cleanSteps = (Array.isArray(steps) ? steps : String(steps || "").split("\n"))
+    .map(s => String(s || "").trim()).filter(Boolean);
+  const cleanNote = String(note || "").trim();
+  const props = PropertiesService.getScriptProperties();
+  // Empty title + empty steps = reset back to the built-in copy.
+  if (!cleanTitle && !cleanSteps.length && !cleanNote) {
+    props.deleteProperty("SELF_ORDER_INSTRUCTIONS");
+    bumpVersion();
+    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, reset: true };
+  }
+  const payload = {
+    title: cleanTitle || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
+    steps: cleanSteps,
+    note: cleanNote,
+    timestamp: Date.now()
+  };
+  props.setProperty("SELF_ORDER_INSTRUCTIONS", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, instructions: payload };
+}
+
 // ==================== PROMO POPUP (guest self-order) ====================
 // A smaller, always-available sibling of the push message: admins write it in
 // the Promotions panel and every guest sees it once when they open the menu.
@@ -794,6 +851,7 @@ function getInitialData() {
     openingHours: getOpeningHours(),
     promoPopup: getPromoPopup(),
     promoCodes: getPromoCodes(),
+    instructions: getSelfOrderInstructions(),
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout()
   };
@@ -1645,6 +1703,7 @@ function doPost(e) {
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
     if (action === "saveOpeningHours") return jsonResponse(setOpeningHours(data.hours));
     if (action === "savePromoPopup") return jsonResponse(setPromoPopup(data.title, data.body, data.imageUrl, data.active));
+    if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.title, data.steps, data.note));
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
     if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal));

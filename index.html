@@ -821,6 +821,73 @@
         </div>
       </div>
 
+      <!-- User Manual: editable self-order instructions + staff quick guide -->
+      <div data-admin-section="manual" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <div>
+          <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+            <i class="fa-solid fa-book-open text-amber-500 mr-2"></i> Self-Order Instructions
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-2">Guests read this sheet from the instructions button on the Customer and Open Day pages. One step per line.</p>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Title</label>
+            <input id="manualTitleInput" type="text" autocomplete="off"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+              placeholder="How to pre-order">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Steps (one per line)</label>
+            <textarea id="manualStepsInput" rows="8"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 leading-relaxed"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Footer note</label>
+            <textarea id="manualNoteInput" rows="2"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 leading-relaxed"></textarea>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="saveManualSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Instructions</button>
+          <button onclick="resetManualSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Reset to Default</button>
+          <span id="manualStatus" class="text-[11px] font-bold text-slate-400 ml-1"></span>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 space-y-3">
+          <h3 class="font-black text-slate-800 text-lg">
+            <i class="fa-solid fa-graduation-cap text-amber-500 mr-2"></i> Staff Quick Guide
+          </h3>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Signing in</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Scan your staff card in the <strong>Staff Card</strong> box — the scanner types your ID and presses Enter, no password needed. Or sign in with your username and password. Admin accounts unlock the Admin tab.</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Cashier (POS)</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Pick a drink, choose Hot or Cold, choose <strong>In-Store</strong> or <strong>Takeaway</strong>, then Submit. In-store orders need a QR tile. Apply a promo code before submitting if the guest has one. Switch between Paid, Unpaid and Pre-order with the payment buttons.</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Bar KDS</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">New orders appear on their own with a chime. <strong>Swipe the card to the right</strong> to mark it Ready. Pre-orders that are not due yet stay inside “Scheduled pre-orders” and pop onto the board 15 minutes before pickup. The pill in the header shows bar load: green calm, amber busy (5+), red overloaded (10+).</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Pickup display</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Open Pickup and press the expand icon for the full-screen board. Ready order numbers appear automatically. Scan the guest’s barcode (or type the order number) to clear it from the board.</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Clear counter</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Use the Clear view when a guest collects their drink: scan the barcode on their ticket, or type the order number, and the order is closed and removed from active screens.</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Admin panel</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Dashboard (live totals), Operation (cold surcharge, pause switches, opening hours), Announcement (push message), User Manual, Promotions (popup and promo codes), Categories, QR Tiles, Users &amp; Permissions, Menu Items (price, offer price, image, status), Printer Control, Receipt Layout, Financial Log.</p>
+          </details>
+          <details class="bg-slate-50 rounded-xl px-4 py-3">
+            <summary class="text-xs font-extrabold text-slate-700 cursor-pointer">Opening hours</summary>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">In Operation, turn on <strong>Limit Pre-Order to Opening Hours</strong> and set the times. Outside those hours both self-order pages show “We’re Closed” and direct guests to the counter. The in-store POS is never blocked.</p>
+          </details>
+        </div>
+      </div>
+
       <!-- Promotions: guest popup + promo codes -->
       <div data-admin-section="promotions" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
         <div>
@@ -1421,6 +1488,7 @@
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
       promoCodes: [],
+      instructions: null,     // editable self-order "How to pre-order" sheet
       posPromo: null,         // { code, type, value, discount } applied to the current order
       categoryColors: {},
       receiptLayout: null     // editable block list, loaded from Apps Script
@@ -2077,6 +2145,7 @@
           if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
           if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
           if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
+          if (data.instructions && typeof data.instructions === "object") state.instructions = data.instructions;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
 
@@ -4237,6 +4306,7 @@
       { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
       { key: "operation",    label: "Operation",          icon: "fa-sliders" },
       { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
+      { key: "manual",       label: "User Manual",        icon: "fa-book-open" },
       { key: "promotions",   label: "Promotions",         icon: "fa-percent" },
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
@@ -4278,6 +4348,85 @@
         sec.classList.toggle("hidden", !show);
       });
       if (key === "layout") renderLayoutEditor();
+      if (key === "manual") renderManualEditor();
+    }
+
+    // ==================== USER MANUAL / SELF-ORDER INSTRUCTIONS ====================
+    const DEFAULT_INSTRUCTIONS = {
+      title: "How to pre-order",
+      steps: [
+        "Enter your name and pickup time (e.g. 10:30 AM or Recess).",
+        "Choose In-Store or Takeaway cup — this is required.",
+        "Tap a drink, pick Hot or Cold, then add optional notes (less sugar, extra hot…).",
+        "Tap Submit Pre-Order to get your barcode ticket. It stays on this device.",
+        "Show the barcode to bar staff or the cashier at pickup. Your drink is prepared for your pickup time.",
+        "Changed your mind? Tap Cancel This Order before pickup, or Order Another Drink to start again."
+      ],
+      note: "Tap Download Barcode Receipt to save your ticket to Photos. During busy periods online pre-ordering may be paused — please order at the counter instead."
+    };
+
+    function currentInstructions() {
+      const saved = state.instructions;
+      if (saved && Array.isArray(saved.steps) && saved.steps.length) return saved;
+      return DEFAULT_INSTRUCTIONS;
+    }
+
+    function renderManualEditor() {
+      const titleEl = document.getElementById("manualTitleInput");
+      if (!titleEl) return;
+      const ins = currentInstructions();
+      titleEl.value = ins.title || "";
+      document.getElementById("manualStepsInput").value = (ins.steps || []).join("\n");
+      document.getElementById("manualNoteInput").value = ins.note || "";
+      const status = document.getElementById("manualStatus");
+      if (status) status.innerText = state.instructions ? "Custom copy is live" : "Showing the built-in copy";
+    }
+
+    function saveManualSubmit() {
+      const title = document.getElementById("manualTitleInput").value.trim();
+      const steps = document.getElementById("manualStepsInput").value
+        .split("\n").map(s => s.trim()).filter(Boolean);
+      const note = document.getElementById("manualNoteInput").value.trim();
+      if (!title && !steps.length) { showToast("Add a title or at least one step", "warning"); return; }
+      const status = document.getElementById("manualStatus");
+      if (status) status.innerText = "Saving…";
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveInstructions", title: title, steps: steps, note: note })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error || "Save failed");
+        state.instructions = res.instructions;
+        renderManualEditor();
+        showToast("Instructions updated");
+      })
+      .catch(err => {
+        if (status) status.innerText = "";
+        showToast(err.message || "Could not save instructions", "error");
+      });
+    }
+
+    function resetManualSubmit() {
+      const status = document.getElementById("manualStatus");
+      if (status) status.innerText = "Resetting…";
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveInstructions", title: "", steps: [], note: "" })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error || "Reset failed");
+        state.instructions = null;
+        renderManualEditor();
+        showToast("Restored the default instructions");
+      })
+      .catch(err => {
+        if (status) status.innerText = "";
+        showToast(err.message || "Could not reset instructions", "error");
+      });
     }
 
     // ==================== PRINTER: TEST PRINT ====================
