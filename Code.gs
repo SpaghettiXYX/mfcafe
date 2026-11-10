@@ -112,13 +112,13 @@ function ensureUsersSheet(ss) {
   let usersSheet = ss.getSheetByName("Users");
   if (!usersSheet) {
     usersSheet = ss.insertSheet("Users");
-    usersSheet.appendRow(["Username", "Password", "Role", "UserCode", "CanPrint", "GoogleEmail"]);
-    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1", "FALSE", ""]);
-    usersSheet.appendRow(["tl.li", "123456", "Admin", "2", "TRUE"]);
-    usersSheet.appendRow(["ky.wong", "123456", "Admin", "3", "TRUE"]);
-    usersSheet.appendRow(["ku", "123456", "Staff", "4", "FALSE"]);
+    usersSheet.appendRow(["Username", "Password", "Role", "UserCode", "CanPrint", "GoogleEmail", "StaffCard"]);
+    usersSheet.appendRow(["spaghetti", "123456", "Staff", "1", "FALSE", "", ""]);
+    usersSheet.appendRow(["tl.li", "123456", "Admin", "2", "TRUE", "", ""]);
+    usersSheet.appendRow(["ky.wong", "123456", "Admin", "3", "TRUE", "", ""]);
+    usersSheet.appendRow(["ku", "123456", "Staff", "4", "FALSE", "", ""]);
   } else {
-    const headers = usersSheet.getRange(1, 1, 1, 6).getValues()[0];
+    const headers = usersSheet.getRange(1, 1, 1, 7).getValues()[0];
     if (!headers[2] || String(headers[2]).trim() === "") usersSheet.getRange(1, 3).setValue("Role");
     if (!headers[3] || String(headers[3]).trim() === "") usersSheet.getRange(1, 4).setValue("UserCode");
     // CanPrint column (col 5) — auto-grant Admins, deny Staff by default
@@ -134,6 +134,11 @@ function ensureUsersSheet(ss) {
     // GoogleEmail column (col 6) — link a Google account for one-tap login
     if (!headers[5] || String(headers[5]).trim() === "") {
       usersSheet.getRange(1, 6).setValue("GoogleEmail");
+    }
+    // StaffCard column (col 7) — the string printed on the school-issued staff card.
+    // Deliberately separate from UserCode, which is the numeric order-number prefix.
+    if (!headers[6] || String(headers[6]).trim() === "") {
+      usersSheet.getRange(1, 7).setValue("StaffCard");
     }
   }
   return usersSheet;
@@ -237,11 +242,14 @@ function authenticateByStaffCode(code) {
   const accounts = [];
   for (let i = 1; i < data.length; i++) {
     if (!data[i][0]) continue;
-    if (String(data[i][3] || "").trim().toLowerCase() === wanted) {
+    const card = String(data[i][6] || "").trim().toLowerCase();
+    if (!card) continue;
+    if (card === wanted) {
       accounts.push({
         username: String(data[i][0]).trim(),
         role: String(data[i][2] || "Staff").trim(),
         userCode: String(data[i][3] || "1").trim(),
+        staffCard: String(data[i][6] || "").trim(),
         canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE"
       });
     }
@@ -301,11 +309,11 @@ function authenticateGoogle(credential) {
   return { success: false, error: "Google account not linked — ask Admin to link it in Admin Panel → Users (no sign-up via Google)" };
 }
 
-function addUser(username, password, role, userCode) {
+function addUser(username, password, role, userCode, staffCard) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
   const canPrint = (role || "Staff").toLowerCase() === "Admin" ? "TRUE" : "FALSE";
-  usersSheet.appendRow([username, password, role || "Staff", userCode || "1", canPrint]);
+  usersSheet.appendRow([username, password, role || "Staff", userCode || "1", canPrint, "", String(staffCard || "").trim()]);
   bumpVersion();
   return { success: true };
 }
@@ -324,18 +332,18 @@ function setUserCanPrint(username, canPrint) {
   return { success: false, error: "User not found" };
 }
 
-function setUserCode(username, userCode) {
-  const code = String(userCode || "").trim();
-  if (!code) return { success: false, error: "Staff card code is required" };
-  if (code.length > 40) return { success: false, error: "Staff card code is too long" };
+function setUserStaffCard(username, staffCard) {
+  const card = String(staffCard || "").trim();
+  if (!card) return { success: false, error: "Staff card code is required" };
+  if (card.length > 64) return { success: false, error: "Staff card code is too long" };
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
   const data = usersSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
-      usersSheet.getRange(i + 1, 4).setValue(code);
+      usersSheet.getRange(i + 1, 7).setValue(card);
       bumpVersion();
-      return { success: true, username: String(data[i][0]).trim(), userCode: code };
+      return { success: true, username: String(data[i][0]).trim(), staffCard: card };
     }
   }
   return { success: false, error: "User not found" };
@@ -825,7 +833,7 @@ function getInitialData() {
   let users = [];
   for (let i = 1; i < usersData.length; i++) {
     if (usersData[i][0]) {
-      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim(), canPrint: String(usersData[i][4] || "").trim().toUpperCase() === "TRUE", googleEmail: String(usersData[i][5] || "").trim() });
+      users.push({ username: String(usersData[i][0]), role: String(usersData[i][2] || "Staff"), userCode: String(usersData[i][3] || "1").trim(), canPrint: String(usersData[i][4] || "").trim().toUpperCase() === "TRUE", googleEmail: String(usersData[i][5] || "").trim(), staffCard: String(usersData[i][6] || "").trim() });
     }
   }
 
@@ -1788,10 +1796,10 @@ function doPost(e) {
     if (action === "login") return jsonResponse(authenticateUser(data.username, data.password));
     if (action === "loginByStaffCode") return jsonResponse(authenticateByStaffCode(data.code));
     if (action === "loginGoogle") return jsonResponse(authenticateGoogle(data.credential));
-    if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
+    if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode, data.staffCard));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "setUserCanPrint") return jsonResponse(setUserCanPrint(data.username, !!data.canPrint));
-    if (action === "setUserCode") return jsonResponse(setUserCode(data.username, data.userCode));
+    if (action === "setUserStaffCard") return jsonResponse(setUserStaffCard(data.username, data.staffCard));
     if (action === "changeUserPassword") return jsonResponse(changeUserPassword(data.username, data.password));
     if (action === "setUserGoogleEmail") return jsonResponse(setUserGoogleEmail(data.username, data.email));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));

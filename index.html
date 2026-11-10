@@ -1111,11 +1111,11 @@
       <div data-admin-section="staffcards" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="border-b border-slate-100 pb-3">
           <h3 class="font-black text-slate-800 text-lg">Staff Card Login</h3>
-          <p class="text-xs text-slate-400">Assign the card code each account uses on the login screen. One card can serve several accounts — give them the same code and the login will ask which account to use.</p>
+          <p class="text-xs text-slate-400">Assign the school-issued card string each account uses on the login screen. One card can serve several accounts — give them the same code and the login will ask which account to use.</p>
         </div>
-        <div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-[11px] font-semibold text-amber-800 leading-relaxed">
+        <div class="bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 text-[11px] font-semibold text-sky-800 leading-relaxed">
           <i class="fa-solid fa-circle-info mr-1"></i>
-          The card code is also the order-number prefix (code 2 → 2001, 2002…). Changing it affects new order numbers for that account.
+          Staff Card Code is independent of the order prefix in Users. Codes are case-insensitive and may contain any letters or numbers. Leave it blank if the account should not use card login.
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
@@ -1329,6 +1329,10 @@
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">User Code (Order Prefix)</label>
           <input type="number" id="newUserCode" placeholder="e.g. 1 for 1001+, 2 for 2001+" value="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card Code (optional)</label>
+          <input type="text" id="newStaffCard" placeholder="School-issued card string" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
         </div>
       </div>
 
@@ -4414,19 +4418,19 @@
       const users = Array.isArray(state.users) ? state.users : [];
       const counts = {};
       users.forEach(u => {
-        const code = String(u.userCode || "").trim();
-        if (code) counts[code] = (counts[code] || 0) + 1;
+        const card = String(u.staffCard || "").trim().toLowerCase();
+        if (card) counts[card] = (counts[card] || 0) + 1;
       });
       tbody.innerHTML = users.map((u, i) => {
-        const code = String(u.userCode || "").trim();
-        const shared = code ? (counts[code] || 0) : 0;
+        const card = String(u.staffCard || "").trim();
+        const shared = card ? (counts[card.toLowerCase()] || 0) : 0;
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
             <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || "Staff")}</td>
             <td class="py-3 px-3">
-              <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" value="${escapeHtml(code)}"
-                class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+              <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" maxlength="64" placeholder="School card string" value="${escapeHtml(card)}"
+                class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
             </td>
             <td class="py-3 px-3">
               ${shared > 1
@@ -4447,10 +4451,10 @@
       const code = input.value.trim();
       if (!code) return showToast("Staff card code cannot be empty", "warning");
       try {
-        const res = await apiPost({ action: "setUserCode", username, userCode: code });
+        const res = await apiPost({ action: "setUserStaffCard", username, staffCard: code });
         if (!res || !res.success) return showToast((res && res.error) || "Failed to update staff card", "error");
         const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(username).toLowerCase());
-        if (u) u.userCode = code;
+        if (u) u.staffCard = code;
         renderAdminStaffCards();
         renderAll();
         showToast(`${username}: card updated`, "success", 2000);
@@ -5382,6 +5386,7 @@
       document.getElementById('newUsername').value = "";
       document.getElementById('newPassword').value = "";
       document.getElementById('newUserCode').value = "1";
+      document.getElementById('newStaffCard').value = "";
       document.getElementById('addUserModal').classList.remove('hidden');
     }
 
@@ -5393,12 +5398,13 @@
       const u = document.getElementById('newUsername').value.trim();
       const p = document.getElementById('newPassword').value.trim();
       const code = document.getElementById('newUserCode').value.trim() || "1";
+      const staffCard = document.getElementById('newStaffCard').value.trim();
       if (!u || !p) return showToast("Please enter username and password.", "warning");
 
       fetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ action: "addUser", username: u, password: p, role: "Staff", userCode: code })
+        body: JSON.stringify({ action: "addUser", username: u, password: p, role: "Staff", userCode: code, staffCard: staffCard })
       })
       .then(res => res.json())
       .then(res => {
