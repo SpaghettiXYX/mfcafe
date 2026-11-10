@@ -741,7 +741,11 @@ function ensurePromoCodesSheet(ss) {
   let sheet = ss.getSheetByName("PromoCodes");
   if (!sheet) {
     sheet = ss.insertSheet("PromoCodes");
-    sheet.appendRow(["Code", "Type", "Value", "MinSpend", "Active", "Description"]);
+    sheet.appendRow(["Code", "Type", "Value", "MinSpend", "Active", "Description", "BuyQty", "FreeQty"]);
+  } else {
+    const headers = sheet.getRange(1, 1, 1, 8).getValues()[0];
+    if (!headers[6] || String(headers[6]).trim() === "") sheet.getRange(1, 7).setValue("BuyQty");
+    if (!headers[7] || String(headers[7]).trim() === "") sheet.getRange(1, 8).setValue("FreeQty");
   }
   return sheet;
 }
@@ -753,13 +757,17 @@ function getPromoCodes() {
   const codes = [];
   for (let i = 1; i < data.length; i++) {
     if (!data[i][0]) continue;
+    const rawType = String(data[i][1] || "PERCENT").trim().toUpperCase();
+    const type = rawType === "AMOUNT" ? "AMOUNT" : rawType === "BOGO" ? "BOGO" : "PERCENT";
     codes.push({
       code: String(data[i][0]).trim().toUpperCase(),
-      type: String(data[i][1] || "PERCENT").trim().toUpperCase() === "AMOUNT" ? "AMOUNT" : "PERCENT",
+      type: type,
       value: Number(data[i][2]) || 0,
       minSpend: Number(data[i][3]) || 0,
       active: String(data[i][4] || "").trim().toUpperCase() === "TRUE",
-      description: String(data[i][5] || "").trim()
+      description: String(data[i][5] || "").trim(),
+      buyQty: Number(data[i][6]) || 0,
+      freeQty: Number(data[i][7]) || 0
     });
   }
   return codes;
@@ -770,13 +778,19 @@ function savePromoCode(entry) {
   if (!code) return { success: false, error: "Code is required" };
   const sheet = ensurePromoCodesSheet(SpreadsheetApp.getActiveSpreadsheet());
   const data = sheet.getDataRange().getValues();
+  const rawType = String(entry.type || "PERCENT").toUpperCase();
+  const type = rawType === "AMOUNT" ? "AMOUNT" : rawType === "BOGO" ? "BOGO" : "PERCENT";
+  const buyQty = type === "BOGO" ? Math.max(1, Math.floor(Number(entry.buyQty) || 0)) : 0;
+  const freeQty = type === "BOGO" ? Math.max(1, Math.floor(Number(entry.freeQty) || 0)) : 0;
   const row = [
     code,
-    String(entry.type || "PERCENT").toUpperCase() === "AMOUNT" ? "AMOUNT" : "PERCENT",
-    Number(entry.value) || 0,
+    type,
+    type === "BOGO" ? 0 : Number(entry.value) || 0,
     Number(entry.minSpend) || 0,
     entry.active === false ? "FALSE" : "TRUE",
-    String(entry.description || "").trim()
+    String(entry.description || "").trim(),
+    buyQty,
+    freeQty
   ];
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim().toUpperCase() === code) {
@@ -807,10 +821,14 @@ function deletePromoCode(code) {
   return { success: false, error: "Code not found" };
 }
 
-// Validates a code against the cart subtotal and returns the amount off.
-function validatePromoCode(code, subtotal) {
+// Validates a code against the cart and returns the amount off.
+// `unitPrices` (optional) is one entry per cup, used by buy-X-get-Y rules.
+function validatePromoCode(code, subtotal, unitPrices) {
   const wanted = String(code || "").trim().toUpperCase();
-  const sub = Number(subtotal) || 0;
+  const prices = (Array.isArray(unitPrices) ? unitPrices : [])
+    .map(p => Number(p) || 0)
+    .filter(p => p > 0);
+  const sub = Number(subtotal) || prices.reduce((s, p) => s + p, 0);
   if (!wanted) return { success: false, error: "Enter a promo code" };
   const match = getPromoCodes().filter(c => c.code === wanted)[0];
   if (!match) return { success: false, error: "Code not found" };
@@ -818,9 +836,40 @@ function validatePromoCode(code, subtotal) {
   if (match.minSpend > 0 && sub < match.minSpend) {
     return { success: false, error: "Minimum spend $" + match.minSpend.toFixed(2) + " required" };
   }
-  const raw = match.type === "PERCENT" ? sub * (match.value / 100) : match.value;
-  const discount = Math.max(0, Math.min(sub, Math.round(raw * 100) / 100));
-  return { success: true, code: match.code, type: match.type, value: match.value, discount: discount, description: match.description };
+
+  let discount = 0;
+  let freeCups = 0;
+
+  if (match.type === "BOGO") {
+    const buy = Math.max(1, Number(match.buyQty) || 1);
+    const free = Math.max(1, Number(match.freeQty) || 1);
+    const group = buy + free;
+    const cheapestFirst = prices.slice().sort((a, b) => a - b);
+    const sets = Math.floor(cheapestFirst.length / group);
+    freeCups = sets * free;
+    // The free cups are the cheapest ones in the basket
+    for (let i = 0; i < freeCups; i++) discount += cheapestFirst[i] || 0;
+    if (!freeCups) {
+      return { success: false, error: "Add " + group + " cups to use this code (" + buy + " bought + " + free + " free)" };
+    }
+  } else {
+    const raw = match.type === "PERCENT" ? sub * (match.value / 100) : match.value;
+    discount = raw;
+  }
+
+  discount = Math.max(0, Math.min(sub, Math.round(discount * 100) / 100));
+  return {
+    success: true,
+    code: match.code,
+    type: match.type,
+    value: match.value,
+    minSpend: match.minSpend || 0,
+    buyQty: match.buyQty || 0,
+    freeQty: match.freeQty || 0,
+    freeCups: freeCups,
+    discount: discount,
+    description: match.description
+  };
 }
 
 // ==================== KDS STATUS STRIP (bar pressure badges) ====================
@@ -1137,7 +1186,6 @@ function createOrderLocked(orderOrOrders) {
       // Force pickup time to be stored as plain text in the sheet
       if (pickupTime && !String(pickupTime).startsWith("'")) pickupTime = "'" + pickupTime;
       const status = order.status || "PENDING";
-      // A QR tile identifies one physical cup, so it only applies to single-cup orders
       const qrTile = isMulti ? "" : (order.qrTile || "");
       let paymentStatus = String(order.paymentStatus || "").trim();
       if (!paymentStatus) {
@@ -1197,6 +1245,18 @@ function createOrderLocked(orderOrOrders) {
       }
 
       createdOrders.push(createdOrder);
+    }
+
+    // A bulky order may still hold one physical pickup tile for the whole
+    // group. It is bound to the base number (1001), while each cup keeps its
+    // own suffixed order number (1001-1, 1001-2).
+    const groupTile = isMulti ? String(first.qrTile || "").trim() : "";
+    if (groupTile) {
+      const tileBind = bindTileToOrder(groupTile, baseOrderNum);
+      if (!tileBind.success) {
+        lock.releaseLock();
+        return { success: false, error: tileBind.error + " (tile '" + groupTile + "')" };
+      }
     }
 
     SpreadsheetApp.flush();
@@ -1274,72 +1334,126 @@ function confirmPaymentStatus(orderNum) {
 // Clear an order from a scanned code. The scanner may read either:
 //   1. the barcode on the guest's pre-order ticket -> encodes the ORDER number
 //   2. the QR tile handed out at the counter       -> encodes the TILE number
-// Both are resolved to the newest matching row, because order numbers repeat
-// after X999 rolls back to X001.
+// A bulky order shares one base number (1001) with per-cup rows (1001-1,
+// 1001-2). Scanning the tile or the base number claims every remaining cup;
+// scanning a suffixed number claims just that cup.
 function clearOrderByTile(scannedCode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ensureOrdersSheet(ss);
   const data = sheet.getDataRange().getValues();
   const target = String(scannedCode).trim().replace(/^#/, "");
-  const CLEARABLE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+  const ACTIVE = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
 
-  // --- First, figure out what the scanned code is ---
+  // Newest group only: order numbers repeat after rollover, so old rows that
+  // share the same base number must not be cleared by accident.
+  function groupRows(base) {
+    const idxs = [];
+    for (let i = 1; i < data.length; i++) {
+      const num = String(data[i][0]).trim();
+      if (num === base || num.indexOf(base + "-") === 0) idxs.push(i);
+    }
+    if (!idxs.length) return [];
+    let newest = "";
+    idxs.forEach(i => {
+      const t = String(data[i][1] || "");
+      if (t > newest) newest = t;
+    });
+    return idxs.filter(i => String(data[i][1] || "") === newest);
+  }
+
+  function claim(base, via) {
+    const rows = groupRows(base);
+    if (!rows.length) return null;
+    const clearRows = [];
+    let remaining = 0;
+    let lastStatus = "";
+    rows.forEach(i => {
+      const status = String(data[i][9] || "").trim().toUpperCase();
+      lastStatus = status;
+      if (ACTIVE.indexOf(status) !== -1) {
+        if (status === "READY") clearRows.push(i);
+        else remaining++;
+      }
+    });
+
+    if (!clearRows.length) {
+      if (remaining > 0) {
+        return { success: false, error: "Order " + base + " is still " + lastStatus + " (not ready for pickup)." };
+      }
+      return { success: false, error: "Order " + base + " is already cleared." };
+    }
+
+    const claimed = [];
+    clearRows.forEach(i => {
+      claimed.push(String(data[i][0]).trim());
+      const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
+      sheet.getRange(i + 1, 10).setValue("CLEARED");
+      if (rowTile) freeTile(rowTile);
+    });
+
+    const allDone = remaining === 0;
+    if (via === "tile" && allDone) freeTile(target);
+
+    SpreadsheetApp.flush();
+    bumpVersion();
+    return {
+      success: true,
+      orderNum: base,
+      claimed: claimed,
+      cups: claimed.length,
+      remaining: remaining,
+      allDone: allDone,
+      status: "CLEARED",
+      via: via
+    };
+  }
+
+  // --- Branch 1: scanned code is a known QR tile ---
   const tilesSheet = ss.getSheetByName("QR Tiles");
-  let tileRow = -1;
   let tileBoundOrder = "";
-  let tileStatusText = "";
+  let tileKnown = false;
   if (tilesSheet) {
     const tilesData = tilesSheet.getDataRange().getValues();
     for (let i = 1; i < tilesData.length; i++) {
       if (String(tilesData[i][0]).trim() === target) {
-        tileRow = i;
-        tileStatusText = String(tilesData[i][1] || "").trim();
+        tileKnown = true;
         tileBoundOrder = String(tilesData[i][2] || "").trim();
         break;
       }
     }
   }
 
-  // --- Branch 1: scanned code is a known QR tile ---
-  if (tileRow !== -1) {
+  if (tileKnown) {
     if (!tileBoundOrder) {
       return { success: false, error: "Tile '" + target + "' exists but is not bound to any order." };
     }
-    // Find the bound order in Orders Log
-    for (let i = data.length - 1; i >= 1; i--) {
-      if (String(data[i][0]).trim() !== tileBoundOrder) continue;
-      const status = String(data[i][9] || "").trim().toUpperCase();
-      if (status === "READY") {
-        sheet.getRange(i + 1, 10).setValue("CLEARED");
-        freeTile(target);
-        SpreadsheetApp.flush();
-        bumpVersion();
-        return { success: true, orderNum: tileBoundOrder, status: "CLEARED", via: "tile" };
-      } else if (status === "CLEARED" || status === "CANCELLED") {
-        return { success: false, error: "Tile '" + target + "' is bound to order " + tileBoundOrder + " which is already " + status + "." };
-      } else {
-        return { success: false, error: "Tile '" + target + "' is bound to order " + tileBoundOrder + " which is still " + status + " (not ready for pickup)." };
-      }
-    }
-    // Tile says bound but the order row is missing — data inconsistency
-    return { success: false, error: "Tile '" + target + "' is marked as bound to " + tileBoundOrder + " but that order is missing from Orders Log." };
+    const res = claim(tileBoundOrder, "tile");
+    if (res) return res;
+    return { success: false, error: "Tile '" + target + "' is bound to " + tileBoundOrder + " but that order is missing from Orders Log." };
   }
 
-  // --- Branch 2: scanned code is NOT a tile — try as an order number ---
+  // --- Branch 2: scanned code is an order number (full or per-cup) ---
+  // Prefer the newest row with an exact match; otherwise treat it as a base
+  // number and claim the whole newest group.
+  let exactIndex = -1;
   for (let i = data.length - 1; i >= 1; i--) {
-    if (String(data[i][0]).trim() !== target) continue;
-    const status = String(data[i][9] || "").trim().toUpperCase();
-    if (CLEARABLE.indexOf(status) === -1) {
+    if (String(data[i][0]).trim() === target) { exactIndex = i; break; }
+  }
+  if (exactIndex !== -1 && target.indexOf("-") !== -1) {
+    const rowTile = data[exactIndex][10] ? String(data[exactIndex][10]).trim() : "";
+    const status = String(data[exactIndex][9] || "").trim().toUpperCase();
+    if (ACTIVE.indexOf(status) === -1) {
       return { success: false, error: "Order " + target + " exists but is " + status + " — not clearable." };
     }
-    const rowTile = data[i][10] ? String(data[i][10]).trim() : "";
-    sheet.getRange(i + 1, 10).setValue("CLEARED");
+    sheet.getRange(exactIndex + 1, 10).setValue("CLEARED");
     if (rowTile) freeTile(rowTile);
     SpreadsheetApp.flush();
     bumpVersion();
-    return { success: true, orderNum: target, status: "CLEARED", via: "orderNum" };
+    return { success: true, orderNum: target, claimed: [target], cups: 1, remaining: 0, allDone: true, status: "CLEARED", via: "orderNum" };
   }
 
+  const groupRes = claim(target, "orderNum");
+  if (groupRes) return groupRes;
   return { success: false, error: "'" + target + "' is neither a known QR tile code nor a valid order number." };
 }
 
@@ -1894,7 +2008,7 @@ function doPost(e) {
     if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.audience, data.title, data.heading, data.steps, data.note));
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
-    if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal));
+    if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal, data.unitPrices));
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 

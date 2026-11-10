@@ -981,15 +981,18 @@
         <div class="border-t border-slate-100 pt-5 space-y-3">
           <div>
             <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-ticket text-amber-500 mr-2"></i> Promo Codes</h3>
-            <p class="text-[11px] text-slate-400 mt-1">Percent takes a % off the subtotal; Amount takes a fixed dollar value. Self-order guests can use these codes too.</p>
+            <p class="text-[11px] text-slate-400 mt-1">Percent takes a % off the subtotal; Amount takes a fixed dollar value; Buy X Get Y gives the cheapest cups free (e.g. Buy 2 Get 1). Self-order guests can use these codes too.</p>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <div class="grid grid-cols-2 md:grid-cols-8 gap-2">
             <input type="text" id="adminPromoCode" placeholder="CODE" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 uppercase">
             <select id="adminPromoCodeType" class="bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800">
               <option value="PERCENT">% Off</option>
               <option value="AMOUNT">$ Off</option>
+              <option value="BOGO">Buy X Get Y</option>
             </select>
             <input type="number" step="0.5" min="0" id="adminPromoCodeValue" placeholder="Value" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="number" step="1" min="1" id="adminPromoCodeBuyQty" placeholder="Buy" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="number" step="1" min="1" id="adminPromoCodeFreeQty" placeholder="Free" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
             <input type="number" step="0.5" min="0" id="adminPromoCodeMinSpend" placeholder="Min $" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
             <input type="text" id="adminPromoCodeDesc" placeholder="Description" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
             <button onclick="savePromoCodeSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition">Save Code</button>
@@ -2472,7 +2475,8 @@
       let promo = 0;
       if (state.posPromo) {
         const p = state.posPromo;
-        promo = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100 : Number(p.value) || 0;
+        promo = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100
+          : p.type === "AMOUNT" ? Number(p.value) || 0 : 0;
         promo = Math.max(0, Math.min(subtotal, promo));
       }
       let manual = 0;
@@ -2502,7 +2506,7 @@
       const promoStatus = document.getElementById("posPromoStatus");
       if (promoStatus) {
         if (state.posPromo) {
-          promoStatus.innerText = `${state.posPromo.code} — ${state.posPromo.type === "PERCENT" ? state.posPromo.value + "% off" : fmtPrice(state.posPromo.value) + " off"}`;
+          promoStatus.innerText = `${state.posPromo.code} — ${state.posPromo.type === "PERCENT" ? state.posPromo.value + "% off" : state.posPromo.type === "BOGO" ? "Buy X get Y (multi-cup only)" : fmtPrice(state.posPromo.value) + " off"}`;
           promoStatus.className = "text-[10px] font-bold text-emerald-600";
         } else {
           promoStatus.innerText = "";
@@ -3122,7 +3126,11 @@
       .then(res => res.json())
       .then(res => {
         if (res.success) {
-          showToast(`Order #${res.orderNum} cleared via tile`, "success");
+          const cups = Number(res.cups) || 1;
+          const left = Number(res.remaining) || 0;
+          const cupsTxt = cups === 1 ? "1 cup" : cups + " cups";
+          const leftTxt = left > 0 ? ` — ${left} cup${left === 1 ? "" : "s"} left` : "";
+          showToast(`Order ${res.orderNum} claimed (${cupsTxt})${leftTxt}`, "success");
           fetchFromSheet();
           return;
         }
@@ -3515,27 +3523,70 @@
         return;
       }
 
-      let html = "";
+      // A bulky order shares one base number (1001) with per-cup rows
+      // (1001-1, 1001-2). Group by base so one card can claim the whole tray
+      // while each cup still gets its own Clear button.
+      const groups = [];
+      const byBase = {};
       ready.forEach(o => {
-        const tile = String(o.qrTile || "").trim();
         const num = String(o.orderNum || "").trim();
-        html += `
-          <div class="helper-swipe bg-white border border-emerald-300 rounded-2xl shadow-sm" data-order="${escapeHtml(num)}">
-            <div class="helper-swipe-hint"><i class="fa-solid fa-arrow-right"></i> Slide to serve</div>
-            <div class="helper-swipe-content p-4 flex justify-between items-center">
-              <div>
-                <span class="text-2xl font-black text-emerald-600">${escapeHtml(tile || `#${num}`)}</span>
-                <p class="text-[11px] font-bold text-slate-400">Order #${escapeHtml(num)}</p>
-                <p class="font-bold text-slate-800 text-sm">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
+        const base = num.indexOf("-") === -1 ? num : num.slice(0, num.indexOf("-"));
+        if (!byBase[base]) {
+          byBase[base] = { base: base, tile: "", cups: [] };
+          groups.push(byBase[base]);
+        }
+        if (!byBase[base].tile && String(o.qrTile || "").trim()) byBase[base].tile = String(o.qrTile).trim();
+        byBase[base].cups.push(o);
+      });
+
+      let html = "";
+      groups.forEach(g => {
+        const cupRows = g.cups.map(o => {
+          const num = String(o.orderNum || "").trim();
+          return `
+            <div class="flex items-center justify-between gap-2 bg-white/70 border border-emerald-200 rounded-xl px-3 py-2">
+              <div class="min-w-0">
+                <p class="text-sm font-black text-slate-800">${escapeHtml(`#${num}`)}</p>
+                <p class="text-[11px] font-bold text-slate-500 truncate">${escapeHtml(o.guestName)} - ${escapeHtml(o.productName)}</p>
               </div>
-              <button onclick="clearOrder('${o.orderNum}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs">
+              <button onclick="clearOrder('${escapeHtml(num)}')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-[11px]">
                 Clear
               </button>
+            </div>`;
+        }).join("");
+
+        const title = g.tile || `#${g.base}`;
+        const subtitle = g.cups.length > 1
+          ? `Order ${escapeHtml(g.base)} · ${g.cups.length} cups`
+          : `Order #${escapeHtml(g.base)}`;
+        html += `
+          <div class="helper-swipe bg-white border border-emerald-300 rounded-2xl shadow-sm" data-base="${escapeHtml(g.base)}">
+            <div class="helper-swipe-hint"><i class="fa-solid fa-arrow-right"></i> Slide to claim all</div>
+            <div class="helper-swipe-content p-4">
+              <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                  <span class="text-2xl font-black text-emerald-600">${escapeHtml(title)}</span>
+                  <p class="text-[11px] font-bold text-slate-400">${subtitle}</p>
+                </div>
+                ${g.cups.length > 1 ? `
+                <button onclick="claimWholeOrder('${escapeHtml(g.base)}')" class="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-2 rounded-xl text-[11px]">
+                  Claim all
+                </button>` : `
+                <button onclick="clearOrder('${escapeHtml(g.base)}')" class="shrink-0 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl text-[11px]">
+                  Clear
+                </button>`}
+              </div>
+              ${g.cups.length > 1 ? `<div class="mt-3 space-y-2">${cupRows}</div>` : `
+                <p class="mt-2 font-bold text-slate-800 text-sm">${escapeHtml(g.cups[0].guestName)} - ${escapeHtml(g.cups[0].productName)}</p>`}
             </div>
           </div>`;
       });
       grid.innerHTML = html;
       grid.querySelectorAll(".helper-swipe").forEach(bindHelperSwipe);
+    }
+
+    function claimWholeOrder(base) {
+      clearOrderByTile(base);
     }
 
     function bindHelperSwipe(card) {
@@ -3572,7 +3623,7 @@
         if (dx >= threshold()) {
           content.style.transition = "transform 160ms ease";
           content.style.transform = `translateX(${card.clientWidth}px)`;
-          setTimeout(() => clearOrder(card.dataset.order), 150);
+          setTimeout(() => claimWholeOrder(card.dataset.base), 150);
         } else {
           reset();
         }
@@ -4945,7 +4996,9 @@
             <p class="text-xs font-black text-slate-800">${escapeHtml(c.code)}
               <span class="ml-1 text-[10px] font-bold ${c.active ? "text-emerald-600" : "text-slate-400"}">${c.active ? "ACTIVE" : "OFF"}</span>
             </p>
-            <p class="text-[10px] font-bold text-slate-400 truncate">${c.type === "PERCENT" ? c.value + "% off" : "$" + Number(c.value).toFixed(2) + " off"}${c.minSpend ? " · min $" + Number(c.minSpend).toFixed(2) : ""}${c.description ? " · " + escapeHtml(c.description) : ""}</p>
+            <p class="text-[10px] font-bold text-slate-400 truncate">${c.type === "BOGO"
+              ? `Buy ${c.buyQty || 1} get ${c.freeQty || 1} free`
+              : c.type === "PERCENT" ? c.value + "% off" : "$" + Number(c.value).toFixed(2) + " off"}${c.minSpend ? " · min $" + Number(c.minSpend).toFixed(2) : ""}${c.description ? " · " + escapeHtml(c.description) : ""}</p>
           </div>
           <button type="button" onclick="deletePromoCodeRow('${escapeHtml(c.code)}')" class="text-rose-400 hover:text-rose-600 text-xs font-bold px-2"><i class="fa-solid fa-trash"></i></button>
         </div>`).join("");
@@ -4986,16 +5039,22 @@
         code: ((document.getElementById("adminPromoCode") || {}).value || "").trim().toUpperCase(),
         type: ((document.getElementById("adminPromoCodeType") || {}).value || "PERCENT"),
         value: Number(((document.getElementById("adminPromoCodeValue") || {}).value || 0)),
+        buyQty: Number(((document.getElementById("adminPromoCodeBuyQty") || {}).value || 0)),
+        freeQty: Number(((document.getElementById("adminPromoCodeFreeQty") || {}).value || 0)),
         minSpend: Number(((document.getElementById("adminPromoCodeMinSpend") || {}).value || 0)),
         active: !!(document.getElementById("adminPromoCodeActive") || {}).checked,
         description: ((document.getElementById("adminPromoCodeDesc") || {}).value || "").trim()
       };
       if (!entry.code) { showToast("Enter a promo code", "error"); return; }
-      if (!(entry.value > 0)) { showToast("Discount value must be greater than 0", "error"); return; }
+      if (entry.type === "BOGO") {
+        if (!(entry.buyQty >= 1) || !(entry.freeQty >= 1)) { showToast("Buy and Free quantities must be at least 1", "error"); return; }
+      } else if (!(entry.value > 0)) {
+        showToast("Discount value must be greater than 0", "error"); return;
+      }
       apiPost({ action: "savePromoCode", entry: entry }).then(res => {
         if (!res || !res.success) { showToast((res && res.error) || "Save failed", "error"); return; }
         state.promoCodes = res.promoCodes || [];
-        ["adminPromoCode", "adminPromoCodeValue", "adminPromoCodeMinSpend", "adminPromoCodeDesc"].forEach(id => {
+        ["adminPromoCode", "adminPromoCodeValue", "adminPromoCodeBuyQty", "adminPromoCodeFreeQty", "adminPromoCodeMinSpend", "adminPromoCodeDesc"].forEach(id => {
           const el = document.getElementById(id); if (el) el.value = "";
         });
         renderPromoCodesList();

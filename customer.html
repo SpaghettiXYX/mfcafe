@@ -878,7 +878,8 @@
       if (!state.promoCode) return 0;
       const subtotal = getCustSubtotal();
       const p = state.promoCode;
-      const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100 : Number(p.value) || 0;
+      const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100
+        : p.type === "AMOUNT" ? Number(p.value) || 0 : 0;
       return Math.max(0, Math.min(raw, subtotal));
     }
 

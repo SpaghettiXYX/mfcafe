@@ -972,7 +972,8 @@
       if (!state.promoCode) return 0;
       const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : 0;
       const p = state.promoCode;
-      const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100 : Number(p.value) || 0;
+      const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100
+        : p.type === "AMOUNT" ? Number(p.value) || 0 : 0;
       return Math.max(0, Math.min(raw, subtotal));
     }
 

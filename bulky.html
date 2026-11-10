@@ -169,6 +169,18 @@
       </div>
       <div id="cartList" class="px-5 py-3 overflow-y-auto flex-1"></div>
       <div class="px-5 pt-3 pb-4 border-t border-[var(--line)] bg-white/70 safe-bottom shrink-0">
+        <div class="flex gap-2 mb-1.5">
+          <input id="promoInput" type="text" autocomplete="off" placeholder="Promo code"
+            onkeydown="if(event.key==='Enter')applyPromo()"
+            class="flex-1 h-10 rounded-xl bg-white border border-[var(--line)] px-3 text-[12px] font-bold uppercase">
+          <button onclick="applyPromo()" class="h-10 px-3 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[11px] font-black">Apply</button>
+          <button id="promoClearBtn" onclick="clearPromo()" class="hidden h-10 w-10 rounded-xl bg-white border border-[var(--line)] text-[var(--mocha)]"><i class="fa-solid fa-xmark text-xs"></i></button>
+        </div>
+        <p id="promoStatus" class="text-[10px] font-bold text-[var(--mocha)]/55 mb-2"></p>
+        <div id="cartDiscountRow" class="hidden flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold text-[var(--mocha)]">Discount</span>
+          <span id="cartDiscount" class="text-[13px] font-black text-emerald-600">-RM 0.00</span>
+        </div>
         <div class="flex items-center justify-between mb-1">
           <span class="text-[11px] font-bold text-[var(--mocha)]">Total</span>
           <span id="cartTotal" class="text-[20px] font-black">RM 0.00</span>
@@ -206,7 +218,7 @@
     cart: {}, detail: null, qty: 1,
     cupType: "", pickup: "NOW",
     openingHours: {}, coldExtra: 0, coldPaused: false,
-    submitting: false
+    submitting: false, promo: null
   };
 
   const money = n => "RM " + (Number(n) || 0).toFixed(2);
@@ -468,8 +480,107 @@
   function cartCount() { return cartItems().reduce((s, i) => s + i.qty, 0); }
   function cartTotal() { return cartItems().reduce((s, i) => s + i.qty * i.price, 0); }
 
+  // One entry per cup, in the same order submitOrder() walks the cart.
+  function cupList() {
+    const cups = [];
+    cartItems().forEach(i => { for (let n = 0; n < i.qty; n++) cups.push({ price: Number(i.price) || 0 }); });
+    return cups;
+  }
+
+  // Returns { sub, discount, discounts[] } where discounts[i] is the amount off
+  // cup i. BOGO marks the cheapest cups free; PERCENT/AMOUNT absorbs the total
+  // starting from the most expensive cup so no cup goes below zero.
+  function promoBreakdown() {
+    const cups = cupList();
+    const sub = cups.reduce((s, c) => s + c.price, 0);
+    const discounts = cups.map(() => 0);
+    const p = state.promo;
+    if (!p) return { sub, discounts, discount: 0, valid: false, error: "" };
+    if (Number(p.minSpend) > 0 && sub < Number(p.minSpend)) {
+      return { sub, discounts, discount: 0, valid: false, error: `Minimum spend ${money(p.minSpend)} required` };
+    }
+    if (p.type === "BOGO") {
+      const buy = Math.max(1, Number(p.buyQty) || 1);
+      const free = Math.max(1, Number(p.freeQty) || 1);
+      const group = buy + free;
+      const sets = Math.floor(cups.length / group);
+      const freeCups = sets * free;
+      if (!freeCups) {
+        return { sub, discounts, discount: 0, valid: false, error: `Add ${group} cups to use this code (${buy} bought + ${free} free)` };
+      }
+      const order = cups.map((c, i) => i).sort((a, b) => cups[a].price - cups[b].price);
+      for (let i = 0; i < freeCups; i++) discounts[order[i]] = cups[order[i]].price;
+      return { sub, discounts, discount: discounts.reduce((s, d) => s + d, 0), valid: true, error: "" };
+    }
+    const raw = p.type === "PERCENT" ? sub * (Number(p.value) || 0) / 100
+      : p.type === "AMOUNT" ? Number(p.value) || 0 : 0;
+    const total = Math.max(0, Math.min(sub, Math.round(raw * 100) / 100));
+    if (total > 0) {
+      const order = cups.map((c, i) => i).sort((a, b) => cups[b].price - cups[a].price);
+      let left = total;
+      order.forEach(i => {
+        const take = Math.min(cups[i].price, left);
+        discounts[i] = Math.round(take * 100) / 100;
+        left = Math.round((left - take) * 100) / 100;
+      });
+    }
+    return { sub, discounts, discount: total, valid: total > 0, error: "" };
+  }
+
+  function applyPromo() {
+    const input = document.getElementById("promoInput");
+    const code = input ? input.value.trim().toUpperCase() : "";
+    const sub = cartTotal();
+    if (!sub) return toast("Add cups first");
+    if (!code) return toast("Enter a promo code");
+    const status = document.getElementById("promoStatus");
+    if (status) { status.textContent = "Checking…"; status.className = "text-[10px] font-bold text-[var(--mocha)]/55 mb-2"; }
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "validatePromoCode", code, subtotal: sub, unitPrices: cupList().map(c => c.price) })
+    })
+      .then(r => r.json())
+      .then(res => {
+        if (!res || !res.success) {
+          state.promo = null;
+          if (input) input.value = "";
+          setPromoStatus((res && res.error) || "Invalid promo code", true);
+          renderCart();
+          return;
+        }
+        state.promo = {
+          code: res.code, type: res.type, value: Number(res.value) || 0,
+          minSpend: Number(res.minSpend) || 0,
+          buyQty: Number(res.buyQty) || 0, freeQty: Number(res.freeQty) || 0
+        };
+        if (input) input.value = res.code;
+        renderCart();
+      })
+      .catch(() => setPromoStatus("Network error — try again", true));
+  }
+
+  function clearPromo() {
+    state.promo = null;
+    const input = document.getElementById("promoInput");
+    if (input) input.value = "";
+    setPromoStatus("", false);
+    renderCart();
+  }
+
+  function setPromoStatus(text, isError) {
+    const el = document.getElementById("promoStatus");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = isError
+      ? "text-[10px] font-bold text-rose-500 mb-2"
+      : "text-[10px] font-bold text-emerald-600 mb-2";
+  }
+
   function renderCart() {
-    const items = cartItems(), count = cartCount(), total = cartTotal();
+    const items = cartItems(), count = cartCount();
+    const pb = promoBreakdown();
+    const total = Math.max(0, pb.sub - pb.discount);
 
     document.getElementById("cartBadge").textContent = count;
     document.getElementById("cartBadge").classList.toggle("hidden", count === 0);
@@ -478,6 +589,20 @@
     document.getElementById("cartBarTotal").textContent = money(total);
     document.getElementById("cartSub").textContent = `${count} cup${count === 1 ? "" : "s"} · one order number`;
     document.getElementById("cartTotal").textContent = money(total);
+
+    const discRow = document.getElementById("cartDiscountRow");
+    if (discRow) discRow.classList.toggle("hidden", !(pb.discount > 0));
+    const discEl = document.getElementById("cartDiscount");
+    if (discEl) discEl.textContent = `-${money(pb.discount)}`;
+    const clearBtn = document.getElementById("promoClearBtn");
+    if (clearBtn) clearBtn.classList.toggle("hidden", !state.promo);
+    if (state.promo && !pb.valid && pb.error) setPromoStatus(pb.error, true);
+    else if (state.promo && pb.valid) {
+      const desc = state.promo.type === "BOGO"
+        ? `Buy ${state.promo.buyQty || 1} get ${state.promo.freeQty || 1} free`
+        : state.promo.type === "PERCENT" ? `${state.promo.value}% off` : `${money(state.promo.value)} off`;
+      setPromoStatus(`${state.promo.code} — ${desc}`, false);
+    }
 
     const list = document.getElementById("cartList");
     if (!items.length) {
@@ -535,12 +660,15 @@
     if (!name) { closeAll(); return toast("Please enter a name first"); }
     if (!state.cupType) { closeAll(); return toast("Please select In-Store or Takeaway"); }
     if (!cartCount()) return toast("Your order is empty");
+    const pb = promoBreakdown();
+    if (state.promo && !pb.valid) { closeAll(); return toast(pb.error || "Promo code is not valid for this cart"); }
 
     const sel = document.getElementById("pickupSelect");
     const free = document.getElementById("pickupFree");
     const pickupTime = (!sel.classList.contains("hidden") ? sel.value : free.value.trim()) || "NOW";
 
     const orders = [];
+    let cupIndex = 0;
     cartItems().forEach(i => {
       for (let n = 0; n < i.qty; n++) {
         orders.push({
@@ -552,10 +680,12 @@
           temp: i.temp,
           customization: i.note || "",
           price: i.price,
-          discount: 0,
+          discount: pb.discounts[cupIndex] || 0,
+          promoCode: state.promo ? state.promo.code : "",
           status: "RESERVED",
           cupType: state.cupType
         });
+        cupIndex++;
       }
     });
 
@@ -580,6 +710,9 @@
         if (!res.success) return toast(res.error || "Order failed", "error");
 
         state.cart = {};
+        state.promo = null;
+        const promoInput = document.getElementById("promoInput");
+        if (promoInput) promoInput.value = "";
         renderCart();
         closeAll();
         showSuccess(res);
