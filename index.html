@@ -3741,12 +3741,12 @@
     // Emit one printable line: ASCII stays in native ESC/POS text mode,
     // anything with CJK falls back to a raster image.
     const PRINT_ALIGN_BYTE = { left: 0x00, center: 0x01, right: 0x02 };
-    const PRINT_SIZE_BYTE = { 1: 0x00, 2: 0x11, 3: 0x22 };
+    const PRINT_SIZE_BYTE = { 1: 0x00, 2: 0x11, 3: 0x22, 4: 0x33, 5: 0x44 };
 
     function pushPrintText(buf, raw, opts) {
       const options = opts || {};
       const align = PRINT_ALIGN_BYTE[options.align] != null ? options.align : "left";
-      const size = [1, 2, 3].indexOf(Number(options.size)) >= 0 ? Number(options.size) : 1;
+      const size = [1, 2, 3, 4, 5].indexOf(Number(options.size)) >= 0 ? Number(options.size) : 1;
       const bold = !!options.bold;
       const text = String(raw == null ? "" : raw);
       if (!text.trim()) return;
@@ -3771,7 +3771,7 @@
     // Blocks are user-editable in Admin → Receipt Layout. Stored in Script
     // Properties so every terminal prints the same template.
     const DEFAULT_RECEIPT_LAYOUT = [
-      { type: "field", field: "orderNum", prefix: "#", align: "center", size: 3, bold: true },
+      { type: "field", field: "orderNum", prefix: "", align: "center", size: 4, bold: true },
       { type: "field", field: "reserved", align: "center", size: 2, bold: true },
       { type: "field", field: "pickupTime", prefix: "Pickup: ", align: "center", size: 2, bold: true },
       { type: "divider", align: "center", size: 1, bold: false },
@@ -3779,15 +3779,14 @@
       { type: "field", field: "cupType", align: "center", size: 1, bold: true },
       { type: "field", field: "temp", align: "center", size: 1, bold: false },
       { type: "field", field: "guestName", prefix: "Guest: ", align: "left", size: 1, bold: false },
-      { type: "field", field: "qrTile", prefix: "Tile: ", align: "left", size: 1, bold: false },
       { type: "field", field: "customization", prefix: "Notes: ", align: "left", size: 1, bold: false },
       { type: "feed", lines: 3 }
     ];
 
     const RECEIPT_FIELDS = [
-      ["orderNum", "Order #"], ["reserved", "Pre-order tag"], ["pickupTime", "Pickup time"],
+      ["orderNum", "Big number (tile / order #)"], ["reserved", "Pre-order tag"], ["pickupTime", "Pickup time"],
       ["productName", "Drink"], ["temp", "Temp"],
-      ["cupType", "Cup type"], ["guestName", "Guest"], ["qrTile", "QR tile"],
+      ["cupType", "Cup type"], ["guestName", "Guest"],
       ["customization", "Notes"], ["time", "Time"], ["price", "Price"]
     ];
 
@@ -3799,7 +3798,7 @@
       // The raster logo block was removed: at 20-byte BLE pacing it added
       // several seconds per label. Older saved layouts may still carry it,
       // so it is filtered out on load instead of printed.
-      const dropLogo = arr => (Array.isArray(arr) ? arr.filter(b => b && b.type !== "logo") : []);
+      const dropLogo = arr => (Array.isArray(arr) ? arr.filter(b => b && b.type !== "logo" && b.field !== "qrTile") : []);
       const apply = arr => {
         const without = dropLogo(arr);
         if (without.length) { state.receiptLayout = without; return true; }
@@ -3839,8 +3838,17 @@
       return status === "RESERVED" || !!String(order.pickupTime || "").trim();
     }
 
+    // The guest is holding the tile, so the tile number replaces the order
+    // number on the label. Exactly one of them is ever printed.
+    function labelPrimaryNumber(order) {
+      const tile = String((order && order.qrTile) || "").trim();
+      const num = String((order && order.orderNum) || "").trim();
+      return tile || num;
+    }
+
     function layoutFieldValue(order, field) {
-      if (field === "orderNum") return String(order.orderNum || "");
+      if (field === "orderNum") return labelPrimaryNumber(order);
+      if (field === "qrTile") return "";       // merged into the big number above
       // Pre-order tag and pickup time only print for reservations — walk-in
       // orders return "" so the whole line is skipped.
       if (field === "reserved") return isPreOrder(order) ? "PRE-ORDER" : "";
@@ -3861,8 +3869,12 @@
       if (block.type === "divider") return "-".repeat(32);
       if (block.type === "text") return String(block.text || "").trim();
       if (block.type !== "field") return "";
+      if (block.field === "qrTile") return "";
       const value = layoutFieldValue(order, block.field);
       if (!value) return "";
+      // The big number is the tile (or order number) verbatim — prefixes such
+      // as "#" were designed for the old two-line layout and are dropped here.
+      if (block.field === "orderNum") return value + (block.suffix || "");
       return ((block.prefix || "") + value + (block.suffix || "")).trim();
     }
 
@@ -3883,8 +3895,16 @@
         }
         const text = receiptRawLineFor(block, order);
         if (!text) continue;
-        const size = [1, 2, 3].indexOf(Number(block.size)) >= 0 ? Number(block.size) : 1;
-        pushPrintText(buf, text, { align: block.align, size, bold: block.bold });
+        const isPrimaryNumber = block.type === "field" && block.field === "orderNum";
+        // Match the pickup screen: the number is the loudest thing on the
+        // label, so it is always printed centred at 4x regardless of the
+        // block's saved size.
+        const size = isPrimaryNumber ? 4 : ([1, 2, 3, 4, 5].indexOf(Number(block.size)) >= 0 ? Number(block.size) : 1);
+        pushPrintText(buf, text, {
+          align: isPrimaryNumber ? "center" : block.align,
+          size,
+          bold: isPrimaryNumber ? true : block.bold
+        });
       }
       buf.push(0x0a, 0x0a);
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
@@ -3937,10 +3957,14 @@
       if (b.type !== "feed") {
         const alignOpts = ["left", "center", "right"].map(a =>
           `<option value="${a}" ${(b.align || "left") === a ? "selected" : ""}>${a}</option>`).join("");
-        const sizeOpts = [1, 2, 3].map(s =>
+        const sizeOpts = [1, 2, 3, 4, 5].map(s =>
           `<option value="${s}" ${(Number(b.size) || 1) === s ? "selected" : ""}>${s}x</option>`).join("");
         controls += `<select onchange="setLayoutBlock(${i},'align',this.value)" class="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">${alignOpts}</select>`;
-        controls += `<select onchange="setLayoutBlock(${i},'size',Number(this.value))" class="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">${sizeOpts}</select>`;
+        if (b.type === "field" && b.field === "orderNum") {
+          controls += `<span class="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">4x auto</span>`;
+        } else {
+          controls += `<select onchange="setLayoutBlock(${i},'size',Number(this.value))" class="text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">${sizeOpts}</select>`;
+        }
         controls += `<label class="flex items-center gap-1 text-[10px] font-bold text-slate-500">
             <input type="checkbox" ${b.bold ? "checked" : ""} onchange="setLayoutBlock(${i},'bold',this.checked)"> Bold
           </label>`;
@@ -4048,10 +4072,12 @@
         }
         const text = receiptLineFor(b, order);
         if (!text) continue;
-        const size = [1, 2, 3].indexOf(Number(b.size)) >= 0 ? Number(b.size) : 1;
-        const px = [11, 15, 19][size - 1];
-        const weight = b.bold ? "700" : "400";
-        rows.push(`<div style="text-align:${b.align || "left"};font-size:${px}px;font-weight:${weight};white-space:pre;overflow:hidden;">${layoutEsc(text)}</div>`);
+        const isPrimaryNumber = b.type === "field" && b.field === "orderNum";
+        const size = isPrimaryNumber ? 4 : ([1, 2, 3, 4, 5].indexOf(Number(b.size)) >= 0 ? Number(b.size) : 1);
+        const px = [11, 15, 19, 25, 30][size - 1];
+        const weight = (isPrimaryNumber || b.bold) ? "800" : "400";
+        const align = isPrimaryNumber ? "center" : (b.align || "left");
+        rows.push(`<div style="text-align:${align};font-size:${px}px;font-weight:${weight};white-space:pre;overflow:hidden;">${layoutEsc(text)}</div>`);
       }
       paper.innerHTML = rows.join("");
     }
