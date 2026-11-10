@@ -322,8 +322,24 @@
 
     /* instructions entry pill */
     #instructionsBtn{ background:#fff !important; border-color:var(--line) !important; color:var(--caramel-dark) !important; }
+
+    /* boot loader: covers the page until menu data is ready */
+    #appLoader{ position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--cream); transition:opacity .3s ease; }
+    #appLoader.hide{ opacity:0; pointer-events:none; }
+    #appLoader img{ animation:app-pulse 1.6s ease-in-out infinite; }
+    .app-spinner{ width:26px; height:26px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--caramel); animation:app-spin .8s linear infinite; }
+    @keyframes app-spin{ to{ transform:rotate(360deg); } }
+    @keyframes app-pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
+    @media (prefers-reduced-motion: reduce){ .app-spinner, #appLoader img{ animation:none; } }
   </style></head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+
+  <!-- Boot loader: covers the page until menu data is ready -->
+  <div id="appLoader">
+    <img src="assets/mfcafe-logo.png" alt="MFCafe" class="w-16 h-16 rounded-2xl bg-white border p-1.5 shadow-sm" style="border-color:var(--line)" draggable="false">
+    <div class="app-spinner"></div>
+    <p class="text-[11px] font-bold" style="color:rgba(107,78,61,.6)">Loading menu…</p>
+  </div>
 
   <!-- Header -->
   <header class="sticky top-0 z-40 -mx-4 px-4 pt-3 border-b shadow-sm mb-4" style="background:rgba(251,246,239,.93);backdrop-filter:blur(12px);border-color:var(--line)">
@@ -333,9 +349,6 @@
         <h1 class="text-[15px] font-black leading-tight tracking-tight">MFCafe Pre-Order</h1>
         <p class="text-[10px] font-semibold leading-tight" style="color:rgba(107,78,61,.7)">Self &amp; Teacher · pick a drink, get a barcode</p>
       </div>
-      <a href="bulky.html" class="shrink-0 inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-2 rounded-full border bg-white transition" style="border-color:var(--line);color:var(--caramel-dark)">
-        <i class="fa-solid fa-layer-group"></i> Bulky
-      </a>
     </div>
     <div id="customerCategoryTabs" class="flex gap-2 overflow-x-auto no-scrollbar pt-3 pb-3"></div>
   </header>
@@ -662,6 +675,13 @@
     // ===== SAFE PRICE HELPER =====
     function fmtPrice(v) { return `HK$${(Number(v) || 0).toFixed(2)}`; }
 
+    function hideAppLoader() {
+      const loader = document.getElementById('appLoader');
+      if (!loader || loader.classList.contains('hide')) return;
+      loader.classList.add('hide');
+      setTimeout(() => loader.remove(), 400);
+    }
+
     // ===== TIME FORMATTING =====
     function formatOrderTime(raw) {
       if (!raw) return "-";
@@ -718,8 +738,9 @@
           applyReservationState();
           renderMenu();
           updateCustPriceSummary();
+          hideAppLoader();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+        .catch(() => { hideAppLoader(); showToast("Failed to load menu. Please refresh.", "error"); });
 
       // Poll for menu updates every 15s (so paused items disappear)
       if (menuPollingStarted) return;

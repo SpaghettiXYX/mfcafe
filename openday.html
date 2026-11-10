@@ -317,9 +317,25 @@
 
     /* instructions entry pill */
     #instructionsBtn{ background:#fff !important; border-color:var(--line) !important; color:var(--caramel-dark) !important; }
+
+    /* boot loader: covers the page until menu data is ready */
+    #appLoader{ position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--cream); transition:opacity .3s ease; }
+    #appLoader.hide{ opacity:0; pointer-events:none; }
+    #appLoader img{ animation:app-pulse 1.6s ease-in-out infinite; }
+    .app-spinner{ width:26px; height:26px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--caramel); animation:app-spin .8s linear infinite; }
+    @keyframes app-spin{ to{ transform:rotate(360deg); } }
+    @keyframes app-pulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
+    @media (prefers-reduced-motion: reduce){ .app-spinner, #appLoader img{ animation:none; } }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
+
+  <!-- Boot loader: covers the page until menu data is ready -->
+  <div id="appLoader">
+    <img src="assets/mfcafe-logo.png" alt="MFCafe" class="w-16 h-16 rounded-2xl bg-white border p-1.5 shadow-sm" style="border-color:var(--line)" draggable="false">
+    <div class="app-spinner"></div>
+    <p class="text-[11px] font-bold" style="color:rgba(107,78,61,.6)">Loading menu…</p>
+  </div>
 
   <!-- Header -->
   <header class="sticky top-0 z-40 -mx-4 px-4 pt-3 border-b shadow-sm mb-4" style="background:rgba(251,246,239,.93);backdrop-filter:blur(12px);border-color:var(--line)">
@@ -630,6 +646,13 @@
     // ===== SAFE PRICE HELPER =====
     function fmtPrice(v) { return `HK$${(Number(v) || 0).toFixed(2)}`; }
 
+    function hideAppLoader() {
+      const loader = document.getElementById('appLoader');
+      if (!loader || loader.classList.contains('hide')) return;
+      loader.classList.add('hide');
+      setTimeout(() => loader.remove(), 400);
+    }
+
     function escapeHtml(str) {
       return String(str || "")
         .replace(/&/g, "&amp;")
@@ -687,8 +710,9 @@
           applyReservationState();
           renderMenu();
           showPromoPopup();
+          hideAppLoader();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+        .catch(() => { hideAppLoader(); showToast("Failed to load menu. Please refresh.", "error"); });
 
       // Poll for menu updates every 15s (so paused items disappear)
       if (menuPollingStarted) return;
