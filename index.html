@@ -594,6 +594,18 @@
         </div>
       </div>
 
+      <!-- Live bar-pressure strip — labels editable in Admin → KDS Status -->
+      <div id="kdsStatusStrip" class="bg-slate-900 rounded-2xl border border-slate-700 px-4 py-3 shadow-sm">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <span id="kdsStripLabel" class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Bar Status</span>
+          <div id="kdsStripBadges" class="flex flex-wrap items-center gap-2"></div>
+          <div class="ml-auto flex items-center gap-2">
+            <span id="kdsStripOverallLabel" class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Bar Status</span>
+            <span id="kdsStripOverall" class="font-extrabold text-xs px-2.5 py-1 rounded-full bg-slate-800 text-emerald-400 border border-slate-700">Ready for next</span>
+          </div>
+        </div>
+      </div>
+
       <div id="kdsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
     </section>
 
@@ -771,6 +783,64 @@
         <button onclick="saveRemarkHotkeysSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">
           Save Remark Hotkeys
         </button>
+      </div>
+
+      <!-- KDS Status Badges — live bar-pressure strip configuration -->
+      <div data-admin-section="kdsstatus" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">
+              <i class="fa-solid fa-signal text-amber-500 mr-2"></i> KDS Status Badges
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-1">The live status strip above the Bar KDS ticket grid. Rename every badge here.</p>
+          </div>
+          <button onclick="saveKdsStatusSubmit()" class="bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 flex-shrink-0">
+            <i class="fa-solid fa-floppy-disk"></i> Save
+          </button>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+          <input type="checkbox" id="kdsStripShowInput" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+          Show the status strip on the KDS
+        </label>
+
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Strip Label</label>
+          <input type="text" id="kdsStripLabelInput" autocomplete="off"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+            placeholder="Bar Status">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">No Orders</label>
+            <input type="text" id="kdsStripNoOrdersInput" autocomplete="off"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+              placeholder="CLEAR">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Steady</label>
+            <input type="text" id="kdsStripSteadyInput" autocomplete="off"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+              placeholder="STEADY">
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Busy</label>
+            <input type="text" id="kdsStripBusyInput" autocomplete="off"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+              placeholder="BUSY">
+          </div>
+        </div>
+
+        <div class="md:w-1/3">
+          <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Behind</label>
+          <input type="text" id="kdsStripBehindInput" autocomplete="off"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"
+            placeholder="BEHIND">
+        </div>
+
+        <p class="text-[10px] text-slate-400 font-semibold">Badge names follow the queue: 0 orders, 1–2, 3–5 and 6+ per drink category.</p>
+        <span id="kdsStatusAdminStatus" class="text-[11px] font-bold text-slate-400"></span>
       </div>
 
       <!-- Category Manager -->
@@ -1296,6 +1366,7 @@
       teacherPauseReason: "",
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
+      statusStrip: { show: true, label: "Bar Status", noOrders: "CLEAR", steady: "STEADY", busy: "BUSY", behind: "BEHIND" },
       categoryColors: {},
       receiptLayout: null     // editable block list, loaded from Apps Script
     };
@@ -1888,6 +1959,10 @@
           if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
+          if (data.statusStrip && typeof data.statusStrip === "object") {
+            state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
+            renderKdsStatusEditor();
+          }
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
 
@@ -2592,6 +2667,8 @@
 
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+
+      renderKdsStatusStrip(activeOrders);
 
       // ---- Marquee: every order not yet assigned by the head chef ----
       const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
@@ -3783,6 +3860,7 @@
     const ADMIN_SECTIONS = [
       { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
       { key: "operation",    label: "Operation",          icon: "fa-sliders" },
+      { key: "kdsstatus",    label: "KDS Status",         icon: "fa-signal" },
       { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
@@ -3824,6 +3902,7 @@
         sec.classList.toggle("hidden", !show);
       });
       if (key === "layout") renderLayoutEditor();
+      if (key === "kdsstatus") renderKdsStatusEditor();
     }
 
     // ==================== PRINTER: TEST PRINT ====================
@@ -4282,6 +4361,118 @@
           else showToast("Failed to save pause reasons", "error");
         })
         .catch(() => showToast("Network error saving pause reasons", "error"));
+    }
+
+    // ==================== KDS STATUS STRIP ====================
+    // Queue thresholds are fixed: 0 / 1–2 / 3–5 / 6+ per drink category. The
+    // Admin panel only renames the strip and the four badge words.
+    function stripKindForCount(count) {
+      if (count <= 0) return "noOrders";
+      if (count <= 2) return "steady";
+      if (count <= 5) return "busy";
+      return "behind";
+    }
+
+    function stripColorForKind(kind) {
+      if (kind === "noOrders") return "#34d399";
+      if (kind === "steady") return "#38bdf8";
+      if (kind === "busy") return "#fbbf24";
+      return "#fb7185";
+    }
+
+    function renderKdsStatusStrip(activeOrders) {
+      const wrap = document.getElementById("kdsStatusStrip");
+      if (!wrap) return;
+      const cfg = state.statusStrip || {};
+      if (cfg.show === false) { wrap.style.display = "none"; return; }
+      wrap.style.display = "";
+
+      const label = cfg.label || "Bar Status";
+      const labelEl = document.getElementById("kdsStripLabel");
+      if (labelEl) labelEl.innerText = label;
+      const overallLabelEl = document.getElementById("kdsStripOverallLabel");
+      if (overallLabelEl) overallLabelEl.innerText = label;
+
+      // Show every configured drink category, plus any category that has live
+      // orders but is no longer in the category list.
+      const cats = (state.categories && state.categories.length)
+        ? state.categories.slice()
+        : Array.from(new Set((state.menu || []).map(m => m.category).filter(Boolean)));
+      const counts = {};
+      cats.forEach(c => { counts[c] = 0; });
+      (activeOrders || []).forEach(o => {
+        const c = getOrderCategory(o) || "Other";
+        counts[c] = (counts[c] || 0) + 1;
+      });
+
+      const badges = document.getElementById("kdsStripBadges");
+      if (badges) {
+        badges.innerHTML = Object.keys(counts).map(cat => {
+          const n = counts[cat];
+          const kind = stripKindForCount(n);
+          const word = cfg[kind] || "";
+          const dot = getCategoryColor(cat);
+          return `<span class="inline-flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-full pl-2.5 pr-1 py-1">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color:${dot}"></span>
+            <span class="text-[11px] font-extrabold text-white">${escapeHtml(cat)} <span class="text-slate-400 font-black">${n}</span></span>
+            <span class="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-700" style="color:${stripColorForKind(kind)}">${escapeHtml(word)}</span>
+          </span>`;
+        }).join("");
+      }
+
+      // Overall cue: green "Ready for next" only when nothing is waiting to be
+      // started (every live order already ticked as assigned).
+      const waiting = (activeOrders || []).filter(o => (o.status || "").toUpperCase() !== "ASSIGNED").length;
+      const worst = Object.keys(counts).reduce((acc, c) => Math.max(acc, counts[c]), 0);
+      const kind = waiting === 0 ? "noOrders" : stripKindForCount(worst);
+      const overall = document.getElementById("kdsStripOverall");
+      if (overall) {
+        overall.innerText = waiting === 0 ? "Ready for next" : (cfg[kind] || "");
+        overall.style.color = stripColorForKind(kind);
+      }
+    }
+
+    function renderKdsStatusEditor() {
+      const showEl = document.getElementById("kdsStripShowInput");
+      if (!showEl) return;
+      const cfg = state.statusStrip || {};
+      showEl.checked = cfg.show !== false;
+      document.getElementById("kdsStripLabelInput").value = cfg.label || "Bar Status";
+      document.getElementById("kdsStripNoOrdersInput").value = cfg.noOrders || "CLEAR";
+      document.getElementById("kdsStripSteadyInput").value = cfg.steady || "STEADY";
+      document.getElementById("kdsStripBusyInput").value = cfg.busy || "BUSY";
+      document.getElementById("kdsStripBehindInput").value = cfg.behind || "BEHIND";
+    }
+
+    function saveKdsStatusSubmit() {
+      const cfg = {
+        show: document.getElementById("kdsStripShowInput").checked,
+        label: document.getElementById("kdsStripLabelInput").value.trim(),
+        noOrders: document.getElementById("kdsStripNoOrdersInput").value.trim(),
+        steady: document.getElementById("kdsStripSteadyInput").value.trim(),
+        busy: document.getElementById("kdsStripBusyInput").value.trim(),
+        behind: document.getElementById("kdsStripBehindInput").value.trim()
+      };
+      const status = document.getElementById("kdsStatusAdminStatus");
+      if (status) status.innerText = "Saving…";
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "saveKdsStatusStrip", config: cfg })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (!res.success) throw new Error(res.error || "Save failed");
+        state.statusStrip = Object.assign({}, state.statusStrip, res.statusStrip || cfg);
+        renderKdsStatusEditor();
+        renderKDS();
+        if (status) status.innerText = "";
+        showToast("KDS status badges updated");
+      })
+      .catch(err => {
+        if (status) status.innerText = "";
+        showToast(err.message || "Could not save status badges", "error");
+      });
     }
 
     function sendPushMessageSubmit() {

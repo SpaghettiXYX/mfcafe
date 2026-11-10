@@ -454,6 +454,52 @@ function setPushMessage(text, sender, active) {
   return { success: true, pushMessage: payload };
 }
 
+// ==================== KDS STATUS STRIP (bar pressure badges) ====================
+// Live strip above the Bar KDS grid. Thresholds are fixed per drink category:
+// 0 orders, 1–2, 3–5 and 6+. Admins can rename the strip and each badge.
+const DEFAULT_KDS_STATUS_STRIP = {
+  show: true,
+  label: "Bar Status",
+  noOrders: "CLEAR",
+  steady: "STEADY",
+  busy: "BUSY",
+  behind: "BEHIND"
+};
+
+function getKdsStatusStrip() {
+  const raw = PropertiesService.getScriptProperties().getProperty("KDS_STATUS_STRIP");
+  if (!raw) return DEFAULT_KDS_STATUS_STRIP;
+  try {
+    const p = JSON.parse(raw);
+    const pick = (key) => String(p[key] || "").trim() || DEFAULT_KDS_STATUS_STRIP[key];
+    return {
+      show: p.show !== false,
+      label: pick("label"),
+      noOrders: pick("noOrders"),
+      steady: pick("steady"),
+      busy: pick("busy"),
+      behind: pick("behind")
+    };
+  } catch (e) {
+    return DEFAULT_KDS_STATUS_STRIP;
+  }
+}
+
+function setKdsStatusStrip(cfg) {
+  const c = cfg || {};
+  const payload = {
+    show: c.show !== false,
+    label: String(c.label || "").trim() || DEFAULT_KDS_STATUS_STRIP.label,
+    noOrders: String(c.noOrders || "").trim() || DEFAULT_KDS_STATUS_STRIP.noOrders,
+    steady: String(c.steady || "").trim() || DEFAULT_KDS_STATUS_STRIP.steady,
+    busy: String(c.busy || "").trim() || DEFAULT_KDS_STATUS_STRIP.busy,
+    behind: String(c.behind || "").trim() || DEFAULT_KDS_STATUS_STRIP.behind
+  };
+  PropertiesService.getScriptProperties().setProperty("KDS_STATUS_STRIP", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, statusStrip: payload };
+}
+
 // ==================== SMART DATA FETCH ====================
 // getInitialData returns ACTIVE orders only (not CLEARED) for fast sync
 function getInitialData() {
@@ -582,6 +628,7 @@ function getInitialData() {
     teacherPauseReason: teacherPauseReason,
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
+    statusStrip: getKdsStatusStrip(),
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout()
   };
@@ -1422,6 +1469,7 @@ function doPost(e) {
     if (action === "toggleOpenDayReservation") return jsonResponse(setOpenDayReservationOpen(data.open));
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
+    if (action === "saveKdsStatusStrip") return jsonResponse(setKdsStatusStrip(data.config));
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
