@@ -149,21 +149,26 @@
     .fa-solid, .fa-regular, .fa-brands { position: relative; top: 0.125em; }
     /* 6. Numerals never jitter. */
     body, input, textarea, select, button { font-variant-numeric: tabular-nums; }
-    /* 7. Collapse with grid 0fr -> 1fr. */
+    /* 7. Configurator is a bottom sheet, like bulky.html. */
     #itemOptions {
-      display: grid; grid-template-rows: 0fr;
-      padding-top: 0 !important; padding-bottom: 0 !important;
-      border-width: 0 !important; opacity: 0;
-      transition: grid-template-rows 280ms cubic-bezier(.4,0,.2,1), opacity 180ms ease,
-                  padding 280ms cubic-bezier(.4,0,.2,1), border-width 280ms ease;
+      position: fixed; left: 50%; bottom: 0; z-index: 80;
+      width: min(430px, 100%);
+      transform: translate(-50%, 105%);
+      border-radius: 1.25rem 1.25rem 0 0 !important;
+      border-width: 1px 1px 0 !important;
+      max-height: 82vh; overflow-y: auto;
+      box-shadow: 0 -12px 40px -12px rgba(46,33,26,.35) !important;
+      transition: transform .32s cubic-bezier(.32,.72,0,1);
     }
     #itemOptions.hidden { display: none !important; }
-    #itemOptions > #itemOptionsInner { min-height: 0; overflow: hidden; }
-    #itemOptions.open {
-      display: grid !important; grid-template-rows: 1fr;
-      padding-top: 1rem !important; padding-bottom: 1rem !important;
-      border-width: 1px !important; opacity: 1;
+    #itemOptions.open { transform: translate(-50%, 0); }
+    #itemScrim {
+      position: fixed; inset: 0; z-index: 70;
+      background: rgba(46,33,26,.45);
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease;
     }
+    #itemScrim.open { opacity: 1; pointer-events: auto; }
     /* Ordered panel follows the same dark-mode weight cushion. */
     [data-theme="dark"] #sohOrderedBtn { font-weight: 480 !important; }
     [data-theme="dark"] #sohPanelCard { font-weight: 300 !important; font-variant-numeric: tabular-nums; }
@@ -367,13 +372,13 @@
         <p id="custPromoStatus" class="text-[11px] font-bold mt-1.5 text-slate-400"></p>
         <div class="mt-2 pt-2 border-t border-slate-200 space-y-1">
           <div class="flex justify-between text-[11px] font-bold text-slate-400">
-            <span>Subtotal</span><span id="custSubtotalDisplay" class="text-slate-800">$0.00</span>
+            <span>Subtotal</span><span id="custSubtotalDisplay" class="text-slate-800">HK$0.00</span>
           </div>
           <div class="flex justify-between text-[11px] font-bold text-slate-400">
-            <span>Discount</span><span id="custDiscountDisplay" class="text-emerald-600">-$0.00</span>
+            <span>Discount</span><span id="custDiscountDisplay" class="text-emerald-600">-HK$0.00</span>
           </div>
           <div class="flex justify-between text-xs font-extrabold text-slate-500">
-            <span>Total</span><span id="custTotalDisplay" class="text-amber-600 text-sm font-black">$0.00</span>
+            <span>Total</span><span id="custTotalDisplay" class="text-amber-600 text-sm font-black">HK$0.00</span>
           </div>
         </div>
       </div>
@@ -406,12 +411,14 @@
       </div>
     </div>
 
-    <!-- Drink Customization Configurator -->
-    <div id="itemOptions" class="bg-white p-4 rounded-3xl border hidden space-y-3.5 shadow-sm" style="border-color:var(--line)">
+    <!-- Drink Customization Configurator (bottom sheet, like bulky.html) -->
+    <div id="itemScrim" onclick="setItemOptionsOpen(false)"></div>
+    <div id="itemOptions" class="bg-white p-4 border hidden" style="border-color:var(--line)">
       <div id="itemOptionsInner" class="space-y-3.5">
+        <div class="mx-auto -mt-1 mb-1 h-1.5 w-10 rounded-full bg-slate-200"></div>
         <div class="flex justify-between items-center border-b border-amber-200/60 pb-2">
           <span id="selectedItemName" class="font-black text-slate-800 text-sm">Drink Name</span>
-          <span id="selectedItemPrice" class="font-black text-amber-600 text-sm">$0.00</span>
+          <span id="selectedItemPrice" class="font-black text-amber-600 text-sm">HK$0.00</span>
         </div>
 
         <div>
@@ -424,6 +431,7 @@
           <div class="flex flex-wrap gap-1.5 mb-2" id="custRemarkPillsContainer"></div>
           <input type="text" id="custNotes" placeholder="e.g. Less sugar, extra hot..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
         </div>
+        <button type="button" onclick="setItemOptionsOpen(false)" class="w-full btn-espresso text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">Done</button>
       </div>
     </div>
 
@@ -467,7 +475,7 @@
       <p><strong class="text-slate-400">Order Time:</strong> <span id="ticketOrderTime" class="text-slate-800 font-bold">-</span></p>
       <p><strong class="text-slate-400">Pickup Time:</strong> <span id="ticketPickup" class="text-purple-700 font-black">-</span></p>
       <p><strong class="text-slate-400">Drink:</strong> <span id="ticketDrink" class="text-slate-800 font-bold">-</span></p>
-      <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">$0.00</span></p>
+      <p><strong class="text-slate-400">Total Price:</strong> <span id="ticketPrice" class="text-amber-600 font-black text-sm">HK$0.00</span></p>
     </div>
 
     <button onclick="downloadReceipt()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
@@ -620,7 +628,7 @@
     let promoPopupShown = false;
 
     // ===== SAFE PRICE HELPER =====
-    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+    function fmtPrice(v) { return `HK$${(Number(v) || 0).toFixed(2)}`; }
 
     function escapeHtml(str) {
       return String(str || "")
@@ -1052,16 +1060,21 @@
       if (clearBtn) clearBtn.classList.toggle('hidden', !state.promoCode);
     }
 
-    // Grid 0fr -> 1fr collapse: the panel grows instead of popping open.
+    // Configurator bottom sheet: slide up with a dimmed scrim, like bulky.html.
     function setItemOptionsOpen(open) {
       const el = document.getElementById('itemOptions');
+      const scrim = document.getElementById('itemScrim');
       if (!el) return;
       if (open) {
         el.classList.remove('hidden');
+        if (scrim) scrim.classList.add('open');
+        document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => el.classList.add('open'));
       } else {
         el.classList.remove('open');
-        setTimeout(() => { if (!el.classList.contains('open')) el.classList.add('hidden'); }, 300);
+        if (scrim) scrim.classList.remove('open');
+        document.body.style.overflow = '';
+        setTimeout(() => { if (!el.classList.contains('open')) el.classList.add('hidden'); }, 320);
       }
     }
 

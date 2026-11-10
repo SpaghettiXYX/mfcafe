@@ -98,7 +98,7 @@
         </span>
         <span class="text-left flex-1">
           <span class="block text-[10px] font-bold uppercase tracking-widest text-[#FBF6EF]/50">Your order</span>
-          <span id="cartBarTotal" class="block text-[15px] font-black leading-tight">RM 0.00</span>
+          <span id="cartBarTotal" class="block text-[15px] font-black leading-tight">HK$0.00</span>
         </span>
         <span class="text-[12px] font-black bg-[var(--caramel)] px-4 py-2 rounded-xl">Review</span>
       </button>
@@ -179,11 +179,11 @@
         <p id="promoStatus" class="text-[10px] font-bold text-[var(--mocha)]/55 mb-2"></p>
         <div id="cartDiscountRow" class="hidden flex items-center justify-between mb-1">
           <span class="text-[11px] font-bold text-[var(--mocha)]">Discount</span>
-          <span id="cartDiscount" class="text-[13px] font-black text-emerald-600">-RM 0.00</span>
+          <span id="cartDiscount" class="text-[13px] font-black text-emerald-600">-HK$0.00</span>
         </div>
         <div class="flex items-center justify-between mb-1">
           <span class="text-[11px] font-bold text-[var(--mocha)]">Total</span>
-          <span id="cartTotal" class="text-[20px] font-black">RM 0.00</span>
+          <span id="cartTotal" class="text-[20px] font-black">HK$0.00</span>
         </div>
         <p class="text-[9px] font-semibold text-[var(--mocha)]/55 mb-3">All cups share one order number, numbered -1, -2, -3…</p>
         <button id="btnSubmit" onclick="submitOrder()" class="w-full h-12 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[13px] font-black active:scale-[.99] transition">
@@ -221,7 +221,7 @@
     submitting: false, promo: null
   };
 
-  const money = n => "RM " + (Number(n) || 0).toFixed(2);
+  const money = n => "HK$" + (Number(n) || 0).toFixed(2);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtPrice = money;
 

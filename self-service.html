@@ -202,7 +202,7 @@
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5">
           <p id="rsItem" class="text-xl font-black text-slate-900 leading-snug">-</p>
           <p id="rsNotes" class="text-xs font-semibold text-amber-700">-</p>
-          <p id="rsPrice" class="text-lg font-black text-amber-600">$0.00</p>
+          <p id="rsPrice" class="text-lg font-black text-amber-600">HK$0.00</p>
         </div>
 
         <div class="grid grid-cols-2 gap-3 text-xs">
@@ -294,7 +294,7 @@
         .replace(/'/g, "&#039;");
     }
 
-    function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
+    function fmtPrice(v) { return `HK$${(Number(v) || 0).toFixed(2)}`; }
 
     function showToast(message, type = "info", duration = 3500) {
       const container = document.getElementById("toastContainer");
