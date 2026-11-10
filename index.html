@@ -3554,6 +3554,117 @@
       return bytes;
     }
 
+    // ESC/POS text mode has no reliable CJK code page on this printer, so any
+    // line containing characters above Latin-1 is rendered to a 1-bit bitmap
+    // and sent with GS v 0 instead. That keeps Chinese product names, guest
+    // names and notes intact instead of collapsing them to "?".
+    const PRINT_RASTER_WIDTH = 384;   // 48 mm at 203 dpi
+
+    function hasNonLatin1(text) {
+      return /[^\u0000-\u00ff]/.test(String(text == null ? "" : text));
+    }
+
+    function rasterizePrintLine(text, align, size, bold) {
+      try {
+        const W = PRINT_RASTER_WIDTH;
+        const px = 24 * size;
+        const lineH = Math.ceil(px * 1.18);
+        const pad = 2;
+        const family = '"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Inter",sans-serif';
+        const font = (bold ? "700 " : "400 ") + px + "px " + family;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        ctx.font = font;
+
+        // Wrap by character — correct for CJK and good enough for mixed text.
+        const lines = [];
+        let cur = "";
+        for (const ch of String(text || "")) {
+          const candidate = cur + ch;
+          if (ctx.measureText(candidate).width > W - pad * 2 && cur) {
+            lines.push(cur);
+            cur = ch;
+          } else {
+            cur = candidate;
+          }
+        }
+        if (cur) lines.push(cur);
+        if (!lines.length) return null;
+
+        const H = lineH * lines.length;
+        canvas.width = W;
+        canvas.height = H;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = "#000000";
+        ctx.font = font;
+        ctx.textBaseline = "top";
+        lines.forEach((line, i) => {
+          const w = ctx.measureText(line).width;
+          let x = pad;
+          if (align === "center") x = Math.max(pad, (W - w) / 2);
+          else if (align === "right") x = Math.max(pad, W - w - pad);
+          ctx.fillText(line, x, i * lineH);
+        });
+
+        const pixels = ctx.getImageData(0, 0, W, H).data;
+        const rowBytes = W / 8;
+        let lastInkRow = -1;
+        const data = [];
+        for (let y = 0; y < H; y++) {
+          let rowHasInk = false;
+          for (let bx = 0; bx < rowBytes; bx++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+              const idx = (y * W + bx * 8 + bit) * 4;
+              const lum = (pixels[idx] * 299 + pixels[idx + 1] * 587 + pixels[idx + 2] * 114) / 1000;
+              if (lum < 150) { byte |= 0x80 >> bit; rowHasInk = true; }
+            }
+            data.push(byte);
+          }
+          if (rowHasInk) lastInkRow = y;
+        }
+        if (lastInkRow < 0) return null;
+
+        const outH = lastInkRow + 1;
+        const out = [0x1d, 0x76, 0x30, 0x00, rowBytes & 0xff, (rowBytes >> 8) & 0xff, outH & 0xff, (outH >> 8) & 0xff];
+        const keep = rowBytes * outH;
+        for (let i = 0; i < keep; i++) out.push(data[i]);
+        return out;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Emit one printable line: ASCII stays in native ESC/POS text mode,
+    // anything with CJK falls back to a raster image.
+    const PRINT_ALIGN_BYTE = { left: 0x00, center: 0x01, right: 0x02 };
+    const PRINT_SIZE_BYTE = { 1: 0x00, 2: 0x11, 3: 0x22 };
+
+    function pushPrintText(buf, raw, opts) {
+      const options = opts || {};
+      const align = PRINT_ALIGN_BYTE[options.align] != null ? options.align : "left";
+      const size = [1, 2, 3].indexOf(Number(options.size)) >= 0 ? Number(options.size) : 1;
+      const bold = !!options.bold;
+      const text = String(raw == null ? "" : raw);
+      if (!text.trim()) return;
+
+      if (hasNonLatin1(text)) {
+        const raster = rasterizePrintLine(text, align, size, bold);
+        if (raster) {
+          for (let i = 0; i < raster.length; i++) buf.push(raster[i]);
+          buf.push(0x0a);
+          return;
+        }
+      }
+
+      buf.push(0x1b, 0x61, PRINT_ALIGN_BYTE[align]);
+      buf.push(0x1d, 0x21, PRINT_SIZE_BYTE[size]);
+      buf.push(0x1b, 0x45, bold ? 0x01 : 0x00);   // ESC E — bold
+      buf.push(...esc(text.slice(0, Math.floor(32 / size))));
+      buf.push(0x0a);
+    }
+
     // ==================== RECEIPT LAYOUT ====================
     // Blocks are user-editable in Admin → Receipt Layout. Stored in Script
     // Properties so every terminal prints the same template.
@@ -3643,37 +3754,35 @@
       return "";
     }
 
-    // One printable line for a block, already ASCII-safe; "" means skip.
-    function receiptLineFor(block, order) {
+    // One printable line for a block, before sanitising; "" means skip.
+    function receiptRawLineFor(block, order) {
       if (block.type === "divider") return "-".repeat(32);
-      if (block.type === "text") return sanitizePrintText(String(block.text || "")).trim();
+      if (block.type === "text") return String(block.text || "").trim();
       if (block.type !== "field") return "";
       const value = layoutFieldValue(order, block.field);
       if (!value) return "";
-      return sanitizePrintText((block.prefix || "") + value + (block.suffix || "")).trim();
+      return ((block.prefix || "") + value + (block.suffix || "")).trim();
+    }
+
+    // ASCII-safe version used by the HTML preview.
+    function receiptLineFor(block, order) {
+      return sanitizePrintText(receiptRawLineFor(block, order)).trim();
     }
 
     // Build ESC/POS byte buffer for a single cup label, driven by the layout.
     function buildLabelESCpos(order) {
       const buf = [];
       buf.push(0x1b, 0x40);                  // ESC @ — reset
-      const gsSize = { 1: 0x00, 2: 0x11, 3: 0x22 };
-      const alignByte = { left: 0x00, center: 0x01, right: 0x02 };
 
       for (const block of ensureReceiptLayout()) {
         if (block.type === "feed") {
           for (let i = 0; i < (Number(block.lines) || 1); i++) buf.push(0x0a);
           continue;
         }
-        const text = receiptLineFor(block, order);
+        const text = receiptRawLineFor(block, order);
         if (!text) continue;
         const size = [1, 2, 3].indexOf(Number(block.size)) >= 0 ? Number(block.size) : 1;
-        buf.push(0x1b, 0x61, alignByte[block.align] != null ? alignByte[block.align] : 0);
-        buf.push(0x1d, 0x21, gsSize[size]);
-        buf.push(0x1b, 0x45, block.bold ? 0x01 : 0x00);   // ESC E — bold
-        // At size n only 32/n columns fit; sanitised text is single-byte ASCII
-        buf.push(...esc(text.slice(0, Math.floor(32 / size))));
-        buf.push(0x0a);
+        pushPrintText(buf, text, { align: block.align, size, bold: block.bold });
       }
       buf.push(0x0a, 0x0a);
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
@@ -4732,30 +4841,16 @@
       if (!btCharTx) { showToast("Printer not connected", "warning"); return; }
       const buf = [];
       buf.push(0x1b, 0x40);              // ESC @ reset
-      buf.push(0x1b, 0x61, 0x01);         // center
-      buf.push(0x1d, 0x21, 0x22);         // double size
-      buf.push(...esc("═══ KITCHEN ═══"));
-      buf.push(0x0a, 0x0a);
-      buf.push(0x1d, 0x21, 0x00);
-      buf.push(0x1b, 0x61, 0x00);         // left
-      buf.push(...esc("Order #" + order.orderNum + "  " + new Date().toLocaleTimeString()));
+      pushPrintText(buf, "═══ KITCHEN ═══", { align: "center", size: 2, bold: true });
       buf.push(0x0a);
-      buf.push(...esc("Guest: " + (order.guestName || "Guest")));
-      buf.push(0x0a);
-      buf.push(0x1b, 0x61, 0x01);
-      buf.push(0x1d, 0x21, 0x33);         // triple size for drink name
-      buf.push(...esc(String(order.productName).toUpperCase()));
-      buf.push(0x0a);
-      buf.push(0x1d, 0x21, 0x00);
-      buf.push(0x1b, 0x61, 0x00);
-      buf.push(...esc("  " + (order.temp || "") + "   " + (order.cupType || "In-Store").toUpperCase()));
-      buf.push(0x0a);
-      buf.push(...esc("  Tile: " + (order.qrTile || "-")));
-      buf.push(0x0a);
+      pushPrintText(buf, "Order #" + order.orderNum + "  " + new Date().toLocaleTimeString(), { align: "left", size: 1 });
+      pushPrintText(buf, "Guest: " + (order.guestName || "Guest"), { align: "left", size: 1 });
+      pushPrintText(buf, String(order.productName).toUpperCase(), { align: "center", size: 3, bold: true });
+      pushPrintText(buf, "  " + (order.temp || "") + "   " + (order.cupType || "In-Store").toUpperCase(), { align: "left", size: 1 });
+      pushPrintText(buf, "  Tile: " + (order.qrTile || "-"), { align: "left", size: 1 });
       if (order.customization) {
         buf.push(0x0a);
-        buf.push(...esc("  Notes: " + order.customization));
-        buf.push(0x0a);
+        pushPrintText(buf, "  Notes: " + order.customization, { align: "left", size: 1 });
       }
       buf.push(0x0a, 0x0a, 0x0a);
       buf.push(0x1d, 0x56, 0x01);         // cut
