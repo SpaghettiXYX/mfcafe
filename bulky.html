@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MFC Cafe — Bulky Order</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF6EF; --espresso:#2E211A; --mocha:#6B4E3D;
+    --caramel:#C0803F; --caramel-dark:#A5682C; --line:#EDE3D7;
+  }
+  *{ -webkit-tap-highlight-color: transparent; }
+  body{ font-family:'Inter',system-ui,-apple-system,sans-serif; background:#E9E1D6; color:var(--espresso); }
+  .phone{ max-width:430px;margin:0 auto;min-height:100vh;background:var(--cream);position:relative;box-shadow:0 0 60px rgba(46,33,26,.18); }
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+  .card-img{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+  .product-card:active .card-img{transform:scale(1.06)}
+  .sheet{transition:transform .32s cubic-bezier(.22,1,.36,1)}
+  .fade{transition:opacity .25s ease}
+  .line-clamp-1{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .safe-bottom{padding-bottom:calc(env(safe-area-inset-bottom, 0px) + 14px)}
+  @keyframes rise{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .rise{animation:rise .4s ease both}
+  @keyframes pop{0%{transform:scale(.7);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+  .pop{animation:pop .35s ease-out}
+  .chip{transition:all .2s ease}
+  .pill{transition:all .15s ease}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <header class="sticky top-0 z-40 bg-[#FBF6EF]/93 backdrop-blur-xl border-b border-[var(--line)]">
+    <div class="px-4 pt-3 pb-2 flex items-center gap-3">
+      <a href="customer.html" class="w-9 h-9 rounded-xl bg-white border border-[var(--line)] flex items-center justify-center shrink-0 active:scale-95 transition">
+        <i class="fa-solid fa-arrow-left text-[13px]"></i>
+      </a>
+      <div class="min-w-0 flex-1">
+        <p class="text-[15px] font-black leading-tight tracking-tight">Bulky Order</p>
+        <p class="text-[10px] font-semibold text-[var(--mocha)]/70 leading-tight">Multiple cups · one order number</p>
+      </div>
+      <button onclick="openCart()" class="relative w-10 h-10 rounded-full bg-white border border-[var(--line)] flex items-center justify-center active:scale-95 transition">
+        <i class="fa-solid fa-bag-shopping text-[15px]"></i>
+        <span id="cartBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--caramel)] text-white text-[10px] font-black flex items-center justify-center border-2 border-[#FBF6EF]">0</span>
+      </button>
+    </div>
+    <div id="chips" class="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3"></div>
+  </header>
+
+  <!-- Order details -->
+  <section class="px-4 pt-4">
+    <div class="bg-white border border-[var(--line)] rounded-2xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--mocha)]/60">Order details</p>
+        <span class="text-[9px] font-bold text-[var(--mocha)]/45">Required</span>
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">Name</label>
+        <input id="custName" type="text" maxlength="30" placeholder="Your name"
+          class="mt-1 w-full bg-[var(--cream)] border border-[var(--line)] rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none focus:border-[var(--caramel)]">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">Cup type</label>
+        <div class="mt-1 grid grid-cols-2 gap-2">
+          <button onclick="setCupType('In-Store')" id="btnInStore"
+            class="pill h-10 rounded-xl border text-[11px] font-black bg-[var(--espresso)] text-white border-[var(--espresso)]">In-Store</button>
+          <button onclick="setCupType('Takeaway')" id="btnTakeaway"
+            class="pill h-10 rounded-xl border text-[11px] font-black bg-white text-[var(--mocha)] border-[var(--line)]">Takeaway</button>
+        </div>
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">Pickup time</label>
+        <select id="pickupSelect" class="mt-1 w-full bg-[var(--cream)] border border-[var(--line)] rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none focus:border-[var(--caramel)]">
+          <option value="NOW">NOW (as soon as possible)</option>
+        </select>
+        <input id="pickupFree" type="text" placeholder="e.g. 12:30" class="hidden mt-1 w-full bg-[var(--cream)] border border-[var(--line)] rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none">
+      </div>
+    </div>
+  </section>
+
+  <main id="menu" class="px-4 pt-5 pb-40">
+    <div class="text-center py-16 text-[11px] font-bold text-[var(--mocha)]/50">
+      <i class="fa-solid fa-circle-notch fa-spin text-lg mb-2 block"></i>Loading menu…
+    </div>
+  </main>
+
+  <div id="cartBar" class="fixed inset-x-0 bottom-0 z-40 hidden">
+    <div class="max-w-[430px] mx-auto px-3 safe-bottom">
+      <button onclick="openCart()" class="w-full bg-[var(--espresso)] text-[#FBF6EF] rounded-2xl px-4 py-3 flex items-center gap-3 shadow-2xl active:scale-[.99] transition">
+        <span class="relative w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+          <i class="fa-solid fa-bag-shopping"></i>
+          <span id="cartBarCount" class="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--caramel)] text-white text-[10px] font-black flex items-center justify-center border-2 border-[var(--espresso)]">0</span>
+        </span>
+        <span class="text-left flex-1">
+          <span class="block text-[10px] font-bold uppercase tracking-widest text-[#FBF6EF]/50">Your order</span>
+          <span id="cartBarTotal" class="block text-[15px] font-black leading-tight">RM 0.00</span>
+        </span>
+        <span class="text-[12px] font-black bg-[var(--caramel)] px-4 py-2 rounded-xl">Review</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="overlay" onclick="closeAll()" class="fixed inset-0 z-40 bg-black/45 opacity-0 pointer-events-none fade"></div>
+
+  <!-- Detail sheet -->
+  <div id="detailSheet" class="fixed inset-x-0 bottom-0 z-50 max-w-[430px] mx-auto translate-y-full sheet">
+    <div class="bg-[#FBF6EF] rounded-t-3xl overflow-hidden max-h-[92vh] flex flex-col">
+      <div class="relative shrink-0">
+        <img id="dImage" src="" alt="" class="w-full h-52 object-cover bg-[#EFE5D8]">
+        <button onclick="closeAll()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <div class="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-[#FBF6EF] to-transparent"></div>
+      </div>
+      <div class="px-5 pb-4 overflow-y-auto">
+        <div class="flex items-start gap-3 -mt-3 relative">
+          <div class="flex-1">
+            <h2 id="dName" class="text-[19px] font-black leading-tight"></h2>
+            <p id="dTag" class="text-[10px] font-black uppercase tracking-widest text-[var(--caramel-dark)] mt-1"></p>
+          </div>
+          <p id="dPrice" class="text-[19px] font-black"></p>
+        </div>
+        <p id="dDesc" class="text-[12px] leading-relaxed text-[var(--mocha)] mt-3"></p>
+
+        <div class="mt-4 space-y-4">
+          <div id="dTempWrap">
+            <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-2">Temperature</p>
+            <div id="dTemp" class="flex gap-2"></div>
+          </div>
+          <div id="dNoteWrap">
+            <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-2">Special request</p>
+            <input id="dNote" type="text" maxlength="60" placeholder="e.g. less sugar, no ice…"
+              class="w-full bg-white border border-[var(--line)] rounded-xl px-3 py-2.5 text-[12px] font-semibold outline-none focus:border-[var(--caramel)]">
+          </div>
+        </div>
+      </div>
+      <div class="px-5 pt-3 pb-4 border-t border-[var(--line)] bg-white/70 safe-bottom shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center bg-white border border-[var(--line)] rounded-xl">
+            <button onclick="changeQty(-1)" class="w-9 h-10 active:scale-90 transition"><i class="fa-solid fa-minus text-xs"></i></button>
+            <span id="dQty" class="w-7 text-center text-[14px] font-black">1</span>
+            <button onclick="changeQty(1)" class="w-9 h-10 active:scale-90 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+          </div>
+          <button onclick="addFromDetail()" class="flex-1 h-11 rounded-xl bg-[var(--caramel)] hover:bg-[var(--caramel-dark)] text-white text-[13px] font-black flex items-center justify-center gap-2 active:scale-[.99] transition">
+            <span>Add to order</span>
+            <span id="dAddTotal" class="opacity-80"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart sheet -->
+  <div id="cartSheet" class="fixed inset-x-0 bottom-0 z-50 max-w-[430px] mx-auto translate-y-full sheet">
+    <div class="bg-[#FBF6EF] rounded-t-3xl flex flex-col max-h-[90vh]">
+      <div class="px-5 pt-4 pb-3 flex items-center justify-between border-b border-[var(--line)] shrink-0">
+        <div>
+          <h2 class="text-[17px] font-black leading-tight">Your order</h2>
+          <p id="cartSub" class="text-[10px] font-semibold text-[var(--mocha)]/70">0 cups</p>
+        </div>
+        <button onclick="closeAll()" class="w-9 h-9 rounded-full bg-white border border-[var(--line)] flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+      <div id="cartList" class="px-5 py-3 overflow-y-auto flex-1"></div>
+      <div class="px-5 pt-3 pb-4 border-t border-[var(--line)] bg-white/70 safe-bottom shrink-0">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] font-bold text-[var(--mocha)]">Total</span>
+          <span id="cartTotal" class="text-[20px] font-black">RM 0.00</span>
+        </div>
+        <p class="text-[9px] font-semibold text-[var(--mocha)]/55 mb-3">All cups share one order number, numbered -1, -2, -3…</p>
+        <button id="btnSubmit" onclick="submitOrder()" class="w-full h-12 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[13px] font-black active:scale-[.99] transition">
+          Place order
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div id="successSheet" class="fixed inset-0 z-[60] hidden items-center justify-center p-5 bg-black/55">
+    <div class="bg-[#FBF6EF] w-full max-w-[380px] rounded-3xl p-6 text-center pop">
+      <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+        <i class="fa-solid fa-check text-lg"></i>
+      </div>
+      <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--mocha)]/55">Order placed</p>
+      <p id="sBaseNum" class="text-[46px] font-black leading-none mt-1">—</p>
+      <p class="text-[11px] font-semibold text-[var(--mocha)]/70 mt-1">Collect at counter when called</p>
+      <div id="sCups" class="mt-4 space-y-2 text-left max-h-52 overflow-y-auto"></div>
+      <button onclick="finishOrder()" class="mt-5 w-full h-11 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[12px] font-black">Done</button>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[70] px-4 py-2.5 rounded-xl bg-[var(--espresso)] text-white text-[11px] font-bold shadow-xl opacity-0 pointer-events-none transition-all"></div>
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyqlnKCbMJkiaCxII9AeyzqlpX_k5C1R_WyzCduKxJZrU2hYar760vMDu0sVvBe1au67Q/exec";
+
+  const state = {
+    menu: [], categories: [], activeCat: "",
+    cart: {}, detail: null, qty: 1,
+    cupType: "", pickup: "NOW",
+    openingHours: {}, coldExtra: 0, coldPaused: false,
+    submitting: false
+  };
+
+  const money = n => "RM " + (Number(n) || 0).toFixed(2);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmtPrice = money;
+
+  /* ================= Data ================= */
+  function loadMenu() {
+    fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+      .then(r => r.json())
+      .then(data => {
+        if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+        state.coldPaused = !!data.coldPaused;
+        state.openingHours = data.openingHours || {};
+        state.menu = (data.menu || []).filter(i => i.available !== false);
+        buildCategories();
+        renderMenu();
+        renderPickupOptions();
+      })
+      .catch(() => {
+        document.getElementById("menu").innerHTML =
+          `<div class="text-center py-16"><p class="text-[12px] font-bold text-[var(--mocha)]">Menu unavailable</p>
+           <button onclick="loadMenu()" class="mt-3 text-[11px] font-black text-[var(--caramel-dark)] underline">Retry</button></div>`;
+      });
+  }
+
+  function buildCategories() {
+    const seen = [];
+    state.menu.forEach(i => {
+      const c = String(i.category || "Menu").trim() || "Menu";
+      if (!seen.includes(c)) seen.push(c);
+    });
+    state.categories = seen;
+    state.activeCat = seen[0] || "";
+    renderChips();
+  }
+
+  function renderChips() {
+    document.getElementById("chips").innerHTML = state.categories.map(c => `
+      <button data-cat="${esc(c)}" onclick="jumpTo(this.dataset.cat)"
+        class="chip shrink-0 px-3.5 py-1.5 rounded-full text-[11px] font-black border ${c === state.activeCat
+          ? "bg-[var(--espresso)] text-[#FBF6EF] border-[var(--espresso)]"
+          : "bg-white text-[var(--mocha)] border-[var(--line)]"}">${esc(c)}</button>`).join("");
+  }
+
+  function catId(c) { return "sec-" + String(c).replace(/[^a-zA-Z0-9_-]/g, "_"); }
+
+  function renderMenu() {
+    const wrap = document.getElementById("menu");
+    if (!state.menu.length) {
+      wrap.innerHTML = `<p class="text-center text-[12px] font-bold text-[var(--mocha)]/60 py-16">No items available right now.</p>`;
+      return;
+    }
+    wrap.innerHTML = state.categories.map(c => {
+      const items = state.menu.filter(i => (String(i.category || "Menu").trim() || "Menu") === c);
+      return `
+        <section id="${catId(c)}" class="mb-7">
+          <div class="flex items-baseline justify-between mb-3">
+            <h2 class="text-[16px] font-black tracking-tight">${esc(c)}</h2>
+            <span class="text-[10px] font-bold text-[var(--mocha)]/50">${items.length} items</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3">${items.map(cardHtml).join("")}</div>
+        </section>`;
+    }).join("");
+  }
+
+  function cardHtml(p) {
+    const soldOut = !!p.soldOut;
+    const img = String(p.imageUrl || "").trim();
+    const desc = String(p.description || "").trim();
+    const key = String(p.id || p.name);
+    return `
+      <button ${soldOut ? "disabled" : `onclick="openDetail(this.dataset.key)"`} data-key="${esc(key)}"
+        class="product-card text-left bg-white rounded-2xl border overflow-hidden shadow-[0_1px_2px_rgba(46,33,26,.04)] transition ${soldOut ? "border-[var(--line)] opacity-60 cursor-not-allowed" : "border-[var(--line)] active:shadow-md"}">
+        <div class="relative aspect-square overflow-hidden bg-[#EFE5D8]">
+          ${img ? `<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" class="card-img w-full h-full object-cover" onerror="this.style.display='none'">`
+                : `<div class="w-full h-full flex items-center justify-center text-[#D9C9B6]"><i class="fa-solid fa-mug-hot text-2xl"></i></div>`}
+          ${soldOut ? `<div class="absolute inset-0 bg-white/60 flex items-center justify-center"><span class="bg-[var(--espresso)] text-white text-[9px] font-black tracking-widest px-2.5 py-1 rounded-full">SOLD OUT</span></div>` : `
+          <span onclick="event.stopPropagation(); quickAdd(this.closest('[data-key]').dataset.key)"
+            class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-[var(--espresso)] text-white flex items-center justify-center shadow-lg active:scale-90 transition">
+            <i class="fa-solid fa-plus text-[11px]"></i>
+          </span>`}
+        </div>
+        <div class="p-2.5">
+          <p class="text-[12px] font-extrabold leading-snug line-clamp-1">${esc(p.name)}</p>
+          <p class="text-[10px] text-[var(--mocha)]/65 leading-snug mt-0.5 line-clamp-2" style="height:26px">${esc(desc || p.tempOptions || "")}</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[13px] font-black">${fmtPrice(p.price)}</span>
+            <span class="text-[9px] font-bold text-[var(--mocha)]/45">${p.tempOptions || "Hot & Cold"}</span>
+          </div>
+        </div>
+      </button>`;
+  }
+
+  function findItem(key) {
+    return state.menu.find(i => String(i.id || i.name) === String(key));
+  }
+
+  /* ================= Pickup ================= */
+  function pickupToMinutes(v) {
+    const m = String(v || "").match(/^(\d{1,2}):(\d{2})$/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  }
+  function minutesToPickup(min) {
+    const v = ((min % 1440) + 1440) % 1440;
+    const h = Math.floor(v / 60), m = v % 60;
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+
+  function buildPickupLabels(hours) {
+    const h = hours || {}, out = [];
+    const add = l => { if (l && !out.includes(l)) out.push(l); };
+    (Array.isArray(h.slots) ? h.slots : []).forEach(s => { if (s && s.start && s.end) add(s.start + " - " + s.end); });
+
+    const start = pickupToMinutes(h.start), end = pickupToMinutes(h.end);
+    const overnight = start != null && end != null && end <= start;
+    const now = new Date();
+    let nowMin = now.getHours() * 60 + now.getMinutes();
+    if (overnight && nowMin < start) nowMin += 1440;
+    const lead = Math.max(0, Number(h.minLead) || 0);
+    const available = m => (overnight && m < start ? m + 1440 : m) - lead >= nowMin;
+
+    (Array.isArray(h.specificTimes) ? h.specificTimes : []).forEach(t => {
+      const m = pickupToMinutes(t);
+      if (m != null && available(m)) add(t);
+    });
+
+    const perHour = Math.max(0, Math.min(12, Number(h.slotsPerHour) || 0));
+    if (perHour > 0 && start != null && end != null) {
+      const step = Math.round(60 / perHour);
+      const spanEnd = overnight ? end + 1440 : end;
+      for (let m = Math.ceil(start / step) * step; m < spanEnd; m += step) {
+        if (available(m)) add(minutesToPickup(m));
+      }
+    }
+    return out;
+  }
+
+  function renderPickupOptions() {
+    const sel = document.getElementById("pickupSelect");
+    const free = document.getElementById("pickupFree");
+    const labels = buildPickupLabels(state.openingHours);
+    const configured = labels.length || (state.openingHours && (
+      (Array.isArray(state.openingHours.slots) && state.openingHours.slots.length) ||
+      (Array.isArray(state.openingHours.specificTimes) && state.openingHours.specificTimes.length) ||
+      Number(state.openingHours.slotsPerHour) > 0));
+    if (!configured) {
+      sel.classList.add("hidden");
+      free.classList.remove("hidden");
+      return;
+    }
+    sel.innerHTML = ['<option value="NOW">NOW (as soon as possible)</option>']
+      .concat(labels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`)).join("");
+    sel.classList.remove("hidden");
+    free.classList.add("hidden");
+  }
+
+  /* ================= Detail ================= */
+  function tempsFor(item) {
+    const raw = String(item.tempOptions || "Hot & Cold");
+    return ["Hot", "Cold"].filter(t => raw.toLowerCase().includes(t.toLowerCase()));
+  }
+
+  function openDetail(key) {
+    const p = findItem(key);
+    if (!p || p.soldOut) return;
+    state.detail = p;
+    state.qty = 1;
+
+    const img = String(p.imageUrl || "").trim();
+    const imgEl = document.getElementById("dImage");
+    if (img) { imgEl.src = img; imgEl.classList.remove("hidden"); } else { imgEl.classList.add("hidden"); }
+    document.getElementById("dName").textContent = p.name;
+    document.getElementById("dTag").textContent = p.category || "MFC Cafe";
+    document.getElementById("dDesc").textContent = p.description || "Freshly made to order.";
+    document.getElementById("dNote").value = "";
+    document.getElementById("dQty").textContent = "1";
+
+    const temps = tempsFor(p);
+    document.getElementById("dTempWrap").classList.toggle("hidden", !temps.length);
+    document.getElementById("dTemp").innerHTML = temps.map((t, i) =>
+      `<button data-temp="${t}" onclick="pickTemp(this)"
+        class="option-temp px-4 py-2 rounded-xl text-[11px] font-bold border ${i === 0
+          ? "bg-[var(--espresso)] text-white border-[var(--espresso)]"
+          : "bg-white text-[var(--mocha)] border-[var(--line)]"}">${t === "Cold" ? "Cold 🧊" : "Hot ☕"}</button>`).join("");
+
+    const notesWrap = document.getElementById("dNoteWrap");
+    notesWrap.classList.toggle("hidden", p.allowNotes === false);
+
+    updateDetailTotal();
+    showSheet("detailSheet");
+  }
+
+  function pickTemp(btn) {
+    document.querySelectorAll("#dTemp .option-temp").forEach(b => {
+      b.className = "option-temp px-4 py-2 rounded-xl text-[11px] font-bold border bg-white text-[var(--mocha)] border-[var(--line)]";
+    });
+    btn.className = "option-temp px-4 py-2 rounded-xl text-[11px] font-bold border bg-[var(--espresso)] text-white border-[var(--espresso)]";
+    updateDetailTotal();
+  }
+
+  function currentTemp() {
+    const el = document.querySelector("#dTemp .option-temp.bg-\\[var\\(--espresso\\)\\]");
+    return el ? el.dataset.temp : (tempsFor(state.detail || {})[0] || "");
+  }
+
+  function priceFor(item, temp) {
+    const extra = temp === "Cold" ? (state.coldExtra || 0) : 0;
+    return (Number(item.price) || 0) + extra;
+  }
+
+  function changeQty(d) {
+    state.qty = Math.max(1, Math.min(20, state.qty + d));
+    document.getElementById("dQty").textContent = state.qty;
+    updateDetailTotal();
+  }
+
+  function updateDetailTotal() {
+    if (!state.detail) return;
+    document.getElementById("dAddTotal").textContent = "· " + money(priceFor(state.detail, currentTemp()) * state.qty);
+    document.getElementById("dPrice").textContent = money(priceFor(state.detail, currentTemp()));
+  }
+
+  function detailNote() {
+    const p = state.detail;
+    if (!p || p.allowNotes === false) return "";
+    return document.getElementById("dNote").value.trim();
+  }
+
+  function addFromDetail() {
+    const p = state.detail;
+    if (!p) return;
+    addToCart(p, state.qty, currentTemp(), detailNote());
+    closeAll();
+  }
+
+  function quickAdd(key) {
+    const p = findItem(key);
+    if (!p || p.soldOut) return;
+    const temp = tempsFor(p)[0] || "";
+    addToCart(p, 1, temp, "");
+  }
+
+  /* ================= Cart ================= */
+  function addToCart(p, qty, temp, note) {
+    const key = [p.id || p.name, temp, note].join("|");
+    if (!state.cart[key]) {
+      state.cart[key] = {
+        key, name: p.name, price: priceFor(p, temp), temp, note,
+        img: String(p.imageUrl || "").trim(), qty: 0
+      };
+    }
+    state.cart[key].qty += qty;
+    renderCart();
+    toast(`${p.name} × ${qty} added`);
+  }
+
+  function cartItems() { return Object.values(state.cart); }
+  function cartCount() { return cartItems().reduce((s, i) => s + i.qty, 0); }
+  function cartTotal() { return cartItems().reduce((s, i) => s + i.qty * i.price, 0); }
+
+  function renderCart() {
+    const items = cartItems(), count = cartCount(), total = cartTotal();
+
+    document.getElementById("cartBadge").textContent = count;
+    document.getElementById("cartBadge").classList.toggle("hidden", count === 0);
+    document.getElementById("cartBar").classList.toggle("hidden", count === 0);
+    document.getElementById("cartBarCount").textContent = count;
+    document.getElementById("cartBarTotal").textContent = money(total);
+    document.getElementById("cartSub").textContent = `${count} cup${count === 1 ? "" : "s"} · one order number`;
+    document.getElementById("cartTotal").textContent = money(total);
+
+    const list = document.getElementById("cartList");
+    if (!items.length) {
+      list.innerHTML = `
+        <div class="text-center py-12">
+          <div class="w-14 h-14 rounded-full bg-white border border-[var(--line)] flex items-center justify-center mx-auto mb-3">
+            <i class="fa-solid fa-mug-saucer text-[var(--mocha)]/30 text-xl"></i>
+          </div>
+          <p class="text-[13px] font-black">No cups yet</p>
+          <p class="text-[11px] font-medium text-[var(--mocha)]/60 mt-1">Tap a drink to start your bulky order.</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = items.map(i => `
+      <div class="flex gap-3 py-3 border-b border-[var(--line)] last:border-0">
+        ${i.img ? `<img src="${esc(i.img)}" class="w-14 h-14 rounded-xl object-cover bg-[#EFE5D8]" alt="" onerror="this.style.visibility='hidden'">`
+                : `<div class="w-14 h-14 rounded-xl bg-[#EFE5D8]"></div>`}
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-[12px] font-extrabold leading-tight">${esc(i.name)}</p>
+            <p class="text-[12px] font-black shrink-0">${money(i.price * i.qty)}</p>
+          </div>
+          <p class="text-[10px] font-semibold text-[var(--mocha)]/65 mt-0.5">${esc(i.temp || "Standard")}${i.note ? " · " + esc(i.note) : ""}</p>
+          <div class="flex items-center gap-2 mt-2">
+            <button onclick="cartQty(this.dataset.key,-1)" data-key="${esc(i.key)}" class="w-7 h-7 rounded-lg bg-white border border-[var(--line)] flex items-center justify-center text-[10px] active:scale-90 transition"><i class="fa-solid fa-minus"></i></button>
+            <span class="text-[11px] font-black w-5 text-center">${i.qty}</span>
+            <button onclick="cartQty(this.dataset.key,1)" data-key="${esc(i.key)}" class="w-7 h-7 rounded-lg bg-white border border-[var(--line)] flex items-center justify-center text-[10px] active:scale-90 transition"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+  function cartQty(key, d) {
+    const item = state.cart[key];
+    if (!item) return;
+    item.qty += d;
+    if (item.qty <= 0) delete state.cart[key];
+    renderCart();
+    if (!Object.keys(state.cart).length) closeAll();
+  }
+
+  function setCupType(t) {
+    state.cupType = t;
+    const on = "pill h-10 rounded-xl border text-[11px] font-black bg-[var(--espresso)] text-white border-[var(--espresso)]";
+    const off = "pill h-10 rounded-xl border text-[11px] font-black bg-white text-[var(--mocha)] border-[var(--line)]";
+    document.getElementById("btnInStore").className = t === "In-Store" ? on : off;
+    document.getElementById("btnTakeaway").className = t === "Takeaway" ? on : off;
+  }
+
+  /* ================= Submit ================= */
+  function submitOrder() {
+    if (state.submitting) return;
+    const name = document.getElementById("custName").value.trim();
+    if (!name) { closeAll(); return toast("Please enter a name first"); }
+    if (!state.cupType) { closeAll(); return toast("Please select In-Store or Takeaway"); }
+    if (!cartCount()) return toast("Your order is empty");
+
+    const sel = document.getElementById("pickupSelect");
+    const free = document.getElementById("pickupFree");
+    const pickupTime = (!sel.classList.contains("hidden") ? sel.value : free.value.trim()) || "NOW";
+
+    const orders = [];
+    cartItems().forEach(i => {
+      for (let n = 0; n < i.qty; n++) {
+        orders.push({
+          orderTime: new Date().toISOString(),
+          pickupTime,
+          cashier: "Teacher / Pre-Order",
+          guestName: name,
+          productName: i.name,
+          temp: i.temp,
+          customization: i.note || "",
+          price: i.price,
+          discount: 0,
+          status: "RESERVED",
+          cupType: state.cupType
+        });
+      }
+    });
+
+    state.submitting = true;
+    const btn = document.getElementById("btnSubmit");
+    btn.disabled = true;
+    btn.classList.add("opacity-50");
+    btn.textContent = "Placing order…";
+
+    fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "createOrders", orders })
+    })
+      .then(r => r.json())
+      .then(res => {
+        btn.disabled = false;
+        btn.classList.remove("opacity-50");
+        btn.textContent = "Place order";
+        state.submitting = false;
+
+        if (!res.success) return toast(res.error || "Order failed", "error");
+
+        state.cart = {};
+        renderCart();
+        closeAll();
+        showSuccess(res);
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.classList.remove("opacity-50");
+        btn.textContent = "Place order";
+        state.submitting = false;
+        toast("Network error, please retry");
+      });
+  }
+
+  function showSuccess(res) {
+    const list = res.orders || [];
+    document.getElementById("sBaseNum").textContent = res.orderNum || "—";
+    document.getElementById("sCups").innerHTML = list.map(o => `
+      <div class="flex items-center gap-3 bg-white border border-[var(--line)] rounded-xl px-3 py-2">
+        <span class="text-[13px] font-black text-[var(--caramel-dark)] w-16 shrink-0">${esc(o.orderNum)}</span>
+        <span class="text-[11px] font-bold text-[var(--espresso)] truncate flex-1">${esc(o.productName)}</span>
+        <span class="text-[9px] font-bold text-[var(--mocha)]/55">${esc(o.temp || "")}</span>
+      </div>`).join("");
+    const el = document.getElementById("successSheet");
+    el.classList.remove("hidden");
+    el.classList.add("flex");
+  }
+
+  function finishOrder() {
+    const el = document.getElementById("successSheet");
+    el.classList.add("hidden");
+    el.classList.remove("flex");
+    document.getElementById("custName").value = "";
+    setCupType("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ================= Sheets / toast ================= */
+  function showSheet(id) {
+    document.getElementById("overlay").classList.remove("opacity-0", "pointer-events-none");
+    document.getElementById(id).classList.remove("translate-y-full");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeAll() {
+    document.getElementById("overlay").classList.add("opacity-0", "pointer-events-none");
+    document.getElementById("detailSheet").classList.add("translate-y-full");
+    document.getElementById("cartSheet").classList.add("translate-y-full");
+    document.body.style.overflow = "";
+  }
+
+  function openCart() { renderCart(); showSheet("cartSheet"); }
+
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.remove("opacity-0");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.add("opacity-0"), 1700);
+  }
+
+  /* ================= Category scroll ================= */
+  function jumpTo(cat) {
+    const sec = document.getElementById(catId(cat));
+    if (!sec) return;
+    const headerH = document.querySelector("header").offsetHeight;
+    window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - headerH - 8, behavior: "smooth" });
+    state.activeCat = cat;
+    renderChips();
+  }
+
+  window.addEventListener("scroll", () => {
+    const headerH = document.querySelector("header").offsetHeight + 12;
+    let current = state.categories[0] || "";
+    state.categories.forEach(c => {
+      const sec = document.getElementById(catId(c));
+      if (sec && sec.getBoundingClientRect().top <= headerH) current = c;
+    });
+    if (current && current !== state.activeCat) { state.activeCat = current; renderChips(); }
+  }, { passive: true });
+
+  loadMenu();
+  renderCart();
+</script>
+</body>
+</html>

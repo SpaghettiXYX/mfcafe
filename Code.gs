@@ -1106,7 +1106,11 @@ function calculateNextOrderNum(ordersData, userCode) {
   throw new Error("All order numbers in this range are in use. Please clear some orders first.");
 }
 
-function createOrderLocked(order) {
+function createOrderLocked(orderOrOrders) {
+  const orders = Array.isArray(orderOrOrders) ? orderOrOrders : [orderOrOrders];
+  if (!orders.length) return { success: false, error: "No items in this order." };
+  if (orders.length > 20) return { success: false, error: "Too many cups in one order (max 20)." };
+
   const lock = LockService.getScriptLock();
   try { lock.waitLock(10000); } catch (e) { return { success: false, error: "Server busy, please retry." }; }
 
@@ -1115,78 +1119,95 @@ function createOrderLocked(order) {
     const sheet = ensureOrdersSheet(ss);
     const data = sheet.getDataRange().getValues();
 
-    const userCode = getUserCodeForOrder(ss, order);
-    const assignedOrderNum = calculateNextOrderNum(data, userCode);
+    const first = orders[0];
+    const userCode = getUserCodeForOrder(ss, first);
+    // One shared counter for the whole order: 1001, then 1001-1 / 1001-2 …
+    const baseOrderNum = calculateNextOrderNum(data, userCode);
+    const isMulti = orders.length > 1;
+    const orderTime = first.orderTime || new Date().toISOString();
+    const cashier = first.cashier || "Self-Order";
+    const guestName = first.guestName || "Guest";
+    const createdOrders = [];
 
-    const orderTime = order.orderTime || new Date().toISOString();
-    let pickupTime = order.pickupTime || "";
-    // Force pickup time to be stored as plain text in the sheet
-    if (pickupTime && !String(pickupTime).startsWith("'")) pickupTime = "'" + pickupTime;
-    const cashier = order.cashier || "Self-Order";
-    const guestName = order.guestName || "Guest";
-    const status = order.status || "PENDING";
-    const qrTile = order.qrTile || "";
-    let paymentStatus = String(order.paymentStatus || "").trim();
-    if (!paymentStatus) {
-      paymentStatus = (status === "UNPAID" || status === "RESERVED") ? "UNPAID" : "PAID";
-    }
+    for (let idx = 0; idx < orders.length; idx++) {
+      const order = orders[idx];
+      const assignedOrderNum = isMulti ? baseOrderNum + "-" + (idx + 1) : baseOrderNum;
 
-    let rawNote = String(order.customization || "").replace(/[\r\n]+/g, " ").trim();
-    if (rawNote.startsWith("+") || rawNote.startsWith("=") || rawNote.startsWith("-")) rawNote = "'" + rawNote;
-
-    // CupType: required. Only "In-Store" or "Takeaway" accepted.
-    let cupType = String(order.cupType || "").trim();
-    if (!cupType) {
-      lock.releaseLock();
-      return { success: false, error: "Cup type is required — please select In-Store or Takeaway." };
-    }
-    cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
-
-    const price = Number(order.price) || 0;
-    const discount = Math.max(0, Math.min(price, Number(order.discount) || 0));
-    const promoCode = String(order.promoCode || "").trim().toUpperCase();
-    const discountBy = String(order.discountBy || "").trim();
-
-    const createdOrder = {
-      orderNum: assignedOrderNum,
-      orderTime: orderTime,
-      pickupTime: pickupTime.replace(/^'/, ""),
-      cashier: cashier,
-      guestName: guestName,
-      productName: order.productName,
-      temp: order.temp,
-      customization: rawNote.replace(/^'/, ""),
-      price: price,
-      discount: discount,
-      promoCode: promoCode,
-      discountBy: discountBy,
-      status: status,
-      qrTile: qrTile,
-      paymentStatus: paymentStatus,
-      cupType: cupType
-    };
-
-    sheet.appendRow([
-      createdOrder.orderNum, createdOrder.orderTime, pickupTime,
-      createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
-      createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus, cupType, discount, promoCode, discountBy
-    ]);
-
-    // Bind QR tile if provided — reject unknown tiles so we never end up
-    // with an order that has a dangling qrTile no cashier can clear.
-    if (qrTile) {
-      const bind = bindTileToOrder(qrTile, assignedOrderNum);
-      if (!bind.success) {
-        lock.releaseLock();
-        return { success: false, error: bind.error + " (tile '" + qrTile + "' does not exist in QR Tiles sheet)" };
+      let pickupTime = order.pickupTime || "";
+      // Force pickup time to be stored as plain text in the sheet
+      if (pickupTime && !String(pickupTime).startsWith("'")) pickupTime = "'" + pickupTime;
+      const status = order.status || "PENDING";
+      // A QR tile identifies one physical cup, so it only applies to single-cup orders
+      const qrTile = isMulti ? "" : (order.qrTile || "");
+      let paymentStatus = String(order.paymentStatus || "").trim();
+      if (!paymentStatus) {
+        paymentStatus = (status === "UNPAID" || status === "RESERVED") ? "UNPAID" : "PAID";
       }
+
+      let rawNote = String(order.customization || "").replace(/[\r\n]+/g, " ").trim();
+      if (rawNote.startsWith("+") || rawNote.startsWith("=") || rawNote.startsWith("-")) rawNote = "'" + rawNote;
+
+      // CupType: required. Only "In-Store" or "Takeaway" accepted.
+      let cupType = String(order.cupType || "").trim();
+      if (!cupType) {
+        lock.releaseLock();
+        return { success: false, error: "Cup type is required — please select In-Store or Takeaway." };
+      }
+      cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
+
+      const price = Number(order.price) || 0;
+      const discount = Math.max(0, Math.min(price, Number(order.discount) || 0));
+      const promoCode = String(order.promoCode || "").trim().toUpperCase();
+      const discountBy = String(order.discountBy || "").trim();
+
+      const createdOrder = {
+        orderNum: assignedOrderNum,
+        orderTime: orderTime,
+        pickupTime: pickupTime.replace(/^'/, ""),
+        cashier: cashier,
+        guestName: guestName,
+        productName: order.productName,
+        temp: order.temp,
+        customization: rawNote.replace(/^'/, ""),
+        price: price,
+        discount: discount,
+        promoCode: promoCode,
+        discountBy: discountBy,
+        status: status,
+        qrTile: qrTile,
+        paymentStatus: paymentStatus,
+        cupType: cupType
+      };
+
+      sheet.appendRow([
+        createdOrder.orderNum, createdOrder.orderTime, pickupTime,
+        createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
+        createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
+        createdOrder.paymentStatus, cupType, discount, promoCode, discountBy
+      ]);
+
+      // Bind QR tile if provided — reject unknown tiles so we never end up
+      // with an order that has a dangling qrTile no cashier can clear.
+      if (qrTile) {
+        const bind = bindTileToOrder(qrTile, assignedOrderNum);
+        if (!bind.success) {
+          lock.releaseLock();
+          return { success: false, error: bind.error + " (tile '" + qrTile + "' does not exist in QR Tiles sheet)" };
+        }
+      }
+
+      createdOrders.push(createdOrder);
     }
 
     SpreadsheetApp.flush();
     bumpVersion();
     lock.releaseLock();
-    return { success: true, orderNum: assignedOrderNum, order: createdOrder };
+    return {
+      success: true,
+      orderNum: baseOrderNum,
+      orders: createdOrders,
+      order: createdOrders[0]
+    };
   } catch (err) {
     lock.releaseLock();
     return { success: false, error: err.toString() };
@@ -1885,6 +1906,17 @@ function doPost(e) {
         data.order.status = "RESERVED";
       }
       return jsonResponse(createOrderLocked(data.order));
+    }
+
+    // Multi-cup bulky order: every cup gets its own row and its own KDS block,
+    // sharing one base number (1001-1, 1001-2, …).
+    if (action === "createOrders") {
+      const win = isPreorderWindowOpen();
+      if (!win.open) return jsonResponse({ success: false, error: closedPreorderMessage_(win.hours) });
+      const items = Array.isArray(data.orders) ? data.orders : [];
+      if (!items.length) return jsonResponse({ success: false, error: "No items in this order." });
+      items.forEach(item => { item.status = "RESERVED"; });
+      return jsonResponse(createOrderLocked(items));
     }
     if (action === "confirmPayment") return jsonResponse(confirmPaymentStatus(data.orderNum));
     if (action === "assignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "ASSIGNED"));
