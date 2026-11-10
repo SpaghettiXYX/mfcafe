@@ -324,6 +324,23 @@ function setUserCanPrint(username, canPrint) {
   return { success: false, error: "User not found" };
 }
 
+function setUserCode(username, userCode) {
+  const code = String(userCode || "").trim();
+  if (!code) return { success: false, error: "Staff card code is required" };
+  if (code.length > 40) return { success: false, error: "Staff card code is too long" };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+      usersSheet.getRange(i + 1, 4).setValue(code);
+      bumpVersion();
+      return { success: true, username: String(data[i][0]).trim(), userCode: code };
+    }
+  }
+  return { success: false, error: "User not found" };
+}
+
 function deleteUser(username) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
@@ -1774,6 +1791,7 @@ function doPost(e) {
     if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
     if (action === "setUserCanPrint") return jsonResponse(setUserCanPrint(data.username, !!data.canPrint));
+    if (action === "setUserCode") return jsonResponse(setUserCode(data.username, data.userCode));
     if (action === "changeUserPassword") return jsonResponse(changeUserPassword(data.username, data.password));
     if (action === "setUserGoogleEmail") return jsonResponse(setUserGoogleEmail(data.username, data.email));
     if (action === "saveHotkeys") return jsonResponse(saveHotkeys(data.hotkeys));

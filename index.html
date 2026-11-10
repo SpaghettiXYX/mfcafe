@@ -1107,6 +1107,33 @@
         </div>
       </div>
 
+      <!-- Staff card login configuration -->
+      <div data-admin-section="staffcards" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="border-b border-slate-100 pb-3">
+          <h3 class="font-black text-slate-800 text-lg">Staff Card Login</h3>
+          <p class="text-xs text-slate-400">Assign the card code each account uses on the login screen. One card can serve several accounts — give them the same code and the login will ask which account to use.</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-[11px] font-semibold text-amber-800 leading-relaxed">
+          <i class="fa-solid fa-circle-info mr-1"></i>
+          The card code is also the order-number prefix (code 2 → 2001, 2002…). Changing it affects new order numbers for that account.
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
+                <th class="py-2.5 px-3">Account</th>
+                <th class="py-2.5 px-3">Role</th>
+                <th class="py-2.5 px-3">Staff Card Code</th>
+                <th class="py-2.5 px-3">Shared Card</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminStaffCardsTableBody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <p class="text-[10px] font-semibold text-slate-400">Test a card by signing out and scanning it on the login screen.</p>
+      </div>
+
       <!-- Menu Management Table -->
       <div data-admin-section="menu" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -4335,6 +4362,7 @@
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
+      { key: "staffcards",   label: "Staff Cards",         icon: "fa-id-card" },
       { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
       { key: "printer",      label: "Printer Control",    icon: "fa-print" },
       { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
@@ -4376,6 +4404,59 @@
       if (key === "operation") renderOpeningHoursEditor();
       if (key === "manual") renderManualEditor();
       if (key === "promotions") renderPromotionsEditor();
+      if (key === "staffcards") renderAdminStaffCards();
+    }
+
+    // ==================== ADMIN: STAFF CARD LOGIN ====================
+    function renderAdminStaffCards() {
+      const tbody = document.getElementById("adminStaffCardsTableBody");
+      if (!tbody) return;
+      const users = Array.isArray(state.users) ? state.users : [];
+      const counts = {};
+      users.forEach(u => {
+        const code = String(u.userCode || "").trim();
+        if (code) counts[code] = (counts[code] || 0) + 1;
+      });
+      tbody.innerHTML = users.map((u, i) => {
+        const code = String(u.userCode || "").trim();
+        const shared = code ? (counts[code] || 0) : 0;
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
+            <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || "Staff")}</td>
+            <td class="py-3 px-3">
+              <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" value="${escapeHtml(code)}"
+                class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+            </td>
+            <td class="py-3 px-3">
+              ${shared > 1
+                ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-sky-100 text-sky-700"><i class="fa-solid fa-user-group"></i>${shared} accounts</span>`
+                : `<span class="text-[10px] font-bold text-slate-400">Not shared</span>`}
+            </td>
+            <td class="py-3 px-3 text-right">
+              <button onclick="saveStaffCardCode(${i})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Save</button>
+            </td>
+          </tr>`;
+      }).join("");
+    }
+
+    async function saveStaffCardCode(index) {
+      const input = document.getElementById("staffCardCodeInput" + index);
+      if (!input) return;
+      const username = input.dataset.username;
+      const code = input.value.trim();
+      if (!code) return showToast("Staff card code cannot be empty", "warning");
+      try {
+        const res = await apiPost({ action: "setUserCode", username, userCode: code });
+        if (!res || !res.success) return showToast((res && res.error) || "Failed to update staff card", "error");
+        const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(username).toLowerCase());
+        if (u) u.userCode = code;
+        renderAdminStaffCards();
+        renderAll();
+        showToast(`${username}: card updated`, "success", 2000);
+      } catch (e) {
+        showToast("Network error: " + (e.message || "request failed"), "error", 4000);
+      }
     }
 
     // ==================== ADMIN: OPENING HOURS & PICKUP SLOTS ====================
@@ -4831,6 +4912,7 @@
         });
         usersTbody.innerHTML = html;
       }
+      renderAdminStaffCards();
 
       const tbody = document.getElementById('adminMenuTableBody');
       if (tbody) {
