@@ -255,6 +255,10 @@
     }
     .ins-done:hover { background: #047857; }
     .ins-done:active { transform: scale(.99); }
+
+    /* Promo popup sits above every other modal layer. */
+    #promoPopupModal { z-index: 140; }
+    #promoPopupModal.hidden { display: none; }
   </style>
   <script>
     (function(){
@@ -296,6 +300,36 @@
       <div>
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Pickup Time (Pre-order / Teacher)</label>
         <input type="text" id="custPickupTime" placeholder="e.g. 10:30 AM / Recess" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+        <select id="custPickupSlot" class="hidden w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition"></select>
+      </div>
+      <!-- Promo code + price summary -->
+      <div>
+        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Promo Code</label>
+        <div class="flex space-x-2">
+          <input type="text" id="custPromoCode" placeholder="Enter code" autocomplete="off" class="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+          <button type="button" id="custPromoApplyBtn" onclick="applyCustPromoCode()"
+            class="px-3.5 py-2.5 rounded-xl text-xs font-extrabold border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300">
+            Apply
+          </button>
+          <button type="button" id="custPromoClearBtn" onclick="clearCustPromoCode()"
+            class="hidden px-3 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300">
+            Clear
+          </button>
+        </div>
+        <p id="custPromoStatus" class="text-[11px] font-bold text-slate-400 mt-1"></p>
+        <div id="custPriceSummary" class="hidden mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 space-y-1">
+          <div class="flex justify-between items-center text-[11px] font-bold text-slate-500">
+            <span>Subtotal</span><span id="custSubtotalDisplay">$0.00</span>
+          </div>
+          <div id="custDiscountRow" class="hidden">
+            <div class="flex justify-between items-center text-[11px] font-bold text-emerald-600">
+              <span>Discount</span><span id="custDiscountDisplay">-$0.00</span>
+            </div>
+          </div>
+          <div class="flex justify-between items-center text-xs font-black text-slate-800">
+            <span>Total</span><span id="custTotalDisplay">$0.00</span>
+          </div>
+        </div>
       </div>
       <!-- Cup Type — mandatory -->
       <div>
@@ -449,6 +483,27 @@
     </div>
   </div>
 
+  <!-- PROMO POPUP MODAL -->
+  <div id="promoPopupModal" class="hidden fixed inset-0 bg-black/75 flex items-center justify-center p-4"
+       role="dialog" aria-modal="true" aria-labelledby="promoPopupTitle"
+       onclick="if (event.target === this) closePromoPopup()">
+    <div class="bg-white rounded-3xl w-full max-w-sm max-h-[92vh] overflow-y-auto p-4 space-y-3 text-center">
+      <div class="flex items-center justify-between">
+        <p id="promoPopupTitle" class="text-sm font-black text-slate-800 text-left"></p>
+        <button type="button" onclick="closePromoPopup()" aria-label="Close promotion"
+          class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <img id="promoPopupImage" alt="Promotion" class="hidden w-full rounded-xl border border-slate-200 shadow-sm">
+      <p id="promoPopupBody" class="text-xs text-slate-600 font-medium leading-snug text-left" style="white-space:pre-line"></p>
+      <button type="button" onclick="closePromoPopup()"
+        class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">
+        Got it
+      </button>
+    </div>
+  </div>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] space-y-2 pointer-events-none"></div>
 
@@ -481,15 +536,16 @@
        onclick="if (event.target === this) closeInstructions()">
     <div id="instructionsSheet">
       <div class="ins-head">
-        <h2 id="instructionsTitle" class="ins-title">
+        <h2 class="ins-title">
           <i class="fa-solid fa-circle-info" style="color:#f59e0b"></i>
-          How to pre-order
+          <span id="instructionsTitle">How to pre-order</span>
         </h2>
         <button type="button" class="ins-close" onclick="closeInstructions()" aria-label="Close instructions">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-      <div class="ins-steps">
+      <p id="instructionsHeading" class="hidden" style="font-size:12px;font-weight:800;color:#64748b;margin:0 0 12px"></p>
+      <div class="ins-steps" id="instructionsSteps">
         <div class="ins-step"><span class="ins-num">1</span><span>Enter your name and pickup time (e.g. <strong>10:30 AM</strong> or <strong>Recess</strong>).</span></div>
         <div class="ins-step"><span class="ins-num">2</span><span>Choose <strong>In-Store</strong> or <strong>Takeaway</strong> cup — this is required.</span></div>
         <div class="ins-step"><span class="ins-num">3</span><span>Tap a drink, pick <strong>Hot</strong> or <strong>Cold</strong>, then add optional notes (less sugar, extra hot…).</span></div>
@@ -497,7 +553,7 @@
         <div class="ins-step"><span class="ins-num">5</span><span>Show the barcode to bar staff or the cashier at pickup. Your drink is prepared for your pickup time.</span></div>
         <div class="ins-step"><span class="ins-num">6</span><span>Changed your mind? Tap <strong>Cancel This Order</strong> before pickup, or <strong>Order Another Drink</strong> to start again.</span></div>
       </div>
-      <p class="ins-note">
+      <p class="ins-note" id="instructionsNote">
         <i class="fa-solid fa-lightbulb" style="color:#f59e0b"></i>
         Tap <strong>Download Barcode Receipt</strong> to save your ticket to Photos. During busy periods online pre-ordering may be paused — please order at the counter instead.
       </p>
@@ -528,7 +584,11 @@
       coldPaused: false,
       teacherReservationOpen: true,
       teacherPauseReason: "",
-      currentOrder: null
+      currentOrder: null,
+      openingHours: null,
+      promoPopup: null,
+      instructions: null,
+      promoCode: null
     };
     const selfOrderHistory = SelfOrderHistory.create({
       storageKey: 'mfcafe_customer_orders_v1', state, apiUrl: APPS_SCRIPT_URL,
@@ -536,6 +596,7 @@
       applyReservation: applyReservationState, closeReceipt: closeReceiptModal, notify: showToast
     });
     let menuPollingStarted = false;
+    let promoPopupShown = false;
 
     // ===== SAFE PRICE HELPER =====
     function fmtPrice(v) { return `$${(Number(v) || 0).toFixed(2)}`; }
@@ -578,6 +639,8 @@
     function init() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
+      applyInstructions();
+
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
         .then(res => res.json())
         .then(data => {
@@ -588,8 +651,12 @@
           if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          if (data.openingHours) { state.openingHours = data.openingHours; renderPickupOptions(); }
+          if (data.instructions) { state.instructions = data.instructions; applyInstructions(); }
+          if (data.promoPopup) { state.promoPopup = data.promoPopup; showPromoPopup(); }
           applyReservationState();
           renderMenu();
+          updateCustPriceSummary();
         })
         .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
 
@@ -690,6 +757,143 @@
       return (Number(item.price) || 0) + coldExtra;
     }
 
+    // ===== PICKUP SLOTS =====
+    // Opening hours may define named windows: when they do, the free-text
+    // input is replaced by a dropdown so guests pick a valid slot.
+    function renderPickupOptions() {
+      const input = document.getElementById('custPickupTime');
+      const select = document.getElementById('custPickupSlot');
+      if (!input || !select) return;
+      const slots = (state.openingHours && Array.isArray(state.openingHours.slots)) ? state.openingHours.slots : [];
+      if (!slots.length) {
+        select.dataset.signature = "";
+        select.classList.add('hidden');
+        input.classList.remove('hidden');
+        return;
+      }
+      const signature = JSON.stringify(slots);
+      if (select.dataset.signature === signature) return;
+      const previous = select.value;
+      select.dataset.signature = signature;
+      const options = ['<option value="NOW">NOW (as soon as possible)</option>'];
+      slots.forEach(slot => {
+        const label = `${slot.start} - ${slot.end}`;
+        options.push(`<option value="${escapeHtml(label)}">${escapeHtml(label)}</option>`);
+      });
+      select.innerHTML = options.join('');
+      if (previous && Array.prototype.some.call(select.options, o => o.value === previous)) {
+        select.value = previous;
+      }
+      select.classList.remove('hidden');
+      input.classList.add('hidden');
+    }
+
+    function getSelectedPickupTime() {
+      const input = document.getElementById('custPickupTime');
+      const select = document.getElementById('custPickupSlot');
+      const useSlot = select && !select.classList.contains('hidden');
+      const value = useSlot ? select.value : (input ? input.value : "");
+      return String(value || "").trim();
+    }
+
+    // ===== PROMO CODE + PRICE SUMMARY =====
+    function getCustSubtotal() {
+      if (!state.selectedItem) return 0;
+      return getItemPrice(state.selectedItem, state.selectedTemp);
+    }
+
+    function getCustDiscount() {
+      if (!state.promoCode) return 0;
+      const subtotal = getCustSubtotal();
+      const p = state.promoCode;
+      const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100 : Number(p.value) || 0;
+      return Math.max(0, Math.min(raw, subtotal));
+    }
+
+    function setCustPromoStatus(message, type) {
+      const el = document.getElementById('custPromoStatus');
+      if (!el) return;
+      el.textContent = message || "";
+      el.className = `text-[11px] font-bold mt-1 ${type === 'success' ? 'text-emerald-600' : type === 'error' ? 'text-rose-600' : 'text-slate-400'}`;
+    }
+
+    function updateCustPriceSummary() {
+      const subtotal = getCustSubtotal();
+      const discount = getCustDiscount();
+      const total = Math.max(0, subtotal - discount);
+
+      const summary = document.getElementById('custPriceSummary');
+      if (summary) summary.classList.toggle('hidden', !state.selectedItem);
+      const subtotalEl = document.getElementById('custSubtotalDisplay');
+      if (subtotalEl) subtotalEl.innerText = fmtPrice(subtotal);
+      const discountEl = document.getElementById('custDiscountDisplay');
+      if (discountEl) discountEl.innerText = `-${fmtPrice(discount)}`;
+      const discountRow = document.getElementById('custDiscountRow');
+      if (discountRow) discountRow.classList.toggle('hidden', !(discount > 0));
+      const totalEl = document.getElementById('custTotalDisplay');
+      if (totalEl) totalEl.innerText = fmtPrice(total);
+
+      const btnText = document.getElementById('submitBtnText');
+      if (btnText) {
+        btnText.innerText = state.selectedItem
+          ? `Submit Pre-Order (${fmtPrice(total)}) & Get QR`
+          : "Submit Pre-Order & Get Barcode";
+      }
+    }
+
+    function applyCustPromoCode() {
+      const input = document.getElementById('custPromoCode');
+      const code = input ? input.value.trim() : "";
+      if (!code) return setCustPromoStatus("Enter a promo code.", "error");
+      if (!state.selectedItem) return showToast("Please select a drink before applying a promo code!", "warning");
+
+      const btn = document.getElementById('custPromoApplyBtn');
+      if (btn) btn.disabled = true;
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "validatePromoCode", code: code, subtotal: getCustSubtotal() })
+      })
+        .then(res => res.json())
+        .then(res => {
+          if (btn) btn.disabled = false;
+          if (res.success) {
+            state.promoCode = {
+              code: res.code,
+              type: res.type,
+              value: res.value,
+              discount: Number(res.discount) || 0
+            };
+            if (input) input.value = res.code;
+            setCustPromoStatus(`Code ${res.code} applied: -${fmtPrice(res.discount)}`, "success");
+            const clearBtn = document.getElementById('custPromoClearBtn');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            updateCustPriceSummary();
+          } else {
+            state.promoCode = null;
+            const clearBtn = document.getElementById('custPromoClearBtn');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            setCustPromoStatus(res.error || "Invalid promo code.", "error");
+            updateCustPriceSummary();
+          }
+        })
+        .catch(() => {
+          if (btn) btn.disabled = false;
+          showToast("Network error. Please try again.", "error");
+        });
+    }
+
+    function clearCustPromoCode() {
+      state.promoCode = null;
+      const input = document.getElementById('custPromoCode');
+      if (input) input.value = "";
+      const clearBtn = document.getElementById('custPromoClearBtn');
+      if (clearBtn) clearBtn.classList.add('hidden');
+      setCustPromoStatus("", "neutral");
+      updateCustPriceSummary();
+    }
+
     // Grid 0fr -> 1fr collapse: the panel grows instead of popping open.
     function setItemOptionsOpen(open) {
       const el = document.getElementById('itemOptions');
@@ -717,7 +921,10 @@
     }
 
     function selectItem(item) {
+      const previousItemName = state.selectedItem ? state.selectedItem.name : null;
       state.selectedItem = item;
+      // A code was validated against the old drink's subtotal — drop it.
+      if (state.promoCode && previousItemName !== item.name) clearCustPromoCode();
       setItemOptionsOpen(true);
 
       const opts = item.tempOptions || "Hot & Cold";
@@ -726,7 +933,7 @@
 
       document.getElementById('selectedItemName').innerText = item.name;
       document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(item, state.selectedTemp));
-      document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(getItemPrice(item, state.selectedTemp))}) & Get QR`;
+      updateCustPriceSummary();
 
       const tempContainer = document.getElementById('custTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -771,7 +978,7 @@
       }
       if (state.selectedItem) {
         document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
-        document.getElementById('submitBtnText').innerText = `Submit Pre-Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) & Get QR`;
+        updateCustPriceSummary();
       }
     }
 
@@ -811,10 +1018,9 @@
 
     function submitSelfOrder() {
       const nameInput = document.getElementById('custName');
-      const pickupInput = document.getElementById('custPickupTime');
 
       const name = nameInput ? nameInput.value.trim() : "";
-      const pickupTime = pickupInput ? pickupInput.value.trim() : "Scheduled";
+      const pickupTime = getSelectedPickupTime() || "Scheduled";
 
       if (!name) return showToast("Please enter your name!", "warning");
       if (!state.selectedItem) return showToast("Please select a drink!", "warning");
@@ -839,6 +1045,8 @@
         temp: state.selectedTemp,
         customization: notes,
         price: getItemPrice(state.selectedItem, state.selectedTemp),
+        discount: getCustDiscount(),
+        promoCode: state.promoCode ? state.promoCode.code : "",
         status: "RESERVED",
         cupType: state.selectedCupType
       };
@@ -855,6 +1063,7 @@
           btnSubmit.classList.remove('opacity-50');
         }
         if (res.success && res.order) {
+          clearCustPromoCode();
           showQRTicket({ ...res.order, orderTime: res.order.orderTime || orderPayload.orderTime });
         } else {
           showToast(res.error || "Order creation failed.", "error");
@@ -1277,6 +1486,78 @@
       document.body.style.overflow = '';
     }
 
+    // Render the admin-edited instructions (falls back to the static markup).
+    function applyInstructions() {
+      const ins = state.instructions;
+      if (!ins) return;
+
+      const titleEl = document.getElementById('instructionsTitle');
+      if (titleEl && ins.title) titleEl.textContent = ins.title;
+
+      const headingEl = document.getElementById('instructionsHeading');
+      if (headingEl) {
+        headingEl.textContent = ins.heading || "";
+        headingEl.classList.toggle('hidden', !ins.heading);
+      }
+
+      const stepsEl = document.getElementById('instructionsSteps');
+      if (stepsEl && Array.isArray(ins.steps) && ins.steps.length) {
+        stepsEl.innerHTML = ins.steps.map((step, i) => {
+          const title = String((step && step.title) || "").trim();
+          const text = String((step && step.text) || "");
+          const titleHtml = title ? `<span style="display:block;font-weight:800">${escapeHtml(title)}</span>` : "";
+          return `<div class="ins-step"><span class="ins-num">${i + 1}</span><span style="white-space:pre-line">${titleHtml}${escapeHtml(text)}</span></div>`;
+        }).join('');
+      }
+
+      const noteEl = document.getElementById('instructionsNote');
+      if (noteEl) {
+        const note = String(ins.note || "").trim();
+        if (note) {
+          noteEl.innerHTML = `<i class="fa-solid fa-lightbulb" style="color:#f59e0b"></i> ${escapeHtml(note)}`;
+          noteEl.classList.remove('hidden');
+        } else {
+          noteEl.innerHTML = "";
+          noteEl.classList.add('hidden');
+        }
+      }
+    }
+
+    // ===== PROMO POPUP (once per page load) =====
+    function showPromoPopup() {
+      const promo = state.promoPopup;
+      if (!promo || !promo.active || promoPopupShown) return;
+      promoPopupShown = true;
+
+      const titleEl = document.getElementById('promoPopupTitle');
+      if (titleEl) {
+        titleEl.textContent = promo.title || "";
+        titleEl.classList.toggle('hidden', !promo.title);
+      }
+      const bodyEl = document.getElementById('promoPopupBody');
+      if (bodyEl) {
+        bodyEl.textContent = promo.body || "";
+        bodyEl.classList.toggle('hidden', !promo.body);
+      }
+      const imgEl = document.getElementById('promoPopupImage');
+      if (imgEl) {
+        if (promo.imageUrl) {
+          imgEl.src = promo.imageUrl;
+          imgEl.classList.remove('hidden');
+        } else {
+          imgEl.removeAttribute('src');
+          imgEl.classList.add('hidden');
+        }
+      }
+      document.getElementById('promoPopupModal')?.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closePromoPopup() {
+      document.getElementById('promoPopupModal')?.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeInstructions();
     });
@@ -1294,7 +1575,8 @@
       state.currentOrder = null;
       selfOrderHistory.newOrder();
       setItemOptionsOpen(false);
-      document.getElementById('submitBtnText').innerText = "Submit Pre-Order & Get Barcode";
+      clearCustPromoCode();
+      updateCustPriceSummary();
       init();
       try { window.scrollTo(0, 0); } catch (e) {}
       const menu = document.getElementById('orderView');

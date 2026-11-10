@@ -146,10 +146,13 @@ function ensureOrdersSheet(ss) {
     sheet.appendRow([
       "OrderNum", "OrderTime", "PickupTime", "Cashier", "GuestName",
       "ProductName", "Temp", "Customization", "Price", "Status", "QRTile", "PaymentStatus",
-      "CupType"  // NEW: "In-Store" or "Takeaway"
+      "CupType",  // "In-Store" or "Takeaway"
+      "Discount", // amount off the whole order
+      "PromoCode", // promo code applied at checkout, if any
+      "DiscountBy" // staff member who authorised a manual discount
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 13).getValues()[0];
+    const headers = sheet.getRange(1, 1, 1, 16).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -168,6 +171,10 @@ function ensureOrdersSheet(ss) {
         if (!existing) sheet.getRange(i + 1, 13).setValue("In-Store");
       }
     }
+    // Discount / PromoCode / DiscountBy columns (14-16) — promotions feature.
+    if (!headers[13] || String(headers[13]).trim() === "") sheet.getRange(1, 14).setValue("Discount");
+    if (!headers[14] || String(headers[14]).trim() === "") sheet.getRange(1, 15).setValue("PromoCode");
+    if (!headers[15] || String(headers[15]).trim() === "") sheet.getRange(1, 16).setValue("DiscountBy");
   }
   return sheet;
 }
@@ -216,6 +223,31 @@ function authenticateUser(username, password) {
     }
   }
   return { success: false, error: "Invalid username or password" };
+}
+
+// Staff-card login: a USB barcode scanner types the card's UserCode and then
+// presses Enter. One card may be shared by several accounts, so the response
+// always returns every matching account and the UI asks which one to use.
+function authenticateByStaffCode(code) {
+  const wanted = String(code || "").trim().toLowerCase();
+  if (!wanted) return { success: false, error: "No staff card code received" };
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const usersSheet = ensureUsersSheet(ss);
+  const data = usersSheet.getDataRange().getValues();
+  const accounts = [];
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    if (String(data[i][3] || "").trim().toLowerCase() === wanted) {
+      accounts.push({
+        username: String(data[i][0]).trim(),
+        role: String(data[i][2] || "Staff").trim(),
+        userCode: String(data[i][3] || "1").trim(),
+        canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE"
+      });
+    }
+  }
+  if (!accounts.length) return { success: false, error: "Staff card not recognised" };
+  return Object.assign({ success: true, accounts: accounts }, accounts[0]);
 }
 
 // ==================== GOOGLE SIGN-IN ====================
@@ -454,6 +486,272 @@ function setPushMessage(text, sender, active) {
   return { success: true, pushMessage: payload };
 }
 
+// ==================== OPENING HOURS ====================
+// Online pre-orders are limited to the café's opening hours. Admins can also
+// define named pickup windows; the self-order pages show them as a dropdown.
+const DEFAULT_OPENING_HOURS = {
+  enabled: true,
+  start: "07:30",
+  end: "15:30",
+  slots: []
+};
+
+function normalizeHhMm_(value, fallback) {
+  const m = String(value || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return fallback;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (h > 23 || mi > 59) return fallback;
+  return (h < 10 ? "0" : "") + h + ":" + (mi < 10 ? "0" : "") + mi;
+}
+
+function normalizePickupSlots_(slots) {
+  const list = Array.isArray(slots) ? slots : [];
+  const out = [];
+  list.forEach(s => {
+    if (!s) return;
+    const start = normalizeHhMm_(s.start, "");
+    const end = normalizeHhMm_(s.end, "");
+    if (!start || !end || start === end) return;
+    if (out.length >= 12) return;
+    out.push({ start: start, end: end });
+  });
+  return out;
+}
+
+function getOpeningHours() {
+  const raw = PropertiesService.getScriptProperties().getProperty("OPENING_HOURS");
+  if (!raw) return Object.assign({}, DEFAULT_OPENING_HOURS);
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: parsed.enabled !== false,
+      start: normalizeHhMm_(parsed.start, DEFAULT_OPENING_HOURS.start),
+      end: normalizeHhMm_(parsed.end, DEFAULT_OPENING_HOURS.end),
+      slots: normalizePickupSlots_(parsed.slots)
+    };
+  } catch (e) {
+    return Object.assign({}, DEFAULT_OPENING_HOURS);
+  }
+}
+
+function setOpeningHours(hours) {
+  const h = hours || {};
+  const start = normalizeHhMm_(h.start, DEFAULT_OPENING_HOURS.start);
+  const end = normalizeHhMm_(h.end, DEFAULT_OPENING_HOURS.end);
+  if (start === end) return { success: false, error: "Opening and closing time cannot be the same" };
+  const payload = {
+    enabled: h.enabled !== false,
+    start: start,
+    end: end,
+    slots: normalizePickupSlots_(h.slots)
+  };
+  PropertiesService.getScriptProperties().setProperty("OPENING_HOURS", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, openingHours: payload };
+}
+
+function isPreorderWindowOpen() {
+  const hours = getOpeningHours();
+  if (!hours.enabled) return { open: true, hours: hours };
+  const toMin = s => { const p = s.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+  const nowHhMm = Utilities.formatDate(new Date(), "Asia/Hong_Kong", "HH:mm").split(":");
+  const now = Number(nowHhMm[0]) * 60 + Number(nowHhMm[1]);
+  const start = toMin(hours.start);
+  const end = toMin(hours.end);
+  // Supports overnight windows (e.g. 22:00–02:00) as well as normal ones.
+  const open = start < end ? (now >= start && now < end) : (now >= start || now < end);
+  return { open: open, hours: hours };
+}
+
+function closedPreorderMessage_(hours) {
+  return "Pre-orders are closed right now. We open at " + hours.start +
+    " and close at " + hours.end + ". Please order at the counter.";
+}
+
+// ==================== SELF-ORDER INSTRUCTIONS (User Manual) ====================
+// Admins edit the "How to make a reservation order?" sheet. Each step has a
+// short title and a longer body; guests read it from the Instructions button.
+const DEFAULT_SELF_ORDER_INSTRUCTIONS = {
+  title: "How to make a reservation order?",
+  heading: "In only 4 steps~",
+  steps: [
+    { title: "Your full name input...", text: "We need your full name to know who you are...\nI.e. Mr Chung Lok Hoi / Mr Lai C.Z" },
+    { title: "Your pickup time...", text: "Choose one of the available pickup times in the dropdown. Pick \"NOW\" if you are ordering on the spot (make sure the time is within opening hours!)" },
+    { title: "Choose your drink...", text: "Drinks can be selected in the menu. You can choose to dine in, or take away. We have paper cups for take away orders.\n(Some beverages don't have cold option!)" },
+    { title: "Done!", text: "Save the receipt in your device, and the barcode on receipt will be used for collecting drinks and for payments." }
+  ],
+  note: ""
+};
+
+function getSelfOrderInstructions() {
+  const raw = PropertiesService.getScriptProperties().getProperty("SELF_ORDER_INSTRUCTIONS");
+  if (!raw) return DEFAULT_SELF_ORDER_INSTRUCTIONS;
+  try {
+    const parsed = JSON.parse(raw);
+    const rawSteps = Array.isArray(parsed.steps) ? parsed.steps : [];
+    const steps = rawSteps.map(s => {
+      if (typeof s === "string") return { title: "", text: String(s).trim() };
+      return { title: String((s && s.title) || "").trim(), text: String((s && s.text) || "").trim() };
+    }).filter(s => s.title || s.text);
+    return {
+      title: String(parsed.title || "").trim() || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
+      heading: String(parsed.heading || "").trim(),
+      steps: steps.length ? steps : DEFAULT_SELF_ORDER_INSTRUCTIONS.steps,
+      note: String(parsed.note || "").trim()
+    };
+  } catch (e) {
+    return DEFAULT_SELF_ORDER_INSTRUCTIONS;
+  }
+}
+
+function setSelfOrderInstructions(title, heading, steps, note) {
+  const cleanTitle = String(title || "").trim();
+  const cleanHeading = String(heading || "").trim();
+  const list = Array.isArray(steps) ? steps : [];
+  const cleanSteps = list.map(s => {
+    if (typeof s === "string") return { title: "", text: String(s).trim() };
+    return { title: String((s && s.title) || "").trim(), text: String((s && s.text) || "").trim() };
+  }).filter(s => s.title || s.text);
+  const cleanNote = String(note || "").trim();
+  const props = PropertiesService.getScriptProperties();
+  // Empty everything = reset back to the built-in copy.
+  if (!cleanTitle && !cleanHeading && !cleanSteps.length && !cleanNote) {
+    props.deleteProperty("SELF_ORDER_INSTRUCTIONS");
+    bumpVersion();
+    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, reset: true };
+  }
+  const payload = {
+    title: cleanTitle || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
+    heading: cleanHeading,
+    steps: cleanSteps,
+    note: cleanNote,
+    timestamp: Date.now()
+  };
+  props.setProperty("SELF_ORDER_INSTRUCTIONS", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, instructions: payload };
+}
+
+// ==================== PROMO POPUP (guest self-order) ====================
+// Shown once per page load on the Customer / Open Day order pages.
+function getPromoPopup() {
+  const raw = PropertiesService.getScriptProperties().getProperty("PROMO_POPUP");
+  if (!raw) return { active: false, title: "", body: "", imageUrl: "", timestamp: 0 };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      active: parsed.active === true && (!!parsed.title || !!parsed.body || !!parsed.imageUrl),
+      title: String(parsed.title || ""),
+      body: String(parsed.body || ""),
+      imageUrl: String(parsed.imageUrl || ""),
+      timestamp: Number(parsed.timestamp) || 0
+    };
+  } catch (e) {
+    return { active: false, title: "", body: "", imageUrl: "", timestamp: 0 };
+  }
+}
+
+function setPromoPopup(title, body, imageUrl, active) {
+  const payload = {
+    active: active === true,
+    title: String(title || "").trim(),
+    body: String(body || "").trim(),
+    imageUrl: String(imageUrl || "").trim(),
+    timestamp: Date.now()
+  };
+  PropertiesService.getScriptProperties().setProperty("PROMO_POPUP", JSON.stringify(payload));
+  bumpVersion();
+  return { success: true, promoPopup: payload };
+}
+
+// ==================== PROMO CODES ====================
+function ensurePromoCodesSheet(ss) {
+  let sheet = ss.getSheetByName("PromoCodes");
+  if (!sheet) {
+    sheet = ss.insertSheet("PromoCodes");
+    sheet.appendRow(["Code", "Type", "Value", "MinSpend", "Active", "Description"]);
+  }
+  return sheet;
+}
+
+function getPromoCodes() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ensurePromoCodesSheet(ss);
+  const data = sheet.getDataRange().getValues();
+  const codes = [];
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    codes.push({
+      code: String(data[i][0]).trim().toUpperCase(),
+      type: String(data[i][1] || "PERCENT").trim().toUpperCase() === "AMOUNT" ? "AMOUNT" : "PERCENT",
+      value: Number(data[i][2]) || 0,
+      minSpend: Number(data[i][3]) || 0,
+      active: String(data[i][4] || "").trim().toUpperCase() === "TRUE",
+      description: String(data[i][5] || "").trim()
+    });
+  }
+  return codes;
+}
+
+function savePromoCode(entry) {
+  const code = String((entry && entry.code) || "").trim().toUpperCase();
+  if (!code) return { success: false, error: "Code is required" };
+  const sheet = ensurePromoCodesSheet(SpreadsheetApp.getActiveSpreadsheet());
+  const data = sheet.getDataRange().getValues();
+  const row = [
+    code,
+    String(entry.type || "PERCENT").toUpperCase() === "AMOUNT" ? "AMOUNT" : "PERCENT",
+    Number(entry.value) || 0,
+    Number(entry.minSpend) || 0,
+    entry.active === false ? "FALSE" : "TRUE",
+    String(entry.description || "").trim()
+  ];
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toUpperCase() === code) {
+      sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      SpreadsheetApp.flush();
+      bumpVersion();
+      return { success: true, promoCodes: getPromoCodes() };
+    }
+  }
+  sheet.appendRow(row);
+  SpreadsheetApp.flush();
+  bumpVersion();
+  return { success: true, promoCodes: getPromoCodes() };
+}
+
+function deletePromoCode(code) {
+  const wanted = String(code || "").trim().toUpperCase();
+  const sheet = ensurePromoCodesSheet(SpreadsheetApp.getActiveSpreadsheet());
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toUpperCase() === wanted) {
+      sheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      bumpVersion();
+      return { success: true, promoCodes: getPromoCodes() };
+    }
+  }
+  return { success: false, error: "Code not found" };
+}
+
+// Validates a code against the cart subtotal and returns the amount off.
+function validatePromoCode(code, subtotal) {
+  const wanted = String(code || "").trim().toUpperCase();
+  const sub = Number(subtotal) || 0;
+  if (!wanted) return { success: false, error: "Enter a promo code" };
+  const match = getPromoCodes().filter(c => c.code === wanted)[0];
+  if (!match) return { success: false, error: "Code not found" };
+  if (!match.active) return { success: false, error: "This code is not active" };
+  if (match.minSpend > 0 && sub < match.minSpend) {
+    return { success: false, error: "Minimum spend $" + match.minSpend.toFixed(2) + " required" };
+  }
+  const raw = match.type === "PERCENT" ? sub * (match.value / 100) : match.value;
+  const discount = Math.max(0, Math.min(sub, Math.round(raw * 100) / 100));
+  return { success: true, code: match.code, type: match.type, value: match.value, discount: discount, description: match.description };
+}
+
 // ==================== KDS STATUS STRIP (bar pressure badges) ====================
 // Live strip above the Bar KDS grid. Thresholds are fixed per drink category:
 // 0 orders, 1–2, 3–5 and 6+. Admins can rename the strip and each badge.
@@ -596,7 +894,10 @@ function getInitialData() {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store"
+        cupType: String(row[12] || "In-Store").trim() || "In-Store",
+        discount: Number(row[13]) || 0,
+        promoCode: String(row[14] || "").trim().toUpperCase(),
+        discountBy: String(row[15] || "").trim()
       });
     }
   }
@@ -629,6 +930,10 @@ function getInitialData() {
     openDayPauseReason: openDayPauseReason,
     pushMessage: pushMessage,
     statusStrip: getKdsStatusStrip(),
+    openingHours: getOpeningHours(),
+    promoPopup: getPromoPopup(),
+    promoCodes: getPromoCodes(),
+    instructions: getSelfOrderInstructions(),
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout()
   };
@@ -663,9 +968,12 @@ function getOrderHistory(limit) {
         status: status,
         qrTile: row[10] ? String(row[10]).trim() : "",
         paymentStatus: paymentStatus,
-        cupType: String(row[12] || "In-Store").trim() || "In-Store"
+        cupType: String(row[12] || "In-Store").trim() || "In-Store",
+        discount: Number(row[13]) || 0,
+        promoCode: String(row[14] || "").trim().toUpperCase(),
+        discountBy: String(row[15] || "").trim()
       });
-      if (paymentStatus !== "UNPAID") revenue += Number(row[8]) || 0;
+      if (paymentStatus !== "UNPAID") revenue += (Number(row[8]) || 0) - (Number(row[13]) || 0);
     }
   }
   return { orders: orders, totalRevenue: revenue, totalCount: orders.length };
@@ -758,6 +1066,11 @@ function createOrderLocked(order) {
     }
     cupType = (cupType.toLowerCase() === "takeaway" || cupType === "Takeaway" || cupType === "外带") ? "Takeaway" : "In-Store";
 
+    const price = Number(order.price) || 0;
+    const discount = Math.max(0, Math.min(price, Number(order.discount) || 0));
+    const promoCode = String(order.promoCode || "").trim().toUpperCase();
+    const discountBy = String(order.discountBy || "").trim();
+
     const createdOrder = {
       orderNum: assignedOrderNum,
       orderTime: orderTime,
@@ -767,7 +1080,10 @@ function createOrderLocked(order) {
       productName: order.productName,
       temp: order.temp,
       customization: rawNote.replace(/^'/, ""),
-      price: Number(order.price) || 0,
+      price: price,
+      discount: discount,
+      promoCode: promoCode,
+      discountBy: discountBy,
       status: status,
       qrTile: qrTile,
       paymentStatus: paymentStatus,
@@ -778,7 +1094,7 @@ function createOrderLocked(order) {
       createdOrder.orderNum, createdOrder.orderTime, pickupTime,
       createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
       createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-      createdOrder.paymentStatus, cupType
+      createdOrder.paymentStatus, cupType, discount, promoCode, discountBy
     ]);
 
     // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -1453,6 +1769,7 @@ function doPost(e) {
     const action = data.action;
 
     if (action === "login") return jsonResponse(authenticateUser(data.username, data.password));
+    if (action === "loginByStaffCode") return jsonResponse(authenticateByStaffCode(data.code));
     if (action === "loginGoogle") return jsonResponse(authenticateGoogle(data.credential));
     if (action === "addUser") return jsonResponse(addUser(data.username, data.password, data.role, data.userCode));
     if (action === "deleteUser") return jsonResponse(deleteUser(data.username));
@@ -1470,12 +1787,22 @@ function doPost(e) {
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
     if (action === "saveKdsStatusStrip") return jsonResponse(setKdsStatusStrip(data.config));
+    if (action === "saveOpeningHours") return jsonResponse(setOpeningHours(data.hours));
+    if (action === "savePromoPopup") return jsonResponse(setPromoPopup(data.title, data.body, data.imageUrl, data.active));
+    if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.title, data.heading, data.steps, data.note));
+    if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
+    if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
+    if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal));
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
     if (action === "createOrder" || action === "createUnpaidOrder" || action === "createReservedOrder") {
       if (action === "createUnpaidOrder") data.order.status = "UNPAID";
-      if (action === "createReservedOrder") data.order.status = "RESERVED";
+      if (action === "createReservedOrder") {
+        const win = isPreorderWindowOpen();
+        if (!win.open) return jsonResponse({ success: false, error: closedPreorderMessage_(win.hours) });
+        data.order.status = "RESERVED";
+      }
       return jsonResponse(createOrderLocked(data.order));
     }
     if (action === "confirmPayment") return jsonResponse(confirmPaymentStatus(data.orderNum));

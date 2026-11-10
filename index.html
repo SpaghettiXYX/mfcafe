@@ -352,6 +352,23 @@
 
       <div class="space-y-4 text-left">
         <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card</label>
+          <div class="relative">
+            <i class="fa-solid fa-id-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+            <input type="text" id="loginStaffCode" autocomplete="off" placeholder="Scan card or type staff ID"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+          </div>
+          <p class="text-[10px] text-slate-400 font-semibold mt-1">Scan your card — one card can be linked to several accounts.</p>
+        </div>
+        <div id="loginAccountChooser" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+          <p class="text-[11px] font-bold text-slate-500">This card is linked to several accounts — choose one:</p>
+          <div id="loginAccountList" class="space-y-1.5"></div>
+          <button type="button" onclick="cancelStaffLogin()" class="text-[11px] font-bold text-slate-400 hover:text-slate-600">Cancel</button>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <span class="flex-1 h-px bg-slate-200"></span>or use credentials<span class="flex-1 h-px bg-slate-200"></span>
+        </div>
+        <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
           <input type="text" id="loginUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
         </div>
@@ -558,6 +575,45 @@
                 </div>
                 <p id="posQRTileStatus" class="text-[10px] text-slate-400 mt-1">Required — every order must be bound to a QR tile</p>
               </div>
+
+              <!-- Promotions: promo code (self-service code) + staff-authorised discount -->
+              <div class="border-t border-slate-100 pt-3 space-y-2">
+                <div class="flex items-center justify-between text-xs font-bold">
+                  <span class="text-slate-500">Subtotal</span>
+                  <span id="posSubtotalDisplay" class="text-slate-800">$0.00</span>
+                </div>
+                <div class="flex gap-2">
+                  <input type="text" id="posPromoCode" placeholder="Promo code" autocomplete="off"
+                    class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase text-slate-800"
+                    onkeydown="if(event.key==='Enter')applyPosPromoCode()">
+                  <button type="button" onclick="applyPosPromoCode()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Apply</button>
+                  <button type="button" id="posPromoClearBtn" onclick="clearPosPromoCode()" class="hidden bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Clear</button>
+                </div>
+                <p id="posPromoStatus" class="text-[10px] font-bold text-slate-400"></p>
+
+                <div class="flex gap-2">
+                  <select id="posManualDiscountType" class="bg-white border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800">
+                    <option value="PERCENT">% Off</option>
+                    <option value="AMOUNT">$ Off</option>
+                  </select>
+                  <input type="number" id="posManualDiscountValue" min="0" step="1" placeholder="Value"
+                    class="w-24 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                  <button type="button" onclick="openDiscountAuth()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 px-3 py-2 rounded-xl text-xs font-extrabold transition">
+                    <i class="fa-solid fa-id-card mr-1"></i> Apply (Scan Staff Card)
+                  </button>
+                </div>
+                <p id="posDiscountStatus" class="text-[10px] font-bold text-slate-400"></p>
+
+                <div class="flex items-center justify-between text-xs font-bold">
+                  <span class="text-slate-500">Discount</span>
+                  <span id="posDiscountDisplay" class="text-rose-500">-$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-sm font-black">
+                  <span class="text-slate-700">Total</span>
+                  <span id="posTotalDisplay" class="text-emerald-600">$0.00</span>
+                </div>
+                <button type="button" id="posClearDiscountBtn" onclick="clearPosDiscounts()" class="hidden w-full text-[10px] font-bold text-slate-400 hover:text-rose-500">Remove all discounts</button>
+              </div>
             </div>
           </div>
 
@@ -754,6 +810,149 @@
           </div>
         </div>
         <button onclick="savePauseReasonsSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
+
+        <!-- Opening hours + pickup time slots -->
+        <div class="border-t border-slate-100 pt-4 space-y-4">
+          <h4 class="font-black text-slate-800 text-sm">
+            <i class="fa-solid fa-clock text-amber-500 mr-2"></i> Opening Hours &amp; Pickup Slots
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+              <span class="text-xs font-bold text-slate-500">Limit Pre-Order to Opening Hours</span>
+              <button id="adminToggleOpeningHoursBtn" onclick="toggleOpeningHoursSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">On</button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Opens At</label>
+              <input type="time" id="adminOpeningStart" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Closes At</label>
+              <input type="time" id="adminOpeningEnd" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Pickup Time Slots (shown in the self-order dropdown)</label>
+            <div id="adminSlotList" class="space-y-2"></div>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <input type="time" id="adminSlotStart" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <span class="text-xs font-bold text-slate-400">to</span>
+              <input type="time" id="adminSlotEnd" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <button onclick="addOpeningSlot()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Add Slot</button>
+            </div>
+            <p class="text-[10px] text-slate-400 font-semibold mt-1">Guests pick one of these windows when pre-ordering. Leave empty to let guests type any pickup time.</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="saveOpeningHoursSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Opening Hours</button>
+            <span id="adminOpeningStatus" class="text-[10px] font-bold text-slate-400"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Manual: editable self-order instructions -->
+      <div data-admin-section="manual" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div>
+          <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+            <i class="fa-solid fa-book-open text-amber-500 mr-2"></i> Self-Order Instructions
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-2">Shown behind the Instructions button on the Customer and Open Day pages. Each step has a short title and a longer explanation.</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Panel Title</label>
+          <input id="manualTitleInput" type="text" autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="How to make a reservation order?">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Heading</label>
+          <input id="manualHeadingInput" type="text" autocomplete="off" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="In only 4 steps~">
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Step 1 Title</label>
+            <input id="manualStep1Title" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Your full name input...">
+            <textarea id="manualStep1Text" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Explain this step..."></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Step 2 Title</label>
+            <input id="manualStep2Title" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Your pickup time...">
+            <textarea id="manualStep2Text" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Explain this step..."></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Step 3 Title</label>
+            <input id="manualStep3Title" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Choose your drink...">
+            <textarea id="manualStep3Text" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Explain this step..."></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Step 4 Title</label>
+            <input id="manualStep4Title" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Done!">
+            <textarea id="manualStep4Text" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800" placeholder="Explain this step..."></textarea>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Footer Note <span class="font-normal text-slate-400">(optional)</span></label>
+          <textarea id="manualNoteInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800"></textarea>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="saveManualSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Instructions</button>
+          <button onclick="resetManualSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Reset to Default</button>
+          <span id="manualStatus" class="text-[11px] font-bold text-slate-400 ml-1"></span>
+        </div>
+      </div>
+
+      <!-- Promotions: guest popup + promo codes -->
+      <div data-admin-section="promotions" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <div>
+          <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+            <i class="fa-solid fa-percent text-amber-500 mr-2"></i> Self-Order Promo Popup
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-2">Shown once each time a guest opens the Customer / Open Day order page. Leave the image blank for a text-only popup.</p>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Title</label>
+            <input type="text" id="adminPromoPopupTitle" placeholder="e.g. Open Day Special" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Message</label>
+            <textarea id="adminPromoPopupBody" rows="3" placeholder="e.g. Buy any two drinks and get $5 off with code OPENDAY5" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Image URL <span class="font-normal text-slate-400">(optional)</span></label>
+            <input type="url" id="adminPromoPopupImage" placeholder="https://..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+            <input type="checkbox" id="adminPromoPopupActive" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+            Show popup on self-order screens
+          </label>
+          <div class="flex items-center gap-2">
+            <button onclick="savePromoPopupSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Popup</button>
+            <button onclick="clearPromoPopupSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Hide Popup</button>
+            <span id="adminPromoPopupStatus" class="text-[10px] font-bold text-slate-400"></span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-5 space-y-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-ticket text-amber-500 mr-2"></i> Promo Codes</h3>
+            <p class="text-[11px] text-slate-400 mt-1">Percent takes a % off the subtotal; Amount takes a fixed dollar value. Self-order guests can use these codes too.</p>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <input type="text" id="adminPromoCode" placeholder="CODE" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 uppercase">
+            <select id="adminPromoCodeType" class="bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800">
+              <option value="PERCENT">% Off</option>
+              <option value="AMOUNT">$ Off</option>
+            </select>
+            <input type="number" step="0.5" min="0" id="adminPromoCodeValue" placeholder="Value" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="number" step="0.5" min="0" id="adminPromoCodeMinSpend" placeholder="Min $" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="text" id="adminPromoCodeDesc" placeholder="Description" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <button onclick="savePromoCodeSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition">Save Code</button>
+          </div>
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+            <input type="checkbox" id="adminPromoCodeActive" checked class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+            Active
+          </label>
+          <div id="adminPromoCodesList" class="space-y-2"></div>
+        </div>
       </div>
 
       <!-- Push Message Broadcast -->
@@ -1369,6 +1568,12 @@
       teacherPauseReason: "",
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
+      openingHours: { enabled: true, start: "07:30", end: "15:30", slots: [] },
+      promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
+      instructions: null,        // editable self-order "How to make a reservation order?" sheet
+      promoCodes: [],
+      posPromo: null,            // { code, type, value, discount }
+      posManualDiscount: null,   // { type, value, amount, approvedBy }
       statusStrip: { show: true, label: "Bar Status", noOrders: "CLEAR", steady: "STEADY", busy: "BUSY", behind: "BEHIND" },
       categoryColors: {},
       receiptLayout: null     // editable block list, loaded from Apps Script
@@ -1723,6 +1928,71 @@
       });
     }
 
+    // Staff-card login: a USB scanner types the UserCode and presses Enter.
+    // A card can map to several accounts, so we show a chooser when needed.
+    function attemptStaffCodeLogin(codeArg) {
+      const input = document.getElementById("loginStaffCode");
+      const errEl = document.getElementById("loginError");
+      const code = String(codeArg != null ? codeArg : (input ? input.value : "")).trim();
+      if (!code) {
+        if (errEl) { errEl.innerText = "Scan your staff card or type your staff ID."; errEl.classList.remove("hidden"); }
+        return;
+      }
+      apiPost({ action: "loginByStaffCode", code: code })
+        .then(res => {
+          if (!res || !res.success) {
+            if (errEl) { errEl.innerText = (res && res.error) || "Staff card not recognised."; errEl.classList.remove("hidden"); }
+            return;
+          }
+          if (input) input.value = "";
+          const accounts = Array.isArray(res.accounts) ? res.accounts : [res];
+          if (accounts.length > 1) showStaffAccountChooser(accounts);
+          else completeLogin(accounts[0]);
+        })
+        .catch(() => {
+          if (errEl) { errEl.innerText = "Network error authenticating."; errEl.classList.remove("hidden"); }
+        });
+    }
+
+    function showStaffAccountChooser(accounts) {
+      const wrap = document.getElementById("loginAccountChooser");
+      const list = document.getElementById("loginAccountList");
+      if (!wrap || !list) {
+        if (accounts[0]) completeLogin(accounts[0]);
+        return;
+      }
+      list.innerHTML = accounts.map((a, i) => `
+        <button type="button" onclick="chooseStaffAccount(${i})"
+          class="w-full flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 text-left hover:border-amber-400 transition">
+          <span class="text-xs font-extrabold text-slate-800">${escapeHtml(a.username)}</span>
+          <span class="text-[10px] font-bold ${String(a.role).toLowerCase() === "admin" ? "text-amber-600" : "text-slate-400"}">${escapeHtml(a.role || "Staff")}</span>
+        </button>`).join("");
+      wrap.dataset.accounts = JSON.stringify(accounts);
+      wrap.classList.remove("hidden");
+    }
+
+    function chooseStaffAccount(index) {
+      const wrap = document.getElementById("loginAccountChooser");
+      let accounts = [];
+      try { accounts = JSON.parse(wrap.dataset.accounts || "[]"); } catch (e) {}
+      const account = accounts[index];
+      if (account) completeLogin(account);
+    }
+
+    function cancelStaffLogin() {
+      const wrap = document.getElementById("loginAccountChooser");
+      if (wrap) { wrap.classList.add("hidden"); wrap.dataset.accounts = ""; }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const codeInput = document.getElementById("loginStaffCode");
+      if (codeInput) {
+        codeInput.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); attemptStaffCodeLogin(); }
+        });
+      }
+    });
+
     function logout() {
       setCookie("mfcafe_user", "", -1);
       setCookie("mfcafe_role", "", -1);
@@ -1962,6 +2232,10 @@
           if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
+          if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
+          if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
+          if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
+          if (data.instructions && typeof data.instructions === "object") state.instructions = data.instructions;
           if (data.statusStrip && typeof data.statusStrip === "object") {
             state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
             renderKdsStatusEditor();
@@ -2084,6 +2358,181 @@
       return (Number(item.price) || 0) + coldExtra;
     }
 
+    // ===== POS discounts =====
+    // Promo codes come from Admin → Promotions. Percent / fixed discounts are
+    // staff-only and must be authorised by scanning a staff card; the approver
+    // is written onto the order.
+    let pendingDiscountType = "PERCENT";
+    let pendingDiscountValue = 0;
+
+    function getPosSubtotal() {
+      return state.selectedPosItem ? getPosItemPrice(state.selectedPosItem, state.selectedPosTemp) : 0;
+    }
+
+    function getPosDiscountBreakdown() {
+      const subtotal = getPosSubtotal();
+      let promo = 0;
+      if (state.posPromo) {
+        const p = state.posPromo;
+        promo = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100 : Number(p.value) || 0;
+        promo = Math.max(0, Math.min(subtotal, promo));
+      }
+      let manual = 0;
+      if (state.posManualDiscount) {
+        const base = Math.max(0, subtotal - promo);
+        const d = state.posManualDiscount;
+        manual = d.type === "PERCENT" ? base * (Number(d.value) || 0) / 100 : Number(d.value) || 0;
+        manual = Math.max(0, Math.min(base, manual));
+      }
+      const total = Math.max(0, Math.round((subtotal - promo - manual) * 100) / 100);
+      return { subtotal: subtotal, promo: promo, manual: manual, discount: Math.round((promo + manual) * 100) / 100, total: total };
+    }
+
+    function updatePosPriceDisplay() {
+      const d = getPosDiscountBreakdown();
+      const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+      setTxt("posSubtotalDisplay", fmtPrice(d.subtotal));
+      setTxt("posDiscountDisplay", "-" + fmtPrice(d.discount));
+      setTxt("posTotalDisplay", fmtPrice(d.total));
+      setTxt("posSubmitBtnText", `Confirm & Submit (${fmtPrice(d.total)})`);
+      const clearBtn = document.getElementById("posClearDiscountBtn");
+      if (clearBtn) clearBtn.classList.toggle("hidden", !(state.posPromo || state.posManualDiscount));
+      const promoClear = document.getElementById("posPromoClearBtn");
+      if (promoClear) promoClear.classList.toggle("hidden", !state.posPromo);
+      const promoInput = document.getElementById("posPromoCode");
+      if (promoInput && state.posPromo) promoInput.value = state.posPromo.code;
+      const promoStatus = document.getElementById("posPromoStatus");
+      if (promoStatus) {
+        if (state.posPromo) {
+          promoStatus.innerText = `${state.posPromo.code} — ${state.posPromo.type === "PERCENT" ? state.posPromo.value + "% off" : fmtPrice(state.posPromo.value) + " off"}`;
+          promoStatus.className = "text-[10px] font-bold text-emerald-600";
+        } else {
+          promoStatus.innerText = "";
+          promoStatus.className = "text-[10px] font-bold text-slate-400";
+        }
+      }
+      const discStatus = document.getElementById("posDiscountStatus");
+      if (discStatus) {
+        if (state.posManualDiscount) {
+          const m = state.posManualDiscount;
+          discStatus.innerText = `Approved by ${m.approvedBy} — ${m.type === "PERCENT" ? m.value + "%" : fmtPrice(m.value)}`;
+          discStatus.className = "text-[10px] font-bold text-emerald-600";
+        } else {
+          discStatus.innerText = "";
+          discStatus.className = "text-[10px] font-bold text-slate-400";
+        }
+      }
+    }
+
+    function applyPosPromoCode() {
+      const input = document.getElementById("posPromoCode");
+      const code = input ? input.value.trim().toUpperCase() : "";
+      const d = getPosDiscountBreakdown();
+      if (!d.subtotal) { showToast("Select a drink first", "warning"); return; }
+      if (!code) { showToast("Enter a promo code", "warning"); return; }
+      apiPost({ action: "validatePromoCode", code: code, subtotal: d.subtotal }).then(res => {
+        if (!res || !res.success) {
+          state.posPromo = null;
+          updatePosPriceDisplay();
+          const s = document.getElementById("posPromoStatus");
+          if (s) { s.innerText = (res && res.error) || "Invalid code"; s.className = "text-[10px] font-bold text-rose-500"; }
+          return;
+        }
+        state.posPromo = { code: res.code, type: res.type, value: res.value, discount: res.discount };
+        updatePosPriceDisplay();
+      }).catch(() => showToast("Network error validating code", "error"));
+    }
+
+    function clearPosPromoCode() {
+      state.posPromo = null;
+      const promoInput = document.getElementById("posPromoCode");
+      if (promoInput) promoInput.value = "";
+      updatePosPriceDisplay();
+    }
+
+    function clearPosDiscounts() {
+      state.posPromo = null;
+      state.posManualDiscount = null;
+      const promoInput = document.getElementById("posPromoCode");
+      if (promoInput) promoInput.value = "";
+      updatePosPriceDisplay();
+    }
+
+    function openDiscountAuth() {
+      if (!state.selectedPosItem) { showToast("Select a drink first", "warning"); return; }
+      const typeEl = document.getElementById("posManualDiscountType");
+      const valueEl = document.getElementById("posManualDiscountValue");
+      const type = typeEl ? typeEl.value : "PERCENT";
+      const value = valueEl ? Number(valueEl.value) : 0;
+      if (!(value > 0)) { showToast("Enter a discount value greater than 0", "warning"); return; }
+      if (type === "PERCENT" && value > 100) { showToast("Percent discount cannot exceed 100%", "warning"); return; }
+      pendingDiscountType = type;
+      pendingDiscountValue = value;
+      const err = document.getElementById("discountAuthError");
+      if (err) err.classList.add("hidden");
+      const accounts = document.getElementById("discountAuthAccounts");
+      if (accounts) accounts.classList.add("hidden");
+      const codeEl = document.getElementById("discountAuthCode");
+      if (codeEl) codeEl.value = "";
+      document.getElementById("discountAuthModal")?.classList.remove("hidden");
+      setTimeout(() => codeEl?.focus(), 80);
+    }
+
+    function closeDiscountAuth() {
+      document.getElementById("discountAuthModal")?.classList.add("hidden");
+    }
+
+    function submitDiscountAuth() {
+      const codeEl = document.getElementById("discountAuthCode");
+      const err = document.getElementById("discountAuthError");
+      const code = codeEl ? codeEl.value.trim() : "";
+      if (!code) { if (err) { err.innerText = "Scan a staff card first."; err.classList.remove("hidden"); } return; }
+      apiPost({ action: "loginByStaffCode", code: code }).then(res => {
+        if (!res || !res.success) {
+          if (err) { err.innerText = (res && res.error) || "Staff card not recognised."; err.classList.remove("hidden"); }
+          return;
+        }
+        const accounts = Array.isArray(res.accounts) ? res.accounts : [res];
+        if (accounts.length > 1) {
+          const wrap = document.getElementById("discountAuthAccounts");
+          const list = document.getElementById("discountAuthAccountList");
+          if (!wrap || !list) { applyStaffDiscount(accounts[0]); return; }
+          list.innerHTML = accounts.map((a, i) => `
+            <button type="button" onclick="pickDiscountApprover(${i})"
+              class="w-full flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-left hover:border-amber-400 transition">
+              <span class="text-xs font-extrabold text-slate-800">${escapeHtml(a.username)}</span>
+              <span class="text-[10px] font-bold ${String(a.role).toLowerCase() === "admin" ? "text-amber-600" : "text-slate-400"}">${escapeHtml(a.role || "Staff")}</span>
+            </button>`).join("");
+          wrap.dataset.accounts = JSON.stringify(accounts);
+          wrap.classList.remove("hidden");
+        } else {
+          applyStaffDiscount(accounts[0]);
+        }
+      }).catch(() => {
+        if (err) { err.innerText = "Network error authenticating."; err.classList.remove("hidden"); }
+      });
+    }
+
+    function pickDiscountApprover(index) {
+      const wrap = document.getElementById("discountAuthAccounts");
+      let accounts = [];
+      try { accounts = JSON.parse(wrap.dataset.accounts || "[]"); } catch (e) {}
+      if (accounts[index]) applyStaffDiscount(accounts[index]);
+    }
+
+    function applyStaffDiscount(account) {
+      state.posManualDiscount = {
+        type: pendingDiscountType,
+        value: pendingDiscountValue,
+        approvedBy: account.username
+      };
+      const valueEl = document.getElementById("posManualDiscountValue");
+      if (valueEl) valueEl.value = "";
+      closeDiscountAuth();
+      updatePosPriceDisplay();
+      showToast("Discount approved by " + account.username, "success");
+    }
+
     function selectPosMenuItem(item) {
       state.selectedPosItem = item;
       state.selectedPosCupType = "";  // reset cup type — must re-choose for each drink
@@ -2110,7 +2559,12 @@
 
       if (nameEl) nameEl.innerText = item.name;
       if (priceEl) priceEl.innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
-      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
+      // Any discount from the previous drink is no longer valid.
+      state.posPromo = null;
+      state.posManualDiscount = null;
+      const stalePromoInput = document.getElementById('posPromoCode');
+      if (stalePromoInput) stalePromoInput.value = "";
+      updatePosPriceDisplay();
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -2152,7 +2606,7 @@
       if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (state.selectedPosItem) {
         document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
-        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
+        updatePosPriceDisplay();
       }
     }
 
@@ -2253,6 +2707,9 @@
         temp: state.selectedPosTemp,
         customization: notes,
         price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
+        discount: getPosDiscountBreakdown().discount,
+        promoCode: state.posPromo ? state.posPromo.code : "",
+        discountBy: state.posManualDiscount ? state.posManualDiscount.approvedBy : "",
         status: "PENDING",
         qrTile: qrTile,
         cupType: cupType
@@ -2278,7 +2735,15 @@
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
           clearPosTileError();
-          document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
+          state.posPromo = null;
+          state.posManualDiscount = null;
+          const discTypeEl = document.getElementById('posManualDiscountType');
+          const discValueEl = document.getElementById('posManualDiscountValue');
+          if (discTypeEl) discTypeEl.value = "PERCENT";
+          if (discValueEl) discValueEl.value = "";
+          const promoInputEl = document.getElementById('posPromoCode');
+          if (promoInputEl) promoInputEl.value = "";
+          updatePosPriceDisplay();
           
           fetchFromSheet();
 
@@ -2306,7 +2771,7 @@
       document.getElementById('modalOrderNum').innerText = `#${order.orderNum}`;
       document.getElementById('modalGuestName').innerText = order.guestName;
       document.getElementById('modalDrinkName').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('modalPrice').innerText = fmtPrice(order.price);
+      document.getElementById('modalPrice').innerText = fmtPrice(Math.max(0, (Number(order.price) || 0) - (Number(order.discount) || 0)));
 
       modal.classList.remove('hidden');
     }
@@ -2352,7 +2817,7 @@
               <span class="font-bold text-slate-800">${escapeHtml(o.guestName)}</span>
               ${statusBadge}
             </div>
-            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(o.price)})${o.qrTile ? ` · Tile ${escapeHtml(o.qrTile)}` : ''}</p>
+            <p class="text-slate-500 text-[11px] mt-0.5">${escapeHtml(o.productName)} (${fmtPrice(Math.max(0, (Number(o.price) || 0) - (Number(o.discount) || 0)))})${Number(o.discount) > 0 ? ` <span class="text-rose-500">· -${fmtPrice(o.discount)}</span>` : ''}${o.qrTile ? ` · Tile ${escapeHtml(o.qrTile)}` : ''}</p>
           </div>
           <button onclick="confirmOrderPayment('${escapeHtml(o.orderNum)}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-xl shadow-sm transition">
             Confirm & Pay
@@ -3863,6 +4328,8 @@
     const ADMIN_SECTIONS = [
       { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
       { key: "operation",    label: "Operation",          icon: "fa-sliders" },
+      { key: "manual",       label: "Order Instructions", icon: "fa-book-open" },
+      { key: "promotions",   label: "Promotions",         icon: "fa-percent" },
       { key: "kdsstatus",    label: "KDS Status",         icon: "fa-signal" },
       { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
@@ -3906,6 +4373,241 @@
       });
       if (key === "layout") renderLayoutEditor();
       if (key === "kdsstatus") renderKdsStatusEditor();
+      if (key === "operation") renderOpeningHoursEditor();
+      if (key === "manual") renderManualEditor();
+      if (key === "promotions") renderPromotionsEditor();
+    }
+
+    // ==================== ADMIN: OPENING HOURS & PICKUP SLOTS ====================
+    let adminSlotDraft = [];
+
+    function setAdminStatus(id, text, ok) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerText = text;
+      el.className = "text-[10px] font-bold " + (ok === false ? "text-rose-500" : "text-emerald-600");
+    }
+
+    function renderOpeningHoursEditor() {
+      const h = state.openingHours || { enabled: true, start: "07:30", end: "15:30", slots: [] };
+      const startEl = document.getElementById("adminOpeningStart");
+      const endEl = document.getElementById("adminOpeningEnd");
+      if (startEl) startEl.value = h.start || "07:30";
+      if (endEl) endEl.value = h.end || "15:30";
+      const btn = document.getElementById("adminToggleOpeningHoursBtn");
+      if (btn) {
+        btn.innerText = h.enabled !== false ? "On" : "Off";
+        btn.className = "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition " +
+          (h.enabled !== false ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500");
+      }
+      adminSlotDraft = (h.slots || []).map(s => ({ start: s.start, end: s.end }));
+      renderAdminSlotList();
+    }
+
+    function renderAdminSlotList() {
+      const wrap = document.getElementById("adminSlotList");
+      if (!wrap) return;
+      if (!adminSlotDraft.length) {
+        wrap.innerHTML = '<p class="text-[11px] font-bold text-slate-400">No slots yet — guests will type their own pickup time.</p>';
+        return;
+      }
+      wrap.innerHTML = adminSlotDraft.map((s, i) => `
+        <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          <span class="text-xs font-extrabold text-slate-700"><i class="fa-solid fa-clock text-amber-500 mr-2"></i>${escapeHtml(s.start)} – ${escapeHtml(s.end)}</span>
+          <button type="button" onclick="removeOpeningSlot(${i})" class="text-rose-400 hover:text-rose-600 text-xs font-bold"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join("");
+    }
+
+    function addOpeningSlot() {
+      const startEl = document.getElementById("adminSlotStart");
+      const endEl = document.getElementById("adminSlotEnd");
+      const start = startEl ? startEl.value : "";
+      const end = endEl ? endEl.value : "";
+      if (!start || !end) { setAdminStatus("adminOpeningStatus", "Pick both a start and end time.", false); return; }
+      if (start === end) { setAdminStatus("adminOpeningStatus", "Start and end cannot be the same.", false); return; }
+      adminSlotDraft.push({ start: start, end: end });
+      if (startEl) startEl.value = "";
+      if (endEl) endEl.value = "";
+      renderAdminSlotList();
+      setAdminStatus("adminOpeningStatus", "Slot added — remember to Save.", false);
+    }
+
+    function removeOpeningSlot(index) {
+      adminSlotDraft.splice(index, 1);
+      renderAdminSlotList();
+      setAdminStatus("adminOpeningStatus", "Slot removed — remember to Save.", false);
+    }
+
+    function saveOpeningHoursSubmit(toggleOnly) {
+      const h = state.openingHours || {};
+      const payload = {
+        enabled: toggleOnly ? !(h.enabled !== false) : (h.enabled !== false),
+        start: (document.getElementById("adminOpeningStart") || {}).value || h.start || "07:30",
+        end: (document.getElementById("adminOpeningEnd") || {}).value || h.end || "15:30",
+        slots: adminSlotDraft
+      };
+      setAdminStatus("adminOpeningStatus", "Saving…");
+      apiPost({ action: "saveOpeningHours", hours: payload }).then(res => {
+        if (!res || !res.success) { setAdminStatus("adminOpeningStatus", (res && res.error) || "Save failed.", false); return; }
+        state.openingHours = res.openingHours;
+        renderOpeningHoursEditor();
+        setAdminStatus("adminOpeningStatus", "Saved.");
+      }).catch(() => setAdminStatus("adminOpeningStatus", "Network error.", false));
+    }
+
+    function toggleOpeningHoursSubmit() {
+      saveOpeningHoursSubmit(true);
+    }
+
+    // ==================== ADMIN: SELF-ORDER INSTRUCTIONS ====================
+    function renderManualEditor() {
+      const ins = state.instructions || {
+        title: "How to make a reservation order?",
+        heading: "In only 4 steps~",
+        steps: [],
+        note: ""
+      };
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ""; };
+      setVal("manualTitleInput", ins.title);
+      setVal("manualHeadingInput", ins.heading);
+      setVal("manualNoteInput", ins.note);
+      for (let i = 1; i <= 4; i++) {
+        const step = (ins.steps && ins.steps[i - 1]) || {};
+        setVal("manualStep" + i + "Title", step.title);
+        setVal("manualStep" + i + "Text", step.text);
+      }
+    }
+
+    function collectManualSteps() {
+      const steps = [];
+      for (let i = 1; i <= 4; i++) {
+        const title = ((document.getElementById("manualStep" + i + "Title") || {}).value || "").trim();
+        const text = ((document.getElementById("manualStep" + i + "Text") || {}).value || "").trim();
+        if (title || text) steps.push({ title: title, text: text });
+      }
+      return steps;
+    }
+
+    function saveManualSubmit() {
+      const payload = {
+        action: "saveInstructions",
+        title: ((document.getElementById("manualTitleInput") || {}).value || "").trim(),
+        heading: ((document.getElementById("manualHeadingInput") || {}).value || "").trim(),
+        steps: collectManualSteps(),
+        note: ((document.getElementById("manualNoteInput") || {}).value || "").trim()
+      };
+      if (!payload.steps.length) { setAdminStatus("manualStatus", "Add at least one step.", false); return; }
+      setAdminStatus("manualStatus", "Saving…");
+      apiPost(payload).then(res => {
+        if (!res || !res.success) { setAdminStatus("manualStatus", (res && res.error) || "Save failed.", false); return; }
+        state.instructions = res.instructions;
+        renderManualEditor();
+        setAdminStatus("manualStatus", "Saved.");
+      }).catch(() => setAdminStatus("manualStatus", "Network error.", false));
+    }
+
+    function resetManualSubmit() {
+      if (!confirm("Reset the self-order instructions back to the built-in copy?")) return;
+      setAdminStatus("manualStatus", "Resetting…");
+      apiPost({ action: "saveInstructions", title: "", heading: "", steps: [], note: "" }).then(res => {
+        if (!res || !res.success) { setAdminStatus("manualStatus", "Reset failed.", false); return; }
+        state.instructions = res.instructions;
+        renderManualEditor();
+        setAdminStatus("manualStatus", "Reset to default.");
+      }).catch(() => setAdminStatus("manualStatus", "Network error.", false));
+    }
+
+    // ==================== ADMIN: PROMOTIONS ====================
+    function renderPromotionsEditor() {
+      const p = state.promoPopup || {};
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ""; };
+      setVal("adminPromoPopupTitle", p.title);
+      setVal("adminPromoPopupBody", p.body);
+      setVal("adminPromoPopupImage", p.imageUrl);
+      const active = document.getElementById("adminPromoPopupActive");
+      if (active) active.checked = p.active === true;
+      renderPromoCodesList();
+    }
+
+    function renderPromoCodesList() {
+      const wrap = document.getElementById("adminPromoCodesList");
+      if (!wrap) return;
+      const codes = state.promoCodes || [];
+      if (!codes.length) {
+        wrap.innerHTML = '<p class="text-[11px] font-bold text-slate-400">No promo codes yet.</p>';
+        return;
+      }
+      wrap.innerHTML = codes.map(c => `
+        <div class="flex items-center justify-between gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+          <div class="min-w-0">
+            <p class="text-xs font-black text-slate-800">${escapeHtml(c.code)}
+              <span class="ml-1 text-[10px] font-bold ${c.active ? "text-emerald-600" : "text-slate-400"}">${c.active ? "ACTIVE" : "OFF"}</span>
+            </p>
+            <p class="text-[10px] font-bold text-slate-400 truncate">${c.type === "PERCENT" ? c.value + "% off" : "$" + Number(c.value).toFixed(2) + " off"}${c.minSpend ? " · min $" + Number(c.minSpend).toFixed(2) : ""}${c.description ? " · " + escapeHtml(c.description) : ""}</p>
+          </div>
+          <button type="button" onclick="deletePromoCodeRow('${escapeHtml(c.code)}')" class="text-rose-400 hover:text-rose-600 text-xs font-bold px-2"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join("");
+    }
+
+    function savePromoPopupSubmit() {
+      const payload = {
+        action: "savePromoPopup",
+        title: ((document.getElementById("adminPromoPopupTitle") || {}).value || "").trim(),
+        body: ((document.getElementById("adminPromoPopupBody") || {}).value || "").trim(),
+        imageUrl: ((document.getElementById("adminPromoPopupImage") || {}).value || "").trim(),
+        active: !!(document.getElementById("adminPromoPopupActive") || {}).checked
+      };
+      setAdminStatus("adminPromoPopupStatus", "Saving…");
+      apiPost(payload).then(res => {
+        if (!res || !res.success) { setAdminStatus("adminPromoPopupStatus", "Save failed.", false); return; }
+        state.promoPopup = res.promoPopup;
+        renderPromotionsEditor();
+        setAdminStatus("adminPromoPopupStatus", "Saved.");
+      }).catch(() => setAdminStatus("adminPromoPopupStatus", "Network error.", false));
+    }
+
+    function clearPromoPopupSubmit() {
+      apiPost({
+        action: "savePromoPopup",
+        title: ((document.getElementById("adminPromoPopupTitle") || {}).value || "").trim(),
+        body: ((document.getElementById("adminPromoPopupBody") || {}).value || "").trim(),
+        imageUrl: "",
+        active: false
+      }).then(res => {
+        if (res && res.success) { state.promoPopup = res.promoPopup; renderPromotionsEditor(); setAdminStatus("adminPromoPopupStatus", "Popup hidden."); }
+        else setAdminStatus("adminPromoPopupStatus", "Failed.", false);
+      }).catch(() => setAdminStatus("adminPromoPopupStatus", "Network error.", false));
+    }
+
+    function savePromoCodeSubmit() {
+      const entry = {
+        code: ((document.getElementById("adminPromoCode") || {}).value || "").trim().toUpperCase(),
+        type: ((document.getElementById("adminPromoCodeType") || {}).value || "PERCENT"),
+        value: Number(((document.getElementById("adminPromoCodeValue") || {}).value || 0)),
+        minSpend: Number(((document.getElementById("adminPromoCodeMinSpend") || {}).value || 0)),
+        active: !!(document.getElementById("adminPromoCodeActive") || {}).checked,
+        description: ((document.getElementById("adminPromoCodeDesc") || {}).value || "").trim()
+      };
+      if (!entry.code) { showToast("Enter a promo code", "error"); return; }
+      if (!(entry.value > 0)) { showToast("Discount value must be greater than 0", "error"); return; }
+      apiPost({ action: "savePromoCode", entry: entry }).then(res => {
+        if (!res || !res.success) { showToast((res && res.error) || "Save failed", "error"); return; }
+        state.promoCodes = res.promoCodes || [];
+        ["adminPromoCode", "adminPromoCodeValue", "adminPromoCodeMinSpend", "adminPromoCodeDesc"].forEach(id => {
+          const el = document.getElementById(id); if (el) el.value = "";
+        });
+        renderPromoCodesList();
+        showToast("Promo code saved", "success");
+      }).catch(() => showToast("Network error", "error"));
+    }
+
+    function deletePromoCodeRow(code) {
+      if (!confirm("Delete promo code " + code + "?")) return;
+      apiPost({ action: "deletePromoCode", code: code }).then(res => {
+        if (!res || !res.success) { showToast("Delete failed", "error"); return; }
+        state.promoCodes = res.promoCodes || [];
+        renderPromoCodesList();
+      }).catch(() => showToast("Network error", "error"));
     }
 
     // ==================== PRINTER: TEST PRINT ====================
@@ -4199,10 +4901,11 @@
                 <span class="text-slate-500 block text-[11px] font-semibold mt-0.5">
                   Guest: ${escapeHtml(o.guestName)} | Cashier: ${escapeHtml(o.cashier)} ${o.pickupTime ? `| Pickup: ${escapeHtml(o.pickupTime)}` : ''}
                   ${o.customization ? `| Note: <em class="text-amber-800">${escapeHtml(o.customization)}</em>` : ''}
+                  ${Number(o.discount) > 0 ? `| Discount: <span class="text-rose-500">-${fmtPrice(o.discount)}</span>${o.promoCode ? ` (${escapeHtml(o.promoCode)})` : ''}${o.discountBy ? ` · approved by ${escapeHtml(o.discountBy)}` : ''}` : ''}
                 </span>
               </div>
               <div class="flex items-center space-x-3">
-                <span class="font-black text-emerald-600 text-sm">${fmtPrice(o.price)}</span>
+                <span class="font-black text-emerald-600 text-sm">${fmtPrice(Math.max(0, (Number(o.price) || 0) - (Number(o.discount) || 0)))}</span>
                 <button onclick="deleteOrderSubmit('${o.orderNum}')" class="bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-2.5 py-1 rounded-xl text-xs shadow-sm transition">
                   Delete
                 </button>
@@ -5018,5 +5721,32 @@
 
     init();
   </script>
+  <!-- Staff-card authorisation modal (manual discounts) -->
+  <div id="discountAuthModal" class="hidden fixed inset-0 bg-black/75 z-[80] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="font-black text-slate-900 text-lg"><i class="fa-solid fa-id-card text-amber-500 mr-2"></i> Staff Authorisation</h3>
+          <p class="text-[11px] text-slate-400 font-semibold mt-1">Scan a staff card to approve this discount. The approving account is recorded on the order.</p>
+        </div>
+        <button type="button" onclick="closeDiscountAuth()" class="text-slate-300 hover:text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div>
+        <input type="text" id="discountAuthCode" autocomplete="off" placeholder="Scan staff card / type staff ID"
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();submitDiscountAuth();}">
+        <p id="discountAuthError" class="text-[11px] font-bold text-rose-500 mt-1 hidden"></p>
+      </div>
+      <div id="discountAuthAccounts" class="hidden space-y-2">
+        <p class="text-[11px] font-bold text-slate-500">This card is linked to several accounts — choose the approver:</p>
+        <div id="discountAuthAccountList" class="space-y-1.5"></div>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="closeDiscountAuth()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl text-xs font-extrabold">Cancel</button>
+        <button type="button" onclick="submitDiscountAuth()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-extrabold">Authorise</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
