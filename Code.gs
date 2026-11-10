@@ -204,7 +204,7 @@ function ensureQRTilesSheet(ss) {
 
 // Ensure menu sheet has Category (E) and ColdPaused (F) columns
 function ensureMenuSheetColumns(sheet) {
-  const headers = sheet.getRange(1, 1, 1, 7).getValues()[0];
+  const headers = sheet.getRange(1, 1, 1, 10).getValues()[0];
   if (!headers[4] || String(headers[4]).trim() === "") {
     sheet.getRange(1, 5).setValue("Category");
   }
@@ -213,6 +213,15 @@ function ensureMenuSheetColumns(sheet) {
   }
   if (!headers[6] || String(headers[6]).trim() === "") {
     sheet.getRange(1, 7).setValue("ImageUrl");
+  }
+  if (!headers[7] || String(headers[7]).trim() === "") {
+    sheet.getRange(1, 8).setValue("Description");
+  }
+  if (!headers[8] || String(headers[8]).trim() === "") {
+    sheet.getRange(1, 9).setValue("AllowNotes");
+  }
+  if (!headers[9] || String(headers[9]).trim() === "") {
+    sheet.getRange(1, 10).setValue("SoldOut");
   }
 }
 
@@ -922,7 +931,10 @@ function getInitialData() {
           available: effectiveStatus.toLowerCase() === "active",
           category: String(row[4] || "Other").trim(),
           coldPaused: itemColdPaused,
-          imageUrl: String(row[6] || "").trim()
+          imageUrl: String(row[6] || "").trim(),
+          description: String(row[7] || "").trim(),
+          allowNotes: String(row[8] || "").trim().toLowerCase() !== "false",
+          soldOut: String(row[9] || "").trim().toLowerCase() === "true"
         });
       }
     }
@@ -1501,6 +1513,9 @@ function saveMenuItem(item) {
       sheet.getRange(i + 1, 5).setValue(item.category || "Other");
       sheet.getRange(i + 1, 6).setValue(item.coldPaused ? "true" : "false");
       sheet.getRange(i + 1, 7).setValue(String(item.imageUrl || "").trim());
+      sheet.getRange(i + 1, 8).setValue(String(item.description || "").trim());
+      sheet.getRange(i + 1, 9).setValue(item.allowNotes === false ? "false" : "true");
+      sheet.getRange(i + 1, 10).setValue(item.soldOut ? "true" : "false");
       SpreadsheetApp.flush();
       bumpVersion();
       return { success: true };
@@ -1512,7 +1527,8 @@ function saveMenuItem(item) {
 function addMenuItem(item) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Financial & Menu Summary");
   ensureMenuSheetColumns(sheet);
-  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false", String(item.imageUrl || "").trim()]);
+  sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false", String(item.imageUrl || "").trim(),
+    String(item.description || "").trim(), item.allowNotes === false ? "false" : "true", item.soldOut ? "true" : "false"]);
   SpreadsheetApp.flush();
   bumpVersion();
   return { success: true };
