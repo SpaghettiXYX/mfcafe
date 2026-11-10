@@ -362,6 +362,18 @@
 
       <div class="space-y-4 text-left">
         <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card</label>
+          <div class="relative">
+            <i class="fa-solid fa-id-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
+            <input type="text" id="loginStaffCode" autocomplete="off" placeholder="Scan card or type staff ID"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+          </div>
+          <p class="text-[10px] text-slate-400 font-semibold mt-1">Barcode scanners type the ID and press Enter — no password needed.</p>
+        </div>
+        <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <span class="flex-1 h-px bg-slate-200"></span>or use credentials<span class="flex-1 h-px bg-slate-200"></span>
+        </div>
+        <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
           <input type="text" id="loginUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
         </div>
@@ -571,6 +583,21 @@
             </div>
           </div>
 
+          <!-- Promo code (whole order) -->
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-400">Promo Code <span class="font-normal">(optional)</span></label>
+              <span id="posPromoStatus" class="text-[10px] font-bold text-slate-400"></span>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="posPromoCode" placeholder="e.g. OPENDAY10" autocomplete="off"
+                class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 uppercase"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();applyPosPromoCode();}">
+              <button type="button" onclick="applyPosPromoCode()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-extrabold transition">Apply</button>
+              <button type="button" onclick="clearPosPromoCode()" id="posPromoClearBtn" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition">Clear</button>
+            </div>
+          </div>
+
           <button onclick="submitPosOrder()" id="btnSubmitPos" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-circle-check"></i>
             <span id="posSubmitBtnText">Confirm & Submit ($0.00)</span>
@@ -587,9 +614,16 @@
           <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
           <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
         </div>
-        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
-          0 Active Orders
-        </span>
+        <div class="flex items-center gap-2">
+          <!-- Bar pressure light: green = calm, amber = busy, red = overloaded -->
+          <span id="kdsBarLoad" class="flex items-center gap-1.5 bg-white text-slate-600 font-extrabold px-3 py-1 rounded-full text-[11px] border border-slate-200">
+            <span id="kdsBarLoadDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span id="kdsBarLoadText">Bar calm</span>
+          </span>
+          <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
+            0 Active Orders
+          </span>
+        </div>
       </div>
 
       <!-- Unassigned order marquee -->
@@ -766,6 +800,62 @@
         <div class="flex gap-2">
           <button onclick="sendPushMessageSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Send Push Message</button>
           <button onclick="clearPushMessageSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Clear Push Message</button>
+        </div>
+      </div>
+
+      <!-- Promotions: guest popup + promo codes -->
+      <div data-admin-section="promotions" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <div>
+          <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
+            <i class="fa-solid fa-percent text-amber-500 mr-2"></i> Self-Order Promo Popup
+          </h3>
+          <p class="text-[11px] text-slate-400 mt-2">Shown once to every guest on the Customer / Open Day order page. Leave the image blank for a text-only popup.</p>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Title</label>
+            <input type="text" id="adminPromoPopupTitle" placeholder="e.g. Open Day Special" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Message</label>
+            <textarea id="adminPromoPopupBody" rows="3" placeholder="e.g. Buy any two drinks and get $5 off with code OPENDAY5" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Image URL <span class="font-normal text-slate-400">(optional)</span></label>
+            <input type="url" id="adminPromoPopupImage" placeholder="https://..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          </div>
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+            <input type="checkbox" id="adminPromoPopupActive" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+            Show popup on self-order screens
+          </label>
+          <div class="flex items-center gap-2">
+            <button onclick="savePromoPopupSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Popup</button>
+            <button onclick="clearPromoPopupSubmit()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Hide Popup</button>
+            <span id="adminPromoPopupStatus" class="text-[10px] font-bold text-slate-400"></span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-5 space-y-3">
+          <div>
+            <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-ticket text-amber-500 mr-2"></i> Promo Codes</h3>
+            <p class="text-[11px] text-slate-400 mt-1">Percent takes a % off the subtotal; Amount takes a fixed dollar value.</p>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-6 gap-2">
+            <input type="text" id="adminPromoCode" placeholder="CODE" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 uppercase">
+            <select id="adminPromoCodeType" class="bg-slate-50 border border-slate-200 rounded-xl px-2 py-2 text-xs font-bold text-slate-800">
+              <option value="PERCENT">% Off</option>
+              <option value="AMOUNT">$ Off</option>
+            </select>
+            <input type="number" step="0.5" min="0" id="adminPromoCodeValue" placeholder="Value" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="number" step="0.5" min="0" id="adminPromoCodeMinSpend" placeholder="Min $" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <input type="text" id="adminPromoCodeDesc" placeholder="Description" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <button onclick="savePromoCodeSubmit()" class="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition">Save Code</button>
+          </div>
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+            <input type="checkbox" id="adminPromoCodeActive" checked class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+            Active
+          </label>
+          <div id="adminPromoCodesList" class="space-y-2"></div>
         </div>
       </div>
 
@@ -1107,6 +1197,10 @@
           <input type="number" step="0.5" id="editItemPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
         </div>
         <div>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Offer Price ($) <span class="font-normal text-slate-400">(optional — 0 = no promo)</span></label>
+          <input type="number" step="0.5" min="0" id="editItemOfferPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700">
+        </div>
+        <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Options</label>
           <select id="editItemTemp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
             <option value="Hot & Cold">Hot & Cold</option>
@@ -1306,6 +1400,9 @@
       teacherPauseReason: "",
       openDayPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
+      promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
+      promoCodes: [],
+      posPromo: null,         // { code, type, value, discount } applied to the current order
       categoryColors: {},
       receiptLayout: null     // editable block list, loaded from Apps Script
     };
@@ -1659,6 +1756,51 @@
       });
     }
 
+    // Staff-card login: a USB scanner behaves like a keyboard, types the
+    // staff's UserCode and presses Enter. No password involved.
+    function attemptStaffCodeLogin(codeArg) {
+      const input = document.getElementById("loginStaffCode");
+      const errEl = document.getElementById("loginError");
+      const code = String(codeArg != null ? codeArg : (input ? input.value : "")).trim();
+      if (!code) {
+        if (errEl) { errEl.innerText = "Scan your staff card or type your staff ID."; errEl.classList.remove("hidden"); }
+        return;
+      }
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "loginByStaffCode", code: code })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          if (input) input.value = "";
+          completeLogin(res);
+        } else if (errEl) {
+          errEl.innerText = res.error || "Staff card not recognised.";
+          errEl.classList.remove("hidden");
+        }
+      })
+      .catch(() => {
+        if (errEl) { errEl.innerText = "Network error authenticating."; errEl.classList.remove("hidden"); }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const codeInput = document.getElementById("loginStaffCode");
+      if (codeInput) {
+        codeInput.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); attemptStaffCodeLogin(); }
+        });
+      }
+      const passInput = document.getElementById("loginPassword");
+      if (passInput) {
+        passInput.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); attemptLogin(); }
+        });
+      }
+    });
+
     function logout() {
       setCookie("mfcafe_user", "", -1);
       setCookie("mfcafe_role", "", -1);
@@ -1672,6 +1814,7 @@
       updateRoleLabel("Staff");
       document.getElementById("loginOverlay").classList.remove("hidden");
       applyRoleVisibility();
+      setTimeout(() => document.getElementById("loginStaffCode")?.focus(), 60);
     }
 
     function switchView(viewName) {
@@ -1865,8 +2008,13 @@
           setTimeout(() => { screen.style.display = "none"; }, 320);
         }
         // Signed in → straight into the POS; otherwise the login overlay
-        // underneath takes over.
-        if (state.currentUser) switchView("cashier");
+        // underneath takes over. Focus the card field so a USB scanner can
+        // fire immediately without the cashier clicking first.
+        if (state.currentUser) {
+          switchView("cashier");
+        } else {
+          document.getElementById("loginStaffCode")?.focus();
+        }
       }, hold + 360);
     }
 
@@ -1907,6 +2055,8 @@
           if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
+          if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
+          if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
           if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
           if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
 
@@ -2005,10 +2155,15 @@
           btn.style.borderLeftColor = catColor;
         }
         btn.onclick = () => selectPosMenuItem(item);
+        const listPrice = Number(item.price) || 0;
+        const offerPrice = Number(item.offerPrice) || 0;
+        const hasOffer = offerPrice > 0 && offerPrice < listPrice;
         btn.innerHTML = `
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="font-black text-sm mt-2" style="color: ${catColor};">${fmtPrice(item.price)}</p>
+          <p class="font-black text-sm mt-2" style="color: ${catColor};">
+            ${hasOffer ? `<span class="text-[10px] font-bold text-slate-400 line-through mr-1">${fmtPrice(listPrice)}</span>` : ""}${fmtPrice(hasOffer ? offerPrice : listPrice)}
+          </p>
         `;
         grid.appendChild(btn);
       });
@@ -2022,7 +2177,73 @@
     function getPosItemPrice(item, temp) {
       if (!item) return 0;
       const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
-      return (Number(item.price) || 0) + coldExtra;
+      // An active offer price replaces the list price (cold surcharge still applies).
+      const base = (Number(item.offerPrice) > 0) ? Number(item.offerPrice) : (Number(item.price) || 0);
+      return base + coldExtra;
+    }
+
+    // Whole-order promo. The server validated the code when it was applied; the
+    // amount is recomputed locally so a Hot/Cold switch stays consistent.
+    function getPosPromoDiscount() {
+      const promo = state.posPromo;
+      const subtotal = getPosItemPrice(state.selectedPosItem, state.selectedPosTemp);
+      if (!promo || !subtotal) return 0;
+      const raw = promo.type === "PERCENT" ? subtotal * (promo.value / 100) : promo.value;
+      return Math.max(0, Math.min(subtotal, Math.round(raw * 100) / 100));
+    }
+
+    function updatePosPriceDisplay() {
+      const subtotal = getPosItemPrice(state.selectedPosItem, state.selectedPosTemp);
+      const discount = getPosPromoDiscount();
+      const total = Math.max(0, subtotal - discount);
+      const btnText = document.getElementById('posSubmitBtnText');
+      if (btnText) {
+        btnText.innerText = discount > 0
+          ? `Confirm & Submit (${fmtPrice(total)} · -${fmtPrice(discount)})`
+          : `Confirm & Submit (${fmtPrice(total)})`;
+      }
+      const status = document.getElementById('posPromoStatus');
+      if (status) {
+        status.innerText = state.posPromo
+          ? `${state.posPromo.code} · -${fmtPrice(discount)}`
+          : "";
+        status.className = state.posPromo
+          ? "text-[10px] font-bold text-emerald-600"
+          : "text-[10px] font-bold text-slate-400";
+      }
+      document.getElementById('posPromoClearBtn')?.classList.toggle('hidden', !state.posPromo);
+    }
+
+    function applyPosPromoCode() {
+      if (!state.selectedPosItem) return showToast("Select a drink first, then apply the code.", "warning");
+      const input = document.getElementById('posPromoCode');
+      const code = input ? input.value.trim().toUpperCase() : "";
+      if (!code) return showToast("Enter a promo code.", "warning");
+      const subtotal = getPosItemPrice(state.selectedPosItem, state.selectedPosTemp);
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "validatePromoCode", code: code, subtotal: subtotal })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.posPromo = { code: res.code, type: res.type, value: res.value, discount: res.discount };
+          if (input) input.value = res.code;
+          updatePosPriceDisplay();
+          showToast(`Promo ${res.code} applied — ${fmtPrice(res.discount)} off`, "success");
+        } else {
+          showToast(res.error || "Promo code rejected", "error");
+        }
+      })
+      .catch(() => showToast("Network error validating promo code", "error"));
+    }
+
+    function clearPosPromoCode() {
+      state.posPromo = null;
+      const input = document.getElementById('posPromoCode');
+      if (input) input.value = "";
+      updatePosPriceDisplay();
     }
 
     function selectPosMenuItem(item) {
@@ -2051,7 +2272,11 @@
 
       if (nameEl) nameEl.innerText = item.name;
       if (priceEl) priceEl.innerText = fmtPrice(getPosItemPrice(item, state.selectedPosTemp));
-      document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(item, state.selectedPosTemp))})`;
+      // A new drink starts a new order — drop any code applied to the previous one.
+      state.posPromo = null;
+      const promoInput = document.getElementById('posPromoCode');
+      if (promoInput) promoInput.value = "";
+      updatePosPriceDisplay();
 
       const tempContainer = document.getElementById('posTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -2093,7 +2318,7 @@
       if (btnHot) btnHot.className = t === 'Hot' ? 'flex-1 py-2 rounded-xl text-xs font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm' : 'flex-1 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500';
       if (state.selectedPosItem) {
         document.getElementById('posSelectedItemPrice').innerText = fmtPrice(getPosItemPrice(state.selectedPosItem, t));
-        document.getElementById('posSubmitBtnText').innerText = `Confirm & Submit (${fmtPrice(getPosItemPrice(state.selectedPosItem, t))})`;
+        updatePosPriceDisplay();
       }
     }
 
@@ -2194,6 +2419,8 @@
         temp: state.selectedPosTemp,
         customization: notes,
         price: getPosItemPrice(state.selectedPosItem, state.selectedPosTemp),
+        discount: getPosPromoDiscount(),
+        promoCode: state.posPromo ? state.posPromo.code : "",
         status: "PENDING",
         qrTile: qrTile,
         cupType: cupType
@@ -2219,7 +2446,11 @@
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
           clearPosTileError();
+          state.posPromo = null;
+          const promoInputEl = document.getElementById('posPromoCode');
+          if (promoInputEl) promoInputEl.value = "";
           document.getElementById('posSubmitBtnText').innerText = "Confirm & Submit ($0.00)";
+          updatePosPriceDisplay();
           
           fetchFromSheet();
 
@@ -2694,6 +2925,26 @@
 
       const badge = document.getElementById('kdsPendingCount');
       if (badge) badge.innerText = `${activeOrders.length} Active Orders`;
+
+      // Pressure light: thresholds tuned for a 2–3 person bar.
+      const load = activeOrders.length;
+      const loadDot = document.getElementById('kdsBarLoadDot');
+      const loadText = document.getElementById('kdsBarLoadText');
+      if (loadDot && loadText) {
+        if (load >= 10) {
+          loadDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
+          loadText.innerText = 'Bar overloaded';
+          loadText.className = 'text-rose-600';
+        } else if (load >= 5) {
+          loadDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+          loadText.innerText = 'Bar busy';
+          loadText.className = 'text-amber-600';
+        } else {
+          loadDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+          loadText.innerText = 'Bar calm';
+          loadText.className = 'text-emerald-600';
+        }
+      }
 
       // ---- Marquee: every order not yet assigned by the head chef ----
       const unassigned = activeOrders.filter(o => (o.status || "").toUpperCase() !== "ASSIGNED");
@@ -3896,6 +4147,7 @@
       { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
       { key: "operation",    label: "Operation",          icon: "fa-sliders" },
       { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
+      { key: "promotions",   label: "Promotions",         icon: "fa-percent" },
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
@@ -4046,7 +4298,7 @@
       // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
       const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
       const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
-      const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+      const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0) - (o.discount || 0), 0);
 
       document.getElementById('adminRevenue').innerText = fmtPrice(rev);
       document.getElementById('adminTotalOrders').innerText = paidOrders.length;
@@ -4171,7 +4423,7 @@
               <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
               <td class="py-3 px-3"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
               <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(item.tempOptions)}</td>
-              <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}</td>
+              <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}${Number(item.offerPrice) > 0 ? `<span class="block text-[9px] font-black text-emerald-600">Offer ${fmtPrice(item.offerPrice)}</span>` : ''}</td>
               <td class="py-3 px-3">
                 <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
                   ${isPaused ? 'Paused' : 'Active'}
@@ -4196,6 +4448,7 @@
       }
 
       renderAdminFinancialLog();
+      renderPromotionsAdmin();
     }
 
     function renderAdminFinancialLog() {
@@ -4394,6 +4647,154 @@
           else showToast("Failed to save pause reasons", "error");
         })
         .catch(() => showToast("Network error saving pause reasons", "error"));
+    }
+
+    // ===== PROMOTIONS: POPUP + CODES =====
+    function renderPromotionsAdmin() {
+      const popup = state.promoPopup || {};
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        // Never stomp on a field the admin is currently typing in.
+        if (el && document.activeElement !== el) el.value = val;
+      };
+      setVal('adminPromoPopupTitle', popup.title || "");
+      setVal('adminPromoPopupBody', popup.body || "");
+      setVal('adminPromoPopupImage', popup.imageUrl || "");
+      const activeBox = document.getElementById('adminPromoPopupActive');
+      if (activeBox && document.activeElement !== activeBox) activeBox.checked = popup.active === true;
+
+      const status = document.getElementById('adminPromoPopupStatus');
+      if (status) {
+        const live = popup.active === true;
+        status.innerText = live ? "Live on self-order screens" : "Hidden";
+        status.className = live
+          ? "text-[10px] font-bold text-emerald-600"
+          : "text-[10px] font-bold text-slate-400";
+      }
+
+      renderPromoCodesList();
+    }
+
+    function renderPromoCodesList() {
+      const list = document.getElementById('adminPromoCodesList');
+      if (!list) return;
+      if (!state.promoCodes.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400">No promo codes yet. Add one above.</p>';
+        return;
+      }
+      list.innerHTML = state.promoCodes.map(c => {
+        const valueLabel = c.type === "PERCENT" ? `${c.value}% off` : `${fmtPrice(c.value)} off`;
+        return `
+          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            <div class="min-w-0">
+              <span class="font-black text-xs text-slate-800">${escapeHtml(c.code)}</span>
+              <span class="text-[10px] font-bold text-slate-500 ml-2">${valueLabel}${c.minSpend > 0 ? ` · min ${fmtPrice(c.minSpend)}` : ""}</span>
+              ${c.description ? `<p class="text-[10px] text-slate-400 truncate">${escapeHtml(c.description)}</p>` : ""}
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${c.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}">${c.active ? "Active" : "Off"}</span>
+              <button onclick="deletePromoCodeSubmit('${escapeHtml(c.code)}')" class="text-rose-500 hover:text-rose-700 text-xs" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function savePromoPopupSubmit() {
+      const title = document.getElementById('adminPromoPopupTitle').value.trim();
+      const body = document.getElementById('adminPromoPopupBody').value.trim();
+      const imageUrl = document.getElementById('adminPromoPopupImage').value.trim();
+      const active = document.getElementById('adminPromoPopupActive').checked;
+      if (!title && !body && !imageUrl) return showToast("Add a title, message or image first", "warning");
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePromoPopup", title: title, body: body, imageUrl: imageUrl, active: active })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.promoPopup = res.promoPopup || { active, title, body, imageUrl, timestamp: Date.now() };
+          renderPromotionsAdmin();
+          showToast(active ? "Promo popup is live" : "Promo popup saved (hidden)", "success");
+        } else {
+          showToast(res.error || "Failed to save promo popup", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving promo popup", "error"));
+    }
+
+    function clearPromoPopupSubmit() {
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePromoPopup", title: "", body: "", imageUrl: "", active: false })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.promoPopup = res.promoPopup || { active: false, title: "", body: "", imageUrl: "", timestamp: 0 };
+          renderPromotionsAdmin();
+          showToast("Promo popup hidden", "success");
+        } else {
+          showToast(res.error || "Failed to hide promo popup", "error");
+        }
+      })
+      .catch(() => showToast("Network error hiding promo popup", "error"));
+    }
+
+    function savePromoCodeSubmit() {
+      const code = document.getElementById('adminPromoCode').value.trim().toUpperCase();
+      const type = document.getElementById('adminPromoCodeType').value;
+      const value = parseFloat(document.getElementById('adminPromoCodeValue').value) || 0;
+      const minSpend = parseFloat(document.getElementById('adminPromoCodeMinSpend').value) || 0;
+      const description = document.getElementById('adminPromoCodeDesc').value.trim();
+      const active = document.getElementById('adminPromoCodeActive').checked;
+      if (!code) return showToast("Enter a promo code", "warning");
+      if (value <= 0) return showToast("Enter a value greater than 0", "warning");
+      if (type === "PERCENT" && value > 100) return showToast("Percent cannot exceed 100", "warning");
+
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePromoCode", entry: { code, type, value, minSpend, active, description } })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.promoCodes = res.promoCodes || state.promoCodes;
+          ['adminPromoCode', 'adminPromoCodeValue', 'adminPromoCodeMinSpend', 'adminPromoCodeDesc'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          });
+          renderPromoCodesList();
+          showToast(`Promo code ${code} saved`, "success");
+        } else {
+          showToast(res.error || "Failed to save promo code", "error");
+        }
+      })
+      .catch(() => showToast("Network error saving promo code", "error"));
+    }
+
+    function deletePromoCodeSubmit(code) {
+      showConfirm(`Delete promo code ${code}?`).then(ok => {
+        if (!ok) return;
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "deletePromoCode", code: code })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.success) {
+            state.promoCodes = res.promoCodes || [];
+            renderPromoCodesList();
+            showToast(`Promo code ${code} deleted`, "success");
+          } else {
+            showToast(res.error || "Failed to delete promo code", "error");
+          }
+        })
+        .catch(() => showToast("Network error deleting promo code", "error"));
+      });
     }
 
     function sendPushMessageSubmit() {
@@ -4742,6 +5143,7 @@
       document.getElementById('editOriginalName').value = item.name;
       document.getElementById('editItemName').value = item.name;
       document.getElementById('editItemPrice').value = item.price;
+      document.getElementById('editItemOfferPrice').value = item.offerPrice || "";
       document.getElementById('editItemTemp').value = item.tempOptions;
       document.getElementById('editItemStatus').value = item.status || "Active";
       populateCategorySelect(item.category || "Other");
@@ -4758,6 +5160,7 @@
       document.getElementById('editOriginalName').value = "";
       document.getElementById('editItemName').value = "";
       document.getElementById('editItemPrice').value = "";
+      document.getElementById('editItemOfferPrice').value = "";
       document.getElementById('editItemTemp').value = "Hot & Cold";
       document.getElementById('editItemStatus').value = "Active";
       document.getElementById('editItemColdPaused').checked = false;
@@ -4775,6 +5178,7 @@
       const originalName = document.getElementById('editOriginalName').value;
       const name = document.getElementById('editItemName').value.trim();
       const price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+      const offerPrice = parseFloat(document.getElementById('editItemOfferPrice').value) || 0;
       const tempOptions = document.getElementById('editItemTemp').value;
       const status = document.getElementById('editItemStatus').value;
       const category = document.getElementById('editItemCategory').value || "Other";
@@ -4783,15 +5187,16 @@
 
       if (!name) return showToast("Please enter item name!", "warning");
 
-      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused, imageUrl };
+      const itemData = { originalName, name, price, offerPrice, tempOptions, status, category, coldPaused, imageUrl };
 
       if (isModalAddMode) {
-        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl });
+        state.menu.push({ name, price, offerPrice, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl });
       } else {
         const item = state.menu.find(i => i.name === originalName);
         if (item) {
           item.name = name;
           item.price = price;
+          item.offerPrice = offerPrice;
           item.tempOptions = tempOptions;
           item.status = status;
           item.category = category;

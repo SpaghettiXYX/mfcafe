@@ -183,7 +183,9 @@
     #instructionsBtn {
       position: fixed;
       top: max(0.75rem, env(safe-area-inset-top));
-      right: 0.75rem;
+      /* Anchor to the 24rem content column on desktop instead of the far edge
+         of the viewport, where it was easy to miss. */
+      right: max(0.75rem, calc(50% - 11.25rem));
       z-index: 70;
       display: inline-flex; align-items: center; gap: 0.375rem;
       margin: 0; padding: 0.45rem 0.8rem;
@@ -366,6 +368,19 @@
   </main>
 
   <footer id="orderFooter" class="pt-3">
+    <div class="bg-white rounded-2xl border border-slate-200 p-3 mb-2 space-y-1.5">
+      <div class="flex items-center justify-between">
+        <label class="text-[11px] font-bold text-slate-400">Promo Code <span class="font-normal">(optional)</span></label>
+        <span id="custPromoStatus" class="text-[10px] font-bold text-slate-400"></span>
+      </div>
+      <div class="flex gap-2">
+        <input type="text" id="custPromoCode" placeholder="e.g. OPENDAY10" autocomplete="off"
+          class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 uppercase"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();applyCustPromoCode();}">
+        <button type="button" onclick="applyCustPromoCode()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-extrabold transition">Apply</button>
+        <button type="button" onclick="clearCustPromoCode()" id="custPromoClearBtn" class="hidden bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold transition">Clear</button>
+      </div>
+    </div>
     <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
       <i class="fa-solid fa-barcode"></i>
       <span id="submitBtnText">Place Order (Pay at Cashier)</span>
@@ -492,6 +507,24 @@
     </div>
   </div>
 
+  <!-- PROMO POPUP (admin broadcast for self-order guests) -->
+  <div id="promoPopupModal" class="fixed inset-0 z-[80] hidden flex items-center justify-center p-4"
+       style="background:rgba(16,21,31,0.72)" role="dialog" aria-modal="true" aria-labelledby="promoPopupTitle"
+       onclick="if (event.target === this) dismissPromoPopup()">
+    <div class="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-amber-200">
+      <img id="promoPopupImage" alt="" class="w-full object-cover" style="max-height:220px;display:none"
+           onerror="this.style.display='none'">
+      <div class="p-5 space-y-2">
+        <h2 id="promoPopupTitle" class="font-black text-slate-800 text-lg">Announcement</h2>
+        <p id="promoPopupBody" class="text-sm text-slate-600 whitespace-pre-wrap"></p>
+        <button type="button" onclick="dismissPromoPopup()"
+                class="w-full mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold py-2.5 rounded-xl text-sm transition">
+          Got it
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="self-order-history.js"></script>
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
@@ -515,6 +548,9 @@
       coldPaused: false,
       openDayReservationOpen: true,
       openDayPauseReason: "",
+      promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
+      promoCodes: [],
+      promoCode: null,        // { code, type, value } applied to this order
       currentOrder: null
     };
     const selfOrderHistory = SelfOrderHistory.create({
@@ -587,9 +623,12 @@
           if (data.menu) state.menu = data.menu;
           if (data.categories) state.categories = data.categories;
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+          if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
+          if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
           applyReservationState();
           renderMenu();
           splashDone();
+          showPromoPopup();
         })
         .catch(() => { splashDone(); showToast("Failed to load menu. Please refresh.", "error"); });
 
@@ -608,8 +647,11 @@
             if (data.menu) state.menu = data.menu;
             if (data.categories) state.categories = data.categories;
             if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+            if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
+            if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
             applyReservationState();
             renderMenu();
+            showPromoPopup();
           })
           .catch(() => {});
       }, 15000);
@@ -664,6 +706,9 @@
         btn.className = `ui-menu-card p-3 text-left ${isSelected ? 'is-selected' : ''}`;
         btn.onclick = () => selectItem(item, btn);
         const img = String(item.imageUrl || "").trim();
+        const listPrice = Number(item.price) || 0;
+        const offerPrice = Number(item.offerPrice) || 0;
+        const hasOffer = offerPrice > 0 && offerPrice < listPrice;
         btn.innerHTML = `
           ${img ? `<div class="mb-2 rounded-xl overflow-hidden" style="aspect-ratio:4/3;background:var(--surface-3)">
             <img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
@@ -672,7 +717,9 @@
           </div>` : ""}
           <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
           <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">${fmtPrice(item.price)}</p>
+          <p class="text-amber-600 font-black text-xs mt-1.5">
+            ${hasOffer ? `<span class="text-[10px] font-bold text-slate-400 line-through mr-1">${fmtPrice(listPrice)}</span>` : ""}${fmtPrice(hasOffer ? offerPrice : listPrice)}
+          </p>
         `;
         container.appendChild(btn);
       });
@@ -686,7 +733,47 @@
     function getItemPrice(item, temp) {
       if (!item) return 0;
       const coldExtra = (temp === "Cold") ? (state.coldExtra || 0) : 0;
-      return (Number(item.price) || 0) + coldExtra;
+      const base = (Number(item.offerPrice) > 0) ? Number(item.offerPrice) : (Number(item.price) || 0);
+      return base + coldExtra;
+    }
+
+    // ===== PROMO POPUP (announcement on entry) =====
+    function showPromoPopup() {
+      const popup = state.promoPopup || {};
+      if (!popup.active || (!popup.title && !popup.body && !popup.imageUrl)) return;
+      const key = `mfcafe_promo_dismissed_${popup.timestamp || 0}`;
+      if (localStorage.getItem(key) === "1") return;
+      const modal = document.getElementById('promoPopupModal');
+      if (!modal) return;
+      const titleEl = document.getElementById('promoPopupTitle');
+      const bodyEl = document.getElementById('promoPopupBody');
+      const imgEl = document.getElementById('promoPopupImage');
+      if (titleEl) {
+        titleEl.innerText = popup.title || "Announcement";
+        titleEl.style.display = popup.title ? "" : "none";
+      }
+      if (bodyEl) {
+        bodyEl.innerText = popup.body || "";
+        bodyEl.style.display = popup.body ? "" : "none";
+      }
+      if (imgEl) {
+        if (popup.imageUrl) {
+          imgEl.src = popup.imageUrl;
+          imgEl.style.display = "";
+        } else {
+          imgEl.removeAttribute('src');
+          imgEl.style.display = "none";
+        }
+      }
+      modal.classList.remove('hidden');
+      modal.dataset.dismissKey = key;
+    }
+
+    function dismissPromoPopup() {
+      const modal = document.getElementById('promoPopupModal');
+      if (!modal) return;
+      if (modal.dataset.dismissKey) localStorage.setItem(modal.dataset.dismissKey, "1");
+      modal.classList.add('hidden');
     }
 
     // Grid 0fr -> 1fr collapse: the panel grows instead of popping open.
@@ -730,7 +817,10 @@
 
       document.getElementById('selectedItemName').innerText = item.name;
       document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(item, state.selectedTemp));
-      document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(item, state.selectedTemp))}) — Pay at Cashier`;
+      state.promoCode = null;
+      const promoInput = document.getElementById('custPromoCode');
+      if (promoInput) promoInput.value = "";
+      updateCustPriceDisplay();
 
       const tempContainer = document.getElementById('custTempBtnContainer');
       tempContainer.innerHTML = "";
@@ -775,8 +865,69 @@
       }
       if (state.selectedItem) {
         document.getElementById('selectedItemPrice').innerText = fmtPrice(getItemPrice(state.selectedItem, temp));
-        document.getElementById('submitBtnText').innerText = `Place Order (${fmtPrice(getItemPrice(state.selectedItem, temp))}) — Pay at Cashier`;
+        updateCustPriceDisplay();
       }
+    }
+
+    // ===== PROMO CODES =====
+    function getCustPromoDiscount() {
+      const promo = state.promoCode;
+      const subtotal = getItemPrice(state.selectedItem, state.selectedTemp);
+      if (!promo || !subtotal) return 0;
+      const raw = promo.type === "PERCENT" ? subtotal * (promo.value / 100) : promo.value;
+      return Math.max(0, Math.min(subtotal, Math.round(raw * 100) / 100));
+    }
+
+    function updateCustPriceDisplay() {
+      const subtotal = getItemPrice(state.selectedItem, state.selectedTemp);
+      const discount = getCustPromoDiscount();
+      const total = Math.max(0, subtotal - discount);
+      const label = document.getElementById('submitBtnText');
+      if (label) {
+        label.innerText = discount > 0
+          ? `Place Order (${fmtPrice(total)} · -${fmtPrice(discount)}) — Pay at Cashier`
+          : `Place Order (${fmtPrice(total)}) — Pay at Cashier`;
+      }
+      const status = document.getElementById('custPromoStatus');
+      if (status) {
+        status.innerText = state.promoCode ? `${state.promoCode.code} · -${fmtPrice(discount)}` : "";
+        status.className = state.promoCode
+          ? "text-[10px] font-bold text-emerald-600"
+          : "text-[10px] font-bold text-slate-400";
+      }
+      document.getElementById('custPromoClearBtn')?.classList.toggle('hidden', !state.promoCode);
+    }
+
+    function applyCustPromoCode() {
+      if (!state.selectedItem) return showToast("Pick a drink first, then apply the code.", "warning");
+      const input = document.getElementById('custPromoCode');
+      const code = input ? input.value.trim().toUpperCase() : "";
+      if (!code) return showToast("Enter a promo code.", "warning");
+      const subtotal = getItemPrice(state.selectedItem, state.selectedTemp);
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "validatePromoCode", code: code, subtotal: subtotal })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          state.promoCode = { code: res.code, type: res.type, value: res.value };
+          if (input) input.value = res.code;
+          updateCustPriceDisplay();
+          showToast(`Promo ${res.code} applied — ${fmtPrice(res.discount)} off`, "success");
+        } else {
+          showToast(res.error || "Promo code rejected", "error");
+        }
+      })
+      .catch(() => showToast("Network error validating promo code", "error"));
+    }
+
+    function clearCustPromoCode() {
+      state.promoCode = null;
+      const input = document.getElementById('custPromoCode');
+      if (input) input.value = "";
+      updateCustPriceDisplay();
     }
 
     function renderNotePills() {
@@ -843,6 +994,8 @@
         temp: state.selectedTemp,
         customization: notes,
         price: getItemPrice(state.selectedItem, state.selectedTemp),
+        discount: getCustPromoDiscount(),
+        promoCode: state.promoCode ? state.promoCode.code : "",
         status: "UNPAID",
         cupType: state.selectedCupType
       };
@@ -905,7 +1058,8 @@
       document.getElementById('ticketOrderTime').innerText = formatOrderTime(order.orderTime);
       document.getElementById('ticketPickup').innerText = order.pickupTime || "Not specified";
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
-      document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
+      const netPrice = Math.max(0, (Number(order.price) || 0) - (Number(order.discount) || 0));
+      document.getElementById('ticketPrice').innerText = fmtPrice(netPrice);
 
       const barcodeEl = document.getElementById('barcode');
       if (barcodeEl && typeof JsBarcode !== "undefined") {
@@ -1300,6 +1454,10 @@
       document.getElementById('custNotes').value = "";
       document.getElementById('custPickupTime').value = "";
       document.getElementById('submitBtnText').innerText = "Place Order (Pay at Cashier)";
+      state.promoCode = null;
+      const promoInputEl = document.getElementById('custPromoCode');
+      if (promoInputEl) promoInputEl.value = "";
+      updateCustPriceDisplay();
       init();
       try { window.scrollTo(0, 0); } catch (e) {}
       const menu = document.getElementById('orderView');
