@@ -267,6 +267,14 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between max-w-md mx-auto p-4">
 
+  <!-- Entry splash — covers the menu round-trip, then fades away -->
+  <div id="bootSplash" class="mfc-splash" aria-hidden="true">
+    <div class="flex flex-col items-center" style="gap:16px">
+      <img src="assets/mfcafe-logo.png" alt="" class="mfc-splash-logo boot-logo" draggable="false">
+      <span class="mfc-splash-bar"></span>
+    </div>
+  </div>
+
   <!-- Header -->
   <header class="text-center py-4 border-b border-slate-200 bg-white rounded-3xl p-4 shadow-sm mb-4">
     <img src="assets/mfcafe-logo.png" alt="MFCafe" class="boot-logo mx-auto w-auto h-16 mb-3 select-none" draggable="false">
@@ -554,6 +562,18 @@
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
     }
 
+    // Entry splash: fade it out the moment the first menu payload renders.
+    let splashDoneOnce = false;
+    function splashDone() {
+      if (splashDoneOnce) return;
+      splashDoneOnce = true;
+      const el = document.getElementById('bootSplash');
+      if (!el) return;
+      el.classList.add('is-done');
+      setTimeout(() => el.remove(), 320);
+    }
+    setTimeout(splashDone, 8000); // never outlive a hung request
+
     function init() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
@@ -569,8 +589,9 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           applyReservationState();
           renderMenu();
+          splashDone();
         })
-        .catch(() => showToast("Failed to load menu. Please refresh.", "error"));
+        .catch(() => { splashDone(); showToast("Failed to load menu. Please refresh.", "error"); });
 
       // Poll for menu updates every 15s (so paused items disappear)
       if (menuPollingStarted) return;

@@ -1815,6 +1815,11 @@
     let bootActive = true;
     let bootTimeoutId = null;
     let bootStageId = null;
+    // Timestamp of the moment the splash actually became visible. A warm cache
+    // can resolve the first fetch in ~200ms, which made the screen flash by so
+    // fast it read as "no loading animation at all".
+    let bootShownAt = Date.now();
+    const BOOT_MIN_VISIBLE_MS = 1100;
 
     function bootSet(statusText, pct, tone) {
       const status = document.getElementById("bootStatus");
@@ -1830,6 +1835,7 @@
 
     function bootStart(statusText) {
       bootActive = true;
+      bootShownAt = Date.now();
       const screen = document.getElementById("bootScreen");
       if (screen) { screen.style.display = "flex"; screen.style.opacity = "1"; }
       bootSet(statusText || "Connecting to server…", 10);
@@ -1849,6 +1855,9 @@
       clearTimeout(bootTimeoutId);
       clearTimeout(bootStageId);
       bootSet("Ready", 100);
+      // Hold the splash for at least a beat so the logo + progress bar actually
+      // register, then fade. Cached data used to resolve faster than the eye.
+      const hold = Math.max(0, BOOT_MIN_VISIBLE_MS - (Date.now() - bootShownAt));
       setTimeout(() => {
         const screen = document.getElementById("bootScreen");
         if (screen) {
@@ -1858,7 +1867,7 @@
         // Signed in → straight into the POS; otherwise the login overlay
         // underneath takes over.
         if (state.currentUser) switchView("cashier");
-      }, 360);
+      }, hold + 360);
     }
 
     function bootFail(message) {

@@ -373,3 +373,74 @@ html body .ui-card {
   .ui-seg-btn:hover { color: var(--ink-3); }
   html body .ui-menu-card:hover { border-color: var(--border) !important; }
 }
+
+/* ---------- Entry splash ----------
+   Same language as the staff boot screen: the logo settles in, then a thin
+   amber indicator moves. Used by the guest-ordering pages while the menu
+   round-trip is in flight. */
+
+.mfc-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 260ms var(--ease-out);
+}
+
+.mfc-splash.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mfc-splash-logo {
+  width: 96px;
+  height: auto;
+  animation: mfc-splash-in 420ms var(--ease-out) both;
+}
+
+.mfc-splash-bar {
+  display: block;
+  width: 120px;
+  height: 3px;
+  border-radius: var(--r-full);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.mfc-splash-bar::after {
+  content: "";
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: #f59e0b;
+  animation: mfc-splash-slide 1.1s var(--ease-in-out) infinite;
+}
+
+@keyframes mfc-splash-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes mfc-splash-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(360%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfc-splash-logo { animation: none; }
+  .mfc-splash-bar::after { animation: none; width: 100%; opacity: 0.45; }
+}
+
+/* ---------- Staff boot screen logo ---------- */
+
+#bootScreen .boot-logo {
+  animation: mfc-splash-in 420ms var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #bootScreen .boot-logo { animation: none; }
+}
