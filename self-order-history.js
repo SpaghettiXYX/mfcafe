@@ -349,6 +349,9 @@
     }
 
     function applyView(paused, reason) {
+      // Remember the previous state: the menus are re-checked on a timer, and
+      // re-applying "not paused" must not yank the guest back to the top.
+      var wasPaused = lastPaused;
       lastPaused = !!paused;
       lastReason = String(reason || "");
       var ticketEl = document.getElementById("qrTicketView");
@@ -391,7 +394,11 @@
           if (footer) footer.style.display = "";
           if (wrapEl) wrapEl.style.display = "none";
         }
-        try { window.scrollTo(0, 0); } catch (e) {}
+        // Only jump to the top when the portal re-opens after being paused.
+        // Doing it on every poll reset the guest's scroll position.
+        if (wasPaused) {
+          try { window.scrollTo(0, 0); } catch (e) {}
+        }
       }
     }
 
@@ -406,6 +413,9 @@
           .then(function (res) { return res.json(); })
           .then(function (res) {
             if (!res || !res.success || !res.order) return;
+            // Status refreshes run every 10s and may repaint the list; they must
+            // never move the guest. Restore the offset if it collapsed.
+            var keepY = window.pageYOffset || document.documentElement.scrollTop || 0;
             var updated = normalize(res.order);
             var idx = -1;
             for (var i = orders.length - 1; i >= 0; i--) {
@@ -423,6 +433,9 @@
             }
             if (currentNum === updated.orderNum && opts.updateStatus) {
               opts.updateStatus(updated.status, updated.paymentStatus);
+            }
+            if (keepY > 0 && (window.pageYOffset || document.documentElement.scrollTop || 0) < keepY - 4) {
+              try { window.scrollTo(0, keepY); } catch (e) {}
             }
           })
           .catch(function () {});
