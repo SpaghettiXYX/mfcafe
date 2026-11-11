@@ -807,12 +807,12 @@
             <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
           </div>
           <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Teacher Pre-Order</span>
-            <button id="adminToggleTeacherReservationBtn" onclick="toggleTeacherReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+            <span class="text-xs font-bold text-slate-500">Teacher Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
+            <button id="adminToggleTeacherReservationBtn" onclick="toggleTeacherReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
           </div>
           <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Open Day Pre-Order</span>
-            <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Open</button>
+            <span class="text-xs font-bold text-slate-500">Open Day Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
+            <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
           </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -5186,7 +5186,9 @@
 
       const teacherBtn = document.getElementById('adminToggleTeacherReservationBtn');
       if (teacherBtn) {
-        teacherBtn.innerText = state.teacherReservationOpen ? "Open" : "Closed";
+        teacherBtn.innerHTML = state.teacherReservationOpen
+          ? '<i class="fa-solid fa-play mr-1"></i> Open'
+          : '<i class="fa-solid fa-pause mr-1"></i> Closed';
         teacherBtn.className = state.teacherReservationOpen
           ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
@@ -5194,7 +5196,9 @@
 
       const openDayBtn = document.getElementById('adminToggleOpenDayReservationBtn');
       if (openDayBtn) {
-        openDayBtn.innerText = state.openDayReservationOpen ? "Open" : "Closed";
+        openDayBtn.innerHTML = state.openDayReservationOpen
+          ? '<i class="fa-solid fa-play mr-1"></i> Open'
+          : '<i class="fa-solid fa-pause mr-1"></i> Closed';
         openDayBtn.className = state.openDayReservationOpen
           ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";

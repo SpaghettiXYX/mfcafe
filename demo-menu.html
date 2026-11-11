@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>MFC Cafe — Self-Order Demo</title>
+<title>MFCafe — Self-Order Demo</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -55,7 +55,7 @@
         <i class="fa-solid fa-mug-hot text-sm"></i>
       </div>
       <div class="min-w-0 flex-1">
-        <p class="text-[15px] font-black leading-tight tracking-tight">MFC Cafe</p>
+        <p class="text-[15px] font-black leading-tight tracking-tight">MFCafe</p>
         <p class="text-[10px] font-semibold text-[var(--mocha)]/70 leading-tight">Self-order · Pick up at counter</p>
       </div>
       <button onclick="openCart()" class="relative w-10 h-10 rounded-full bg-white border border-[var(--line)] flex items-center justify-center active:scale-95 transition">
@@ -190,7 +190,7 @@
   <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[60] px-4 py-2.5 rounded-xl bg-[var(--espresso)] text-white text-[11px] font-bold shadow-xl opacity-0 pointer-events-none transition-all"></div>
 
   <div class="text-center pb-4">
-    <span class="inline-block text-[9px] font-black uppercase tracking-[0.2em] text-[var(--mocha)]/40">Interactive demo · MFC Cafe</span>
+    <span class="inline-block text-[9px] font-black uppercase tracking-[0.2em] text-[var(--mocha)]/40">Interactive demo · MFCafe</span>
   </div>
 </div>
 
@@ -331,7 +331,7 @@ function openDetail(id) {
   document.getElementById("dImage").src = p.img;
   document.getElementById("dImage").alt = p.name;
   document.getElementById("dName").textContent = p.name;
-  document.getElementById("dTag").textContent = p.tag || "MFC Cafe";
+  document.getElementById("dTag").textContent = p.tag || "MFCafe";
   document.getElementById("dPrice").textContent = money(p.price);
   document.getElementById("dDesc").textContent = p.desc;
   document.getElementById("dNote").value = "";
