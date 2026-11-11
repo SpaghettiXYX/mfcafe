@@ -349,6 +349,9 @@
     }
 
     function applyView(paused, reason) {
+      // Remember the previous state: the menus are re-checked on a timer, and
+      // re-applying "not paused" must not yank the guest back to the top.
+      var wasPaused = lastPaused;
       lastPaused = !!paused;
       lastReason = String(reason || "");
       var ticketEl = document.getElementById("qrTicketView");
@@ -391,7 +394,11 @@
           if (footer) footer.style.display = "";
           if (wrapEl) wrapEl.style.display = "none";
         }
-        try { window.scrollTo(0, 0); } catch (e) {}
+        // Only jump to the top when the portal re-opens after being paused.
+        // Doing it on every poll reset the guest's scroll position.
+        if (wasPaused) {
+          try { window.scrollTo(0, 0); } catch (e) {}
+        }
       }
     }
 
