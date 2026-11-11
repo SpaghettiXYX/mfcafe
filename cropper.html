@@ -12,7 +12,7 @@
   #stage { height:min(60vh,520px); }
   #frame { touch-action:none; box-shadow:0 0 0 9999px rgba(36,24,17,.55); cursor:grab; }
   #frame:active { cursor:grabbing; }
-  #frame img { transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+  #frame img { transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; max-width:none; max-height:none; }
   .gridline { position:absolute; background:rgba(255,255,255,.45); pointer-events:none; }
   .pill { transition:all .15s ease; }
   .pill.on { background:var(--espresso); color:#FBF6EF; border-color:var(--espresso); }
