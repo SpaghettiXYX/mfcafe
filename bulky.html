@@ -156,7 +156,6 @@
           </div>
           <p id="dPrice" class="text-[19px] font-black"></p>
         </div>
-        <p id="dDesc" class="text-[12px] leading-relaxed text-[var(--mocha)] mt-3"></p>
 
         <div class="mt-4 space-y-4">
           <div id="dTempWrap">
@@ -363,7 +362,8 @@
   function cardHtml(p) {
     const soldOut = !!p.soldOut;
     const img = String(p.imageUrl || "").trim();
-    const desc = String(p.description || "").trim();
+    const offer = Number(p.offerPrice) || 0;
+    const showOffer = offer > (Number(p.price) || 0);
     const key = String(p.id || p.name);
     return `
       <button ${soldOut ? "disabled" : `onclick="openDetail(this.dataset.key)"`} data-key="${esc(key)}"
@@ -379,9 +379,8 @@
         </div>
         <div class="p-2.5">
           <p class="text-[12px] font-extrabold leading-snug line-clamp-1">${esc(p.name)}</p>
-          <p class="text-[10px] text-[var(--mocha)]/65 leading-snug mt-0.5 line-clamp-2" style="height:26px">${esc(desc || p.tempOptions || "")}</p>
           <div class="flex items-center justify-between mt-2">
-            <span class="text-[13px] font-black">${fmtPrice(p.price)}</span>
+            <span class="text-[13px] font-black">${fmtPrice(p.price)}${showOffer ? `<span class="text-[10px] font-bold line-through ml-1 text-[var(--mocha)]/45">${fmtPrice(offer)}</span>` : ""}</span>
             <span class="text-[9px] font-bold text-[var(--mocha)]/45">${p.tempOptions || "Hot & Cold"}</span>
           </div>
         </div>
@@ -469,7 +468,6 @@
     }
     document.getElementById("dName").textContent = p.name;
     document.getElementById("dTag").textContent = p.category || "MFCafe";
-    document.getElementById("dDesc").textContent = p.description || "Freshly made to order.";
     document.getElementById("dNote").value = "";
     document.getElementById("dQty").textContent = "1";
 
@@ -514,8 +512,12 @@
 
   function updateDetailTotal() {
     if (!state.detail) return;
-    document.getElementById("dAddTotal").textContent = "· " + money(priceFor(state.detail, currentTemp()) * state.qty);
-    document.getElementById("dPrice").textContent = money(priceFor(state.detail, currentTemp()));
+    const unit = priceFor(state.detail, currentTemp());
+    const offer = Number(state.detail.offerPrice) || 0;
+    document.getElementById("dAddTotal").textContent = "· " + money(unit * state.qty);
+    document.getElementById("dPrice").innerHTML = money(unit) + (offer > unit
+      ? ` <span class="text-[12px] font-bold line-through align-middle ml-1" style="color:rgba(107,78,61,.45)">${money(offer)}</span>`
+      : "");
   }
 
   function detailNote() {

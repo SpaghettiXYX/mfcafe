@@ -1500,9 +1500,9 @@
           <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Description <span class="font-normal text-slate-400">(shown on menu cards)</span></label>
-          <textarea id="editItemDescription" rows="2" maxlength="180" placeholder="Double espresso, fresh milk and house caramel over ice."
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 resize-none"></textarea>
+          <label class="block text-xs font-bold text-slate-500 mb-1">Original Price <span class="font-normal text-slate-400">(optional — struck through next to the price)</span></label>
+          <input type="number" step="0.1" min="0" id="editItemOfferPrice" placeholder="0.00"
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Product Image URL <span class="font-normal text-slate-400">(optional)</span></label>
@@ -6158,7 +6158,7 @@
       populateCategorySelect(item.category || "Other");
       document.getElementById('editItemColdPaused').checked = !!item.coldPaused;
       document.getElementById('editItemImageUrl').value = item.imageUrl || "";
-      document.getElementById('editItemDescription').value = item.description || "";
+      document.getElementById('editItemOfferPrice').value = item.offerPrice || "";
       document.getElementById('editItemSoldOut').checked = !!item.soldOut;
       document.getElementById('editItemAllowNotes').checked = item.allowNotes !== false;
 
@@ -6176,7 +6176,7 @@
       document.getElementById('editItemStatus').value = "Active";
       document.getElementById('editItemColdPaused').checked = false;
       document.getElementById('editItemImageUrl').value = "";
-      document.getElementById('editItemDescription').value = "";
+      document.getElementById('editItemOfferPrice').value = "";
       document.getElementById('editItemSoldOut').checked = false;
       document.getElementById('editItemAllowNotes').checked = true;
       populateCategorySelect("Other");
@@ -6197,16 +6197,16 @@
       const category = document.getElementById('editItemCategory').value || "Other";
       const coldPaused = document.getElementById('editItemColdPaused').checked;
       const imageUrl = document.getElementById('editItemImageUrl').value.trim();
-      const description = document.getElementById('editItemDescription').value.trim();
+      const offerPrice = parseFloat(document.getElementById('editItemOfferPrice').value) || 0;
       const soldOut = document.getElementById('editItemSoldOut').checked;
       const allowNotes = document.getElementById('editItemAllowNotes').checked;
 
       if (!name) return showToast("Please enter item name!", "warning");
 
-      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused, imageUrl, description, soldOut, allowNotes };
+      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused, imageUrl, offerPrice, soldOut, allowNotes };
 
       if (isModalAddMode) {
-        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl, description, soldOut, allowNotes });
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl, offerPrice, soldOut, allowNotes });
       } else {
         const item = state.menu.find(i => i.name === originalName);
         if (item) {
@@ -6217,7 +6217,7 @@
           item.category = category;
           item.coldPaused = coldPaused;
           item.imageUrl = imageUrl;
-          item.description = description;
+          item.offerPrice = offerPrice;
           item.soldOut = soldOut;
           item.allowNotes = allowNotes;
           item.available = status === "Active";

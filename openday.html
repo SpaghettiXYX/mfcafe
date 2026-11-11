@@ -771,7 +771,7 @@
     function menuSignature() {
       return JSON.stringify([
         state.selectedCategory, !!state.coldPaused,
-        (state.menu || []).map(i => [i.name, i.category, i.price, i.imageUrl, i.description,
+        (state.menu || []).map(i => [i.name, i.category, i.price, i.imageUrl, i.offerPrice,
           i.available, i.soldOut, i.tempOptions, i.coldPaused])
       ]);
     }
@@ -824,7 +824,8 @@
         btn.style.boxShadow = isSelected && !soldOut ? "0 0 0 2px rgba(192,128,63,.45)" : "0 1px 2px rgba(46,33,26,.05)";
         btn.onclick = () => selectItem(item);
         const img = String(item.imageUrl || "").trim();
-        const desc = String(item.description || "").trim();
+        const offer = Number(item.offerPrice) || 0;
+        const showOffer = offer > (Number(item.price) || 0);
         btn.innerHTML = `
           <div class="relative w-full overflow-hidden" style="aspect-ratio:1/1;background:#EFE5D8">
             ${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
@@ -834,9 +835,9 @@
           </div>
           <div class="p-2.5">
             <p class="font-extrabold text-xs leading-snug line-clamp-1" style="color:var(--espresso)">${escapeHtml(item.name)}</p>
-            <p class="text-[10px] font-semibold leading-snug mt-0.5 line-clamp-2" style="height:26px;color:rgba(107,78,61,.62)">${escapeHtml(desc || item.tempOptions)}</p>
+            <p class="text-[10px] font-semibold leading-snug mt-0.5 line-clamp-2" style="height:26px;color:rgba(107,78,61,.62)">${escapeHtml(item.tempOptions)}</p>
             <div class="flex items-center justify-between mt-1.5">
-              <p class="font-black text-xs" style="color:var(--espresso)">${fmtPrice(item.price)}</p>
+              <p class="font-black text-xs" style="color:var(--espresso)">${fmtPrice(item.price)}${showOffer ? `<span class="text-[10px] font-bold line-through ml-1" style="color:rgba(107,78,61,.45)">${fmtPrice(offer)}</span>` : ""}</p>
               ${soldOut ? "" : `<span class="w-6 h-6 rounded-full text-white flex items-center justify-center" style="background:var(--espresso)"><i class="fa-solid fa-plus text-[9px]"></i></span>`}
             </div>
           </div>
