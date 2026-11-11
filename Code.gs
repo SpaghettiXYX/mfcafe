@@ -181,6 +181,27 @@ function ensureOrdersSheet(ss) {
     if (!headers[14] || String(headers[14]).trim() === "") sheet.getRange(1, 15).setValue("PromoCode");
     if (!headers[15] || String(headers[15]).trim() === "") sheet.getRange(1, 16).setValue("DiscountBy");
   }
+  // Force OrderNum column (A) to plain text so Sheets never silently
+  // reinterprets values like "1035" or "1035-1" as dates and breaks KDS.
+  const lastRow = sheet.getMaxRows();
+  if (lastRow > 0) {
+    sheet.getRange(1, 1, lastRow, 1).setNumberFormat("@");
+    // One-time migration: any row whose OrderNum cell became a Date during
+    // a buggy write is rewritten back as text so the counter and KDS stay sane.
+    const allValues = sheet.getRange(1, 1, lastRow, 1).getValues();
+    let dirty = false;
+    for (let r = 1; r < allValues.length; r++) {
+      const v = allValues[r][0];
+      if (v instanceof Date) {
+        sheet.getRange(r + 1, 1).setValue("");
+        dirty = true;
+      } else if (v !== "" && !/^\d+(-\d+)?$/.test(String(v).trim())) {
+        sheet.getRange(r + 1, 1).setValue("");
+        dirty = true;
+      }
+    }
+    if (dirty) SpreadsheetApp.flush();
+  }
   return sheet;
 }
 
@@ -1004,9 +1025,26 @@ function getInitialData() {
       // is collected, so CLEARED rows are sent too while payment is outstanding.
       const isServedUnpaid = status === "CLEARED" && paymentStatus === "UNPAID";
       if (!ACTIVE_STATUSES.includes(status) && !isServedUnpaid) continue;
+
+      // --- Defensive: recover orderNum if Sheets mis-typed it as Date ---
+      let rawNum = row[0];
+      let orderNumStr = "";
+      if (rawNum instanceof Date) {
+        // Column A was auto-formatted as Date at some point — read from the
+        // underlying display string instead and still skip the row if it does
+        // not look like a valid order number after recovery.
+        orderNumStr = String(rawNum).trim();
+      } else {
+        orderNumStr = String(rawNum || "").trim();
+      }
+      // A valid order number is either a plain integer ("1035") or a multi-cup
+      // suffix ("1035-1", "1035-2"). Anything else (dates, garbage) is skipped
+      // so KDS never renders a Date string as the order number.
+      if (!/^\d+(-\d+)?$/.test(orderNumStr)) continue;
+
       orders.push({
-        orderNum: String(row[0]).trim(),
-        orderTime: row[1] ? String(row[1]) : "",
+        orderNum: orderNumStr,
+        orderTime: row[1] ? (row[1] instanceof Date ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss'Z'") : String(row[1])) : "",
         pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
         cashier: String(row[3] || ""),
         guestName: String(row[4] || "Guest"),
@@ -1081,8 +1119,8 @@ function getOrderHistory(limit) {
     if (["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"].includes(status)) {
       const paymentStatus = String(row[11] || "").trim().toUpperCase() || "PAID";
       orders.push({
-        orderNum: String(row[0]).trim(),
-        orderTime: row[1] ? String(row[1]) : "",
+        orderNum: row[0] instanceof Date ? String(row[0]).trim() : String(row[0] || "").trim(),
+        orderTime: row[1] ? (row[1] instanceof Date ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss'Z'") : String(row[1])) : "",
         pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
         cashier: String(row[3] || ""),
         guestName: String(row[4] || "Guest"),
@@ -1769,8 +1807,8 @@ function lookupOrder(rawCode) {
   return {
     success: true,
     order: {
-      orderNum: String(row[0]).trim(),
-      orderTime: row[1] ? String(row[1]) : "",
+      orderNum: row[0] instanceof Date ? String(row[0]).trim() : String(row[0] || "").trim(),
+      orderTime: row[1] ? (row[1] instanceof Date ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss'Z'") : String(row[1])) : "",
       pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
       cashier: String(row[3] || ""),
       guestName: String(row[4] || "Guest"),
