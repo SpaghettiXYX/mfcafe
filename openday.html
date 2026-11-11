@@ -205,6 +205,7 @@
     #instructionsBtn:hover { color: var(--text); border-color: var(--text-4); }
     #instructionsBtn:active { transform: scale(.97); }
     #instructionsBtn i { color: #f59e0b; }
+    #instructionsBtn.hidden { display: none !important; }
 
     #instructionsModal {
       position: fixed; inset: 0; z-index: 130;
@@ -366,6 +367,16 @@
   </div>
 
   <main id="orderView" class="flex-1 space-y-4 overflow-y-auto">
+    <!-- Review step: selected drinks + guest details (hidden while browsing) -->
+    <div id="reviewStep" class="hidden space-y-4">
+      <button type="button" onclick="backToMenu()" class="self-start text-xs font-bold underline-offset-2 hover:underline" style="color:rgba(107,78,61,.7)">
+        ← Add more drinks
+      </button>
+      <div class="space-y-2">
+        <h2 class="text-sm font-black tracking-tight" style="color:var(--espresso)">Your order</h2>
+        <div id="reviewList" class="space-y-1.5"></div>
+      </div>
+
     <!-- Guest Info -->
     <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
       <div>
@@ -427,27 +438,10 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <!-- Drink Selection Grid -->
-    <div>
-      <!-- Basket: multi-cup, but the backend still gets one order per cup -->
-      <div id="basketBar" class="rounded-2xl border bg-white overflow-hidden mb-3" style="border-color:var(--line)">
-        <button type="button" id="basketToggle" onclick="toggleBasket()" aria-expanded="false"
-          class="w-full flex items-center justify-between px-3 py-2.5 text-left">
-          <span class="flex items-center gap-2 min-w-0">
-            <i class="fa-solid fa-basket-shopping text-xs" style="color:var(--caramel-dark)"></i>
-            <span class="text-xs font-extrabold truncate" style="color:var(--espresso)">Your basket · <span id="basketCount">0 cups</span></span>
-          </span>
-          <span class="flex items-center gap-2 shrink-0">
-            <span id="basketTotal" class="text-xs font-black" style="color:var(--espresso)">HK$0.00</span>
-            <i id="basketChevron" class="fa-solid fa-chevron-down text-[10px]" style="color:rgba(107,78,61,.5)"></i>
-          </span>
-        </button>
-        <div id="basketBody" class="hidden px-3 pb-3">
-          <p id="basketEmpty" class="hidden text-[11px] font-medium py-1" style="color:rgba(107,78,61,.6)">Your basket is empty — tap a drink below to add it.</p>
-          <div id="basketList" class="space-y-1.5"></div>
-        </div>
-      </div>
+    <!-- Menu step: the drink grid only -->
+    <div id="menuStep" class="space-y-5">
       <div class="space-y-5" id="customerMenuList">
         <p class="text-slate-400 text-xs text-center py-6 font-medium">Loading menu...</p>
       </div>
@@ -473,7 +467,7 @@
           <div class="flex flex-wrap gap-1.5 mb-2" id="custRemarkPillsContainer"></div>
           <input type="text" id="custNotes" placeholder="e.g. Less sugar, extra hot..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800">
         </div>
-        <button type="button" onclick="addCurrentItemToBasket()" id="addToBasketBtn" class="w-full btn-espresso text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">Add to basket · HK$0.00</button>
+        <button type="button" onclick="addCurrentItemToBasket()" id="addToBasketBtn" class="w-full btn-espresso text-white font-extrabold py-3 rounded-2xl text-sm shadow-md transition">Add drink · HK$0.00</button>
       </div>
     </div>
 
@@ -486,9 +480,9 @@
   </main>
 
   <footer id="orderFooter" class="pt-3">
-    <button onclick="submitSelfOrder()" id="btnSubmit" class="w-full btn-espresso text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
+    <button onclick="onFooterAction()" id="btnSubmit" class="w-full btn-espresso text-white font-extrabold py-4 rounded-2xl text-base shadow-md transition flex items-center justify-center space-x-2">
       <i class="fa-solid fa-barcode"></i>
-      <span id="submitBtnText">Submit pre-order · 0 cups</span>
+      <span id="submitBtnText">Review order · 0 cups</span>
     </button>
   </footer>
 
@@ -652,7 +646,7 @@
       selectedNotes: [],      // pill notes toggled on for the current drink
       selectedTemp: "Cold",
       basket: [],             // one entry per cup; each becomes its own order
-      basketOpen: false,
+      step: "menu",           // "menu" | "review"
       selectedCupType: "",  // "" | "In-Store" | "Takeaway"
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
       coldExtra: 2,
@@ -720,7 +714,7 @@
     }
 
     function init() {
-      renderBasket();
+      updateSubmitButton();
       updateAddButton();
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
       applyInstructions();
@@ -1119,9 +1113,9 @@
       const input = document.getElementById('custPromoCode');
       const code = input ? input.value.trim() : "";
       if (!code) return setCustPromoStatus("Please enter a promo code.", "error");
-      if (!state.selectedItem) return setCustPromoStatus("Please select a drink first.", "warning");
+      if (!state.selectedItem && !basketCount()) return setCustPromoStatus("Please select a drink first.", "warning");
 
-      const subtotal = getItemPrice(state.selectedItem, state.selectedTemp);
+      const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : basketSubtotal();
       const btn = document.getElementById('custPromoApplyBtn');
       if (btn) { btn.disabled = true; btn.classList.add('opacity-60'); }
       setCustPromoStatus("Checking code...", "");
@@ -1165,7 +1159,11 @@
 
     function getCustDiscount() {
       if (!state.promoCode) return 0;
-      const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : 0;
+      if (!state.selectedItem) {
+        const first = state.basket && state.basket[0];
+        return calcPromoDiscountFor(first ? first.price : 0);
+      }
+      const subtotal = getItemPrice(state.selectedItem, state.selectedTemp);
       const p = state.promoCode;
       const raw = p.type === "PERCENT" ? subtotal * (Number(p.value) || 0) / 100
         : p.type === "AMOUNT" ? Number(p.value) || 0 : 0;
@@ -1173,7 +1171,7 @@
     }
 
     function updateCustPriceSummary() {
-      const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : 0;
+      const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : basketSubtotal();
       const discount = getCustDiscount();
       const total = Math.max(0, subtotal - discount);
 
@@ -1184,11 +1182,10 @@
       if (discountEl) discountEl.innerText = `-${fmtPrice(discount)}`;
       if (totalEl) totalEl.innerText = fmtPrice(total);
 
-      renderBasket();
-      updateAddButton();
-
       const clearBtn = document.getElementById('custPromoClearBtn');
       if (clearBtn) clearBtn.classList.toggle('hidden', !state.promoCode);
+      updateSubmitButton();
+      updateAddButton();
     }
 
     // Configurator bottom sheet: slide up with a dimmed scrim, like bulky.html.
@@ -1348,11 +1345,17 @@
       const btn = document.getElementById('btnSubmit');
       const txt = document.getElementById('submitBtnText');
       const n = basketCount();
-      if (txt) txt.innerText = `Submit pre-order · ${n} cup${n === 1 ? '' : 's'}${n ? ` · ${fmtPrice(basketTotal())}` : ''}`;
+      const onReview = state.step === 'review';
+      if (txt) {
+        txt.innerText = onReview
+          ? `Place order · ${fmtPrice(basketTotal())}`
+          : `Review order · ${n} cup${n === 1 ? '' : 's'}${n ? ` · ${fmtPrice(basketSubtotal())}` : ''}`;
+      }
       if (btn) {
-        btn.disabled = n === 0;
-        btn.classList.toggle('opacity-50', n === 0);
-        btn.classList.toggle('pointer-events-none', n === 0);
+        const off = !onReview && n === 0;
+        btn.disabled = off;
+        btn.classList.toggle('opacity-50', off);
+        btn.classList.toggle('pointer-events-none', off);
       }
     }
 
@@ -1361,84 +1364,90 @@
       if (!btn) return;
       const item = state.selectedItem;
       btn.textContent = item
-        ? `Add to basket · ${fmtPrice(getItemPrice(item, state.selectedTemp))}`
-        : "Add to basket · HK$0.00";
+        ? `Add drink · ${fmtPrice(getItemPrice(item, state.selectedTemp))}`
+        : "Add drink · HK$0.00";
       btn.disabled = !item;
       btn.classList.toggle('opacity-50', !item);
       btn.classList.toggle('pointer-events-none', !item);
     }
 
-    function toggleBasket() {
-      state.basketOpen = !state.basketOpen;
-      renderBasket();
+    function openReview() {
+      if (!basketCount()) return showToast("Please add a drink first.", "warning");
+      state.step = 'review';
+      document.getElementById('menuStep')?.classList.add('hidden');
+      document.getElementById('reviewStep')?.classList.remove('hidden');
+      const tabs = document.getElementById('customerCategoryTabs');
+      if (tabs) tabs.style.display = 'none';
+      document.getElementById('instructionsBtn')?.classList.add('hidden');
+      renderReview();
+      updateCustPriceSummary();
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+
+    function backToMenu() {
+      state.step = 'menu';
+      document.getElementById('menuStep')?.classList.remove('hidden');
+      document.getElementById('reviewStep')?.classList.add('hidden');
+      const tabs = document.getElementById('customerCategoryTabs');
+      if (tabs) tabs.style.display = '';
+      document.getElementById('instructionsBtn')?.classList.remove('hidden');
+      updateSubmitButton();
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+
+    function onFooterAction() {
+      return state.step === 'review' ? submitSelfOrder() : openReview();
     }
 
     function removeBasketCup(index) {
       (state.basket || []).splice(index, 1);
-      renderBasket();
     }
 
-    function renderBasket() {
-      const count = basketCount();
-      const countEl = document.getElementById('basketCount');
-      if (countEl) countEl.textContent = `${count} cup${count === 1 ? '' : 's'}`;
-      const totalEl = document.getElementById('basketTotal');
-      if (totalEl) totalEl.textContent = fmtPrice(basketTotal());
+    function renderReview() {
+      if (!basketCount()) return backToMenu();
+      const list = document.getElementById('reviewList');
+      if (!list) return;
+      list.innerHTML = "";
+      (state.basket || []).forEach((cup, index) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-start gap-2 rounded-2xl border bg-white px-3 py-2';
+        row.style.borderColor = 'var(--line)';
 
-      const toggle = document.getElementById('basketToggle');
-      if (toggle) toggle.setAttribute('aria-expanded', state.basketOpen ? 'true' : 'false');
-      const chevron = document.getElementById('basketChevron');
-      if (chevron) chevron.className = `fa-solid fa-chevron-${state.basketOpen ? 'up' : 'down'} text-[10px]`;
-      const body = document.getElementById('basketBody');
-      if (body) body.classList.toggle('hidden', !state.basketOpen);
-      const empty = document.getElementById('basketEmpty');
-      if (empty) empty.classList.toggle('hidden', !state.basketOpen || count > 0);
-
-      const list = document.getElementById('basketList');
-      if (list) {
-        list.innerHTML = "";
-        if (state.basketOpen) {
-          (state.basket || []).forEach((cup, index) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5';
-
-            const info = document.createElement('div');
-            info.className = 'min-w-0 flex-1';
-            const nameEl = document.createElement('p');
-            nameEl.className = 'text-[11px] font-extrabold truncate';
-            nameEl.style.color = 'var(--espresso)';
-            nameEl.textContent = `${cup.name} (${cup.temp})`;
-            info.appendChild(nameEl);
-            if (cup.notes) {
-              const notesEl = document.createElement('p');
-              notesEl.className = 'text-[10px] font-semibold truncate';
-              notesEl.style.color = 'rgba(107,78,61,.6)';
-              notesEl.textContent = cup.notes;
-              info.appendChild(notesEl);
-            }
-            row.appendChild(info);
-
-            const priceEl = document.createElement('span');
-            priceEl.className = 'text-[11px] font-black shrink-0';
-            priceEl.style.color = 'var(--espresso)';
-            priceEl.textContent = fmtPrice(cup.price);
-            row.appendChild(priceEl);
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'w-6 h-6 rounded-full shrink-0 text-sm font-bold leading-none';
-            removeBtn.style.color = 'rgba(107,78,61,.65)';
-            removeBtn.style.background = 'var(--surface)';
-            removeBtn.setAttribute('aria-label', `Remove ${cup.name}`);
-            removeBtn.textContent = '×';
-            removeBtn.onclick = () => removeBasketCup(index);
-            row.appendChild(removeBtn);
-
-            list.appendChild(row);
-          });
+        const info = document.createElement('div');
+        info.className = 'min-w-0 flex-1';
+        const nameEl = document.createElement('p');
+        nameEl.className = 'text-xs font-extrabold';
+        nameEl.style.color = 'var(--espresso)';
+        nameEl.textContent = `${cup.name} (${cup.temp})`;
+        info.appendChild(nameEl);
+        if (cup.notes) {
+          const notesEl = document.createElement('p');
+          notesEl.className = 'text-[10px] font-semibold';
+          notesEl.style.color = 'rgba(107,78,61,.6)';
+          notesEl.textContent = cup.notes;
+          info.appendChild(notesEl);
         }
-      }
-      updateSubmitButton();
+        row.appendChild(info);
+
+        const priceEl = document.createElement('span');
+        priceEl.className = 'text-xs font-black shrink-0';
+        priceEl.style.color = 'var(--espresso)';
+        priceEl.textContent = fmtPrice(cup.price);
+        row.appendChild(priceEl);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'w-6 h-6 rounded-full shrink-0 text-sm font-bold leading-none';
+        removeBtn.style.color = 'rgba(107,78,61,.65)';
+        removeBtn.style.background = 'var(--surface)';
+        removeBtn.setAttribute('aria-label', `Remove ${cup.name}`);
+        removeBtn.textContent = '×';
+        removeBtn.onclick = () => { removeBasketCup(index); renderReview(); };
+        row.appendChild(removeBtn);
+
+        list.appendChild(row);
+      });
+      updateCustPriceSummary();
     }
 
     function addCurrentItemToBasket() {
@@ -1462,9 +1471,8 @@
       renderNotePills();
       setItemOptionsOpen(false);
       updateCustPriceSummary();
-      renderBasket();
-      const bar = document.getElementById('basketBar');
-      if (bar && bar.scrollIntoView) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      showToast(`Added · ${item.name} (${state.selectedTemp})`, "success");
+      if (state.step === 'review') { renderReview(); updateSubmitButton(); }
     }
 
     async function submitSelfOrder() {
@@ -1479,7 +1487,7 @@
         : (pickupInput ? pickupInput.value.trim() : "");
 
       if (!name) return showToast("Please enter your name!", "warning");
-      if (!basketCount()) return showToast("Your basket is empty — tap a drink to add it.", "warning");
+      if (!basketCount()) return showToast("Please add a drink first.", "warning");
       if (!state.selectedCupType) return showToast("Please select Cup Type: In-Store or Takeaway!", "warning", 4000);
 
       const btnSubmit = document.getElementById('btnSubmit');
@@ -1532,7 +1540,10 @@
         }
 
         clearCustPromoCode();
-        renderBasket();
+        state.step = 'menu';
+        document.getElementById('menuStep')?.classList.remove('hidden');
+        document.getElementById('reviewStep')?.classList.add('hidden');
+        updateSubmitButton();
         created.forEach(order => {
           try { selfOrderHistory.remember(order); } catch (e) { console.warn('Order history unavailable', e); }
         });
@@ -1542,7 +1553,7 @@
       } catch (err) {
         // Cups already created are gone; the rest stay in the basket to retry.
         showToast((err && err.isApi) ? err.message : "Network error. Please try again.", "error");
-        renderBasket();
+        renderReview();
         if (created.length) {
           try { selfOrderHistory.remember(created[0]); } catch (e) { console.warn('Order history unavailable', e); }
           showTicket(created[0]);
@@ -2031,6 +2042,12 @@
       document.getElementById('orderView')?.classList.remove('hidden');
       document.getElementById('orderFooter')?.classList.remove('hidden');
       document.getElementById('customerCategoryTabs')?.classList.remove('hidden');
+      state.step = 'menu';
+      document.getElementById('menuStep')?.classList.remove('hidden');
+      document.getElementById('reviewStep')?.classList.add('hidden');
+      const tabsEl = document.getElementById('customerCategoryTabs');
+      if (tabsEl) tabsEl.style.display = '';
+      document.getElementById('instructionsBtn')?.classList.remove('hidden');
       const unpaidBadge = document.getElementById('ticketUnpaidBadge');
       if (unpaidBadge) unpaidBadge.remove();
       state.selectedItem = null;
