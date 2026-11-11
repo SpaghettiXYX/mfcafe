@@ -794,46 +794,67 @@
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
           <i class="fa-solid fa-sliders text-amber-500 mr-2"></i> Global Operation Settings
         </h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Cold drink row: keeps its own line, not part of the portal tabs -->
+        <div class="flex flex-col md:flex-row md:items-end gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-500 mb-1">Cold Drink Extra ($)</label>
             <div class="flex items-center gap-2">
-              <input type="number" step="0.5" id="adminColdExtraInput" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+              <input type="number" step="0.5" id="adminColdExtraInput" class="flex-1 md:w-32 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
               <button onclick="saveColdExtraSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition">Save</button>
             </div>
           </div>
-          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+          <div class="flex items-center gap-3 md:gap-2 bg-slate-50 rounded-xl p-3 border border-slate-200 md:ml-2">
             <span class="text-xs font-bold text-slate-500">Pause All Cold Drinks</span>
-            <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
-          </div>
-          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Teacher Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
-            <button id="adminToggleTeacherReservationBtn" onclick="toggleTeacherReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
-          </div>
-          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Open Day Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
-            <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
-          </div>
-          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <span class="text-xs font-bold text-slate-500">Bulky (Multi-Cup) Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
-            <button id="adminToggleBulkyReservationBtn" onclick="toggleBulkyReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
+            <button id="adminToggleColdPauseBtn" onclick="toggleColdPauseSubmit()" class="px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">Active</button>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">Teacher Pause Reason</label>
-            <textarea id="adminTeacherPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when teacher pre-order is paused..."></textarea>
+
+        <!-- Portal tabs: Teacher / Open Day / Bulky — one at a time to save space -->
+        <div class="border-t border-slate-100 pt-4">
+          <div class="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit mb-4" id="adminPortalTabs">
+            <button type="button" data-portal="teacher" onclick="switchAdminPortal('teacher')" class="admin-portal-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Teacher</button>
+            <button type="button" data-portal="openday" onclick="switchAdminPortal('openday')" class="admin-portal-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Open Day</button>
+            <button type="button" data-portal="bulky" onclick="switchAdminPortal('bulky')" class="admin-portal-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Bulky</button>
           </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">Open Day Pause Reason</label>
-            <textarea id="adminOpenDayPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when Open Day pre-order is paused..."></textarea>
+
+          <!-- Teacher Portal -->
+          <div data-portal-panel="teacher" class="admin-portal-panel bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-black text-slate-700">Teacher Pre-Order Portal</span>
+              <button id="adminToggleTeacherReservationBtn" onclick="toggleTeacherReservationSubmit()" class="px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Pause reason (shown on closed page)</label>
+              <textarea id="adminTeacherPauseReasonInput" rows="2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when teacher pre-order is paused..."></textarea>
+            </div>
           </div>
-          <div>
-            <label class="block text-xs font-bold text-slate-500 mb-1">Bulky Pause Reason</label>
-            <textarea id="adminBulkyPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when bulky pre-order is paused..."></textarea>
+
+          <!-- Open Day Portal -->
+          <div data-portal-panel="openday" class="admin-portal-panel hidden bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-black text-slate-700">Open Day Pre-Order Portal</span>
+              <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Pause reason (shown on closed page)</label>
+              <textarea id="adminOpenDayPauseReasonInput" rows="2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when Open Day pre-order is paused..."></textarea>
+            </div>
           </div>
+
+          <!-- Bulky Portal -->
+          <div data-portal-panel="bulky" class="admin-portal-panel hidden bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-black text-slate-700">Bulky (Multi-Cup) Pre-Order Portal</span>
+              <button id="adminToggleBulkyReservationBtn" onclick="toggleBulkyReservationSubmit()" class="px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 mb-1">Pause reason (shown on closed page)</label>
+              <textarea id="adminBulkyPauseReasonInput" rows="2" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when bulky pre-order is paused..."></textarea>
+            </div>
+          </div>
+
+          <button onclick="savePauseReasonsSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition mt-3">Save Pause Reasons</button>
         </div>
-        <button onclick="savePauseReasonsSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
 
         <!-- Opening hours + pickup time slots -->
         <div class="border-t border-slate-100 pt-4 space-y-4">
@@ -5217,6 +5238,7 @@
       // Ensure sidebar + printer status pill exist and reflect current state
       renderAdminSidebar();
       renderAdminPrinterStatus();
+      switchAdminPortal('teacher');
 
       // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
       const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
@@ -5580,6 +5602,21 @@
         else showToast(res.error || "Failed to update Bulky switch", "error");
       })
       .catch(() => showToast("Network error updating Bulky switch", "error"));
+    }
+
+    // --- Admin Pre-Order portal tab switch ---
+    function switchAdminPortal(portal) {
+      const TABS = ["teacher", "openday", "bulky"];
+      if (!TABS.includes(portal)) portal = "teacher";
+      document.querySelectorAll(".admin-portal-tab").forEach(btn => {
+        const active = btn.dataset.portal === portal;
+        btn.style.background = active ? "#ffffff" : "transparent";
+        btn.style.color = active ? "#0f172a" : "#94a3b8";
+        btn.style.boxShadow = active ? "0 2px 6px rgba(15,23,42,0.1)" : "none";
+      });
+      document.querySelectorAll(".admin-portal-panel").forEach(p => {
+        p.classList.toggle("hidden", p.dataset.portalPanel !== portal);
+      });
     }
 
     function savePauseReasonsSubmit() {
