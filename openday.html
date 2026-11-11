@@ -129,8 +129,10 @@
     .temp-btn-disabled { border-color: var(--border) !important; background-color: var(--surface-3) !important; color: var(--text-4) !important; cursor: not-allowed; }
 
     /* The configurator frame follows the chosen temperature too. */
-    #itemOptions.panel-cold { background-color: rgba(56,189,248,0.06) !important; border-color: rgba(56,189,248,0.34) !important; }
-    #itemOptions.panel-hot { background-color: rgba(244,63,94,0.05) !important; border-color: rgba(244,63,94,0.30) !important; }
+    #itemOptions.panel-cold { background-color: #f0fafe !important; border-color: rgba(56,189,248,0.34) !important; }
+    #itemOptions.panel-hot { background-color: #fff5f6 !important; border-color: rgba(244,63,94,0.30) !important; }
+    [data-theme="dark"] #itemOptions.panel-cold { background-color: #182635 !important; }
+    [data-theme="dark"] #itemOptions.panel-hot { background-color: #211e2b !important; }
 
     /* Notes pills: selected ones read as pressed, not just hovered. */
     .note-pill { border-color: var(--border-2); background-color: var(--surface); color: var(--text-3); }
