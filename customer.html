@@ -1391,20 +1391,22 @@
       const notes = item.allowNotes === false
         ? ""
         : [...(state.selectedNotes || []), freeText].filter(Boolean).join(", ");
-      state.basket.push({
+      // One drink per order on this page: a new pick replaces the previous cup.
+      const replaced = state.basket.length > 0;
+      state.basket = [{
         name: item.name,
         temp: state.selectedTemp,
         notes,
         price: getItemPrice(item, state.selectedTemp),
         allowNotes: item.allowNotes !== false
-      });
+      }];
       state.selectedItem = null;
       state.selectedNotes = [];
       if (notesInput) notesInput.value = "";
       renderNotePills();
       setItemOptionsOpen(false);
       updateCustPriceSummary();
-      showToast(`Added · ${item.name} (${state.selectedTemp})`, "success");
+      showToast(replaced ? `Replaced with · ${item.name} (${state.selectedTemp})` : `Added · ${item.name} (${state.selectedTemp})`, "success");
       if (state.step === 'review') { renderReview(); updateSubmitButton(); }
     }
 
