@@ -893,17 +893,6 @@
       if (!input || !select) return;
 
       const hours = state.openingHours || {};
-      const configured = (Array.isArray(hours.slots) && hours.slots.length) ||
-        (Array.isArray(hours.specificTimes) && hours.specificTimes.length) ||
-        (Number(hours.slotsPerHour) || 0) > 0;
-      if (!configured) {
-        select.dataset.signature = "";
-        select.innerHTML = "";
-        select.classList.add('hidden');
-        input.classList.remove('hidden');
-        return;
-      }
-
       const now = new Date();
       const signature = JSON.stringify([hours.slots, hours.specificTimes, hours.slotsPerHour, hours.minLead, hours.start, hours.end,
         Math.floor((now.getHours() * 60 + now.getMinutes()) / 5)]);

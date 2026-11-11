@@ -434,15 +434,6 @@
     const sel = document.getElementById("pickupSelect");
     const free = document.getElementById("pickupFree");
     const labels = buildPickupLabels(state.openingHours);
-    const configured = labels.length || (state.openingHours && (
-      (Array.isArray(state.openingHours.slots) && state.openingHours.slots.length) ||
-      (Array.isArray(state.openingHours.specificTimes) && state.openingHours.specificTimes.length) ||
-      Number(state.openingHours.slotsPerHour) > 0));
-    if (!configured) {
-      sel.classList.add("hidden");
-      free.classList.remove("hidden");
-      return;
-    }
     sel.innerHTML = ['<option value="NOW">NOW (as soon as possible)</option>']
       .concat(labels.map(l => `<option value="${esc(l)}">${esc(l)}</option>`)).join("");
     sel.classList.remove("hidden");

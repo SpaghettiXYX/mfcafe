@@ -921,17 +921,6 @@
       const select = document.getElementById('custPickupSlot');
       if (!input || !select) return;
       const hours = state.openingHours || {};
-      const configured = (Array.isArray(hours.slots) && hours.slots.length) ||
-        (Array.isArray(hours.specificTimes) && hours.specificTimes.length) ||
-        (Number(hours.slotsPerHour) || 0) > 0;
-
-      if (!configured) {
-        select.dataset.signature = "";
-        select.classList.add('hidden');
-        input.classList.remove('hidden');
-        return;
-      }
-
       const labels = buildPickupLabels(hours);
       const now = new Date();
       const signature = JSON.stringify([hours.slots, hours.specificTimes, hours.slotsPerHour, hours.minLead, hours.start, hours.end,
