@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>图片裁切工具 · MFCafe</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  :root { --espresso:#3D2B1F; --mocha:#6F4E37; --caramel:#C68A3F; --caramel-dark:#A96F2B; --line:#E7DAC8; }
+  body { background:#FBF6EF; color:var(--espresso); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+  #stage { height:min(60vh,520px); }
+  #frame { touch-action:none; box-shadow:0 0 0 9999px rgba(36,24,17,.55); cursor:grab; }
+  #frame:active { cursor:grabbing; }
+  #frame img { transform-origin:0 0; user-select:none; -webkit-user-drag:none; pointer-events:none; }
+  .gridline { position:absolute; background:rgba(255,255,255,.45); pointer-events:none; }
+  .pill { transition:all .15s ease; }
+  .pill.on { background:var(--espresso); color:#FBF6EF; border-color:var(--espresso); }
+  input[type=range] { accent-color:var(--caramel); }
+</style>
+</head>
+<body class="min-h-screen">
+<div class="max-w-md mx-auto px-4 py-5">
+
+  <header class="mb-4">
+    <h1 class="text-[19px] font-black flex items-center gap-2"><i class="fa-solid fa-crop-simple text-[var(--caramel)]"></i>图片裁切工具</h1>
+    <p class="text-[11px] text-[var(--mocha)]/70 mt-0.5">在源头裁好比例再上传，菜单就不会再裁掉/盖住内容。菜单卡片用 <b>1:1</b>。</p>
+  </header>
+
+  <!-- Stage -->
+  <div id="stage" class="relative w-full rounded-2xl bg-[#241811] overflow-hidden flex items-center justify-center">
+    <div id="frame" class="relative overflow-hidden hidden">
+      <img id="photo" alt="">
+      <div class="gridline" style="left:33.333%;top:0;bottom:0;width:1px"></div>
+      <div class="gridline" style="left:66.666%;top:0;bottom:0;width:1px"></div>
+      <div class="gridline" style="top:33.333%;left:0;right:0;height:1px"></div>
+      <div class="gridline" style="top:66.666%;left:0;right:0;height:1px"></div>
+      <div class="absolute inset-0 border-2 border-white/80 pointer-events-none"></div>
+    </div>
+    <label id="dropzone" class="absolute inset-0 m-3 rounded-xl border-2 border-dashed border-white/30 flex flex-col items-center justify-center gap-2 text-white/70 cursor-pointer active:scale-[.99] transition">
+      <i class="fa-solid fa-image text-3xl"></i>
+      <p class="text-[13px] font-bold">点击选择图片</p>
+      <p class="text-[10px] opacity-70">也可以拖进来 / 直接粘贴</p>
+      <input id="fileInput" type="file" accept="image/*" class="hidden">
+    </label>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls" class="hidden mt-4 space-y-4">
+
+    <div>
+      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-2">裁切比例</p>
+      <div id="ratioPills" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">缩放 · 拖动图片调整要展示的部分</p>
+        <span id="zoomLabel" class="text-[11px] font-black text-[var(--caramel-dark)]">100%</span>
+      </div>
+      <input id="zoomSlider" type="range" min="100" max="600" value="100" class="w-full">
+    </div>
+
+    <div class="flex gap-2">
+      <button onclick="resetView()" class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5"><i class="fa-solid fa-rotate-left text-xs"></i>重置</button>
+      <label class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-arrow-rotate-right text-xs"></i>换一张<input type="file" accept="image/*" class="hidden" onchange="loadFile(this.files[0])"></label>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-[var(--line)] p-4">
+      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-3">输出</p>
+      <div class="flex gap-2 mb-3">
+        <select id="sizeSel" class="flex-1 h-10 rounded-xl bg-[#FBF6EF] border border-[var(--line)] px-3 text-[12px] font-bold">
+          <option value="720">长边 720 px</option>
+          <option value="1080" selected>长边 1080 px</option>
+          <option value="1600">长边 1600 px</option>
+          <option value="2048">长边 2048 px</option>
+        </select>
+        <select id="fmtSel" class="w-28 h-10 rounded-xl bg-[#FBF6EF] border border-[var(--line)] px-3 text-[12px] font-bold">
+          <option value="jpeg" selected>JPG</option>
+          <option value="png">PNG</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-3">
+        <canvas id="preview" class="w-20 h-20 rounded-lg border border-[var(--line)] bg-[#EFE5D8] object-cover shrink-0"></canvas>
+        <div class="flex-1 min-w-0">
+          <p id="outMeta" class="text-[12px] font-black">— × — px</p>
+          <p class="text-[10px] text-[var(--mocha)]/60 mt-0.5">成品预览如上，下载后传到 GitHub <b>assets/</b> 文件夹</p>
+        </div>
+      </div>
+      <button onclick="download()" class="mt-3 w-full h-11 rounded-xl bg-[var(--caramel)] hover:bg-[var(--caramel-dark)] text-white text-[13px] font-black flex items-center justify-center gap-2 active:scale-[.99] transition">
+        <i class="fa-solid fa-download"></i>下载图片
+      </button>
+    </div>
+
+    <div class="rounded-2xl bg-[var(--espresso)]/5 border border-[var(--line)] p-3 text-[11px] leading-relaxed text-[var(--mocha)]">
+      <p class="font-black mb-1"><i class="fa-solid fa-circle-info mr-1"></i>下载之后怎么用</p>
+      1. 把文件上传到仓库 <b>assets/</b> 文件夹（GitHub 网页 → Add file → Upload files）<br>
+      2. Admin › Menu 里图片链接直接填 <b>assets/文件名.jpg</b> 即可
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const stage = document.getElementById("stage");
+const frame = document.getElementById("frame");
+const photo = document.getElementById("photo");
+const dropzone = document.getElementById("dropzone");
+const controls = document.getElementById("controls");
+const zoomSlider = document.getElementById("zoomSlider");
+const zoomLabel = document.getElementById("zoomLabel");
+
+const RATIOS = [
+  { label: "1:1", value: 1 },
+  { label: "4:3", value: 4 / 3 },
+  { label: "3:4", value: 3 / 4 },
+  { label: "3:2", value: 3 / 2 },
+  { label: "2:3", value: 2 / 3 },
+  { label: "16:9", value: 16 / 9 },
+  { label: "9:16", value: 9 / 16 }
+];
+
+const state = { img: null, imgW: 0, imgH: 0, ratio: 1, zoom: 1, offX: 0, offY: 0, frameW: 0, frameH: 0 };
+
+/* ---------- ratio pills ---------- */
+RATIOS.forEach((r, i) => {
+  const b = document.createElement("button");
+  b.textContent = r.label;
+  b.dataset.i = i;
+  b.onclick = () => setRatio(r.value, b);
+  b.className = "pill px-4 h-9 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold" + (i === 0 ? " on" : "");
+  document.getElementById("ratioPills").appendChild(b);
+});
+
+function setRatio(v, btn) {
+  document.querySelectorAll("#ratioPills .pill").forEach(p => p.classList.remove("on"));
+  btn.classList.add("on");
+  // keep the image point currently at frame centre, centred after the change
+  const s0 = scale();
+  const cx = state.frameW / 2, cy = state.frameH / 2;
+  const ix = (cx - state.offX) / s0, iy = (cy - state.offY) / s0;
+  state.ratio = v;
+  layoutFrame();
+  const s1 = scale();
+  state.offX = state.frameW / 2 - ix * s1;
+  state.offY = state.frameH / 2 - iy * s1;
+  clampOffsets(); render();
+}
+
+/* ---------- layout & transform ---------- */
+function layoutFrame() {
+  const sw = stage.clientWidth, sh = stage.clientHeight;
+  let fw = sw, fh = fw / state.ratio;
+  if (fh > sh) { fh = sh; fw = fh * state.ratio; }
+  state.frameW = Math.round(fw); state.frameH = Math.round(fh);
+  frame.style.width = state.frameW + "px";
+  frame.style.height = state.frameH + "px";
+}
+function baseScale() { return Math.max(state.frameW / state.imgW, state.frameH / state.imgH); }
+function scale() { return baseScale() * state.zoom; }
+function clampOffsets() {
+  const s = scale();
+  state.offX = Math.min(0, Math.max(state.frameW - state.imgW * s, state.offX));
+  state.offY = Math.min(0, Math.max(state.frameH - state.imgH * s, state.offY));
+}
+
+let previewQueued = false;
+function render() {
+  const s = scale();
+  photo.style.transform = `translate(${state.offX}px, ${state.offY}px) scale(${s})`;
+  zoomLabel.textContent = Math.round(state.zoom * 100) + "%";
+  if (!previewQueued) { previewQueued = true; requestAnimationFrame(() => { previewQueued = false; drawPreview(); }); }
+}
+
+function zoomAt(fx, fy, factor) {
+  const s0 = scale();
+  const z2 = Math.min(6, Math.max(1, state.zoom * factor));
+  const s1 = baseScale() * z2;
+  const ix = (fx - state.offX) / s0, iy = (fy - state.offY) / s0;
+  state.zoom = z2;
+  state.offX = fx - ix * s1;
+  state.offY = fy - iy * s1;
+  clampOffsets(); render();
+}
+
+function resetView() {
+  state.zoom = 1;
+  const s = baseScale();
+  state.offX = (state.frameW - state.imgW * s) / 2;
+  state.offY = (state.frameH - state.imgH * s) / 2;
+  zoomSlider.value = 100;
+  render();
+}
+
+/* ---------- pointer pan / pinch ---------- */
+const ptrs = new Map();
+function framePos(e) { const r = frame.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+frame.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  frame.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, framePos(e));
+});
+frame.addEventListener("pointermove", e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const prev = ptrs.get(e.pointerId), now = framePos(e);
+  if (ptrs.size === 1) {
+    state.offX += now.x - prev.x;
+    state.offY += now.y - prev.y;
+    clampOffsets(); render();
+  } else if (ptrs.size === 2) {
+    const [a, b] = [...ptrs.entries()].map(([id, p]) => ({ id, ...p }));
+    const other = a.id === e.pointerId ? b : a;
+    const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+    const d1 = Math.hypot(now.x - other.x, now.y - other.y);
+    const m0 = { x: (prev.x + other.x) / 2, y: (prev.y + other.y) / 2 };
+    const m1 = { x: (now.x + other.x) / 2, y: (now.y + other.y) / 2 };
+    if (d0 > 0) zoomAt(m1.x, m1.y, d1 / d0);
+    state.offX += m1.x - m0.x; state.offY += m1.y - m0.y;
+    clampOffsets(); render();
+  }
+  ptrs.set(e.pointerId, now);
+});
+["pointerup", "pointercancel"].forEach(t => frame.addEventListener(t, e => ptrs.delete(e.pointerId)));
+
+frame.addEventListener("wheel", e => {
+  e.preventDefault();
+  const p = framePos(e);
+  zoomAt(p.x, p.y, Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
+
+zoomSlider.addEventListener("input", () => {
+  const target = Number(zoomSlider.value) / 100;
+  zoomAt(state.frameW / 2, state.frameH / 2, target / state.zoom);
+});
+
+/* ---------- load image ---------- */
+function loadFile(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    state.img = img; state.imgW = img.naturalWidth; state.imgH = img.naturalHeight;
+    photo.src = url;
+    dropzone.classList.add("hidden");
+    frame.classList.remove("hidden");
+    controls.classList.remove("hidden");
+    layoutFrame(); resetView();
+  };
+  img.src = url;
+}
+document.getElementById("fileInput").addEventListener("change", e => loadFile(e.target.files[0]));
+stage.addEventListener("dragover", e => e.preventDefault());
+stage.addEventListener("drop", e => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
+document.addEventListener("paste", e => { const f = e.clipboardData && e.clipboardData.files[0]; if (f) loadFile(f); });
+window.addEventListener("resize", () => { if (state.img) { layoutFrame(); clampOffsets(); render(); } });
+
+/* ---------- crop maths ---------- */
+function cropRect() {
+  const s = scale();
+  return { sx: -state.offX / s, sy: -state.offY / s, sw: state.frameW / s, sh: state.frameH / s };
+}
+function outSize(longEdge) {
+  let w, h;
+  if (state.ratio >= 1) { w = longEdge; h = Math.round(longEdge / state.ratio); }
+  else { h = longEdge; w = Math.round(longEdge * state.ratio); }
+  const { sw } = cropRect();
+  const k = Math.min(1, sw / w);           // never upscale beyond source resolution
+  return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
+}
+
+function drawPreview() {
+  if (!state.img) return;
+  const { sx, sy, sw, sh } = cropRect();
+  const o = outSize(220);
+  const cv = document.getElementById("preview");
+  cv.width = o.w; cv.height = o.h;
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(state.img, sx, sy, sw, sh, 0, 0, o.w, o.h);
+  const real = outSize(Number(document.getElementById("sizeSel").value));
+  document.getElementById("outMeta").textContent = `${real.w} × ${real.h} px`;
+}
+document.getElementById("sizeSel").addEventListener("change", drawPreview);
+
+function download() {
+  if (!state.img) return;
+  const { sx, sy, sw, sh } = cropRect();
+  const o = outSize(Number(document.getElementById("sizeSel").value));
+  const fmt = document.getElementById("fmtSel").value;
+  const cv = document.createElement("canvas");
+  cv.width = o.w; cv.height = o.h;
+  const ctx = cv.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(state.img, sx, sy, sw, sh, 0, 0, o.w, o.h);
+  cv.toBlob(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `cropped-${o.w}x${o.h}.${fmt === "png" ? "png" : "jpg"}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }, fmt === "png" ? "image/png" : "image/jpeg", 0.92);
+}
+</script>
+</body>
+</html>
