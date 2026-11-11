@@ -1141,7 +1141,7 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
+          <table class="w-full min-w-[820px] text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
                 <th class="py-2.5 px-3">Username</th>
@@ -1168,7 +1168,7 @@
           Staff Card Code is independent of the order prefix in Users. Codes are case-insensitive and may contain any letters or numbers. Leave it blank if the account should not use card login.
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
+          <table class="w-full min-w-[760px] text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
                 <th class="py-2.5 px-3">Account</th>
@@ -1197,7 +1197,7 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
+          <table class="w-full min-w-[760px] text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
                 <th class="py-2.5 px-3">Item Name</th>
@@ -4733,8 +4733,8 @@
         const shared = card ? (counts[card.toLowerCase()] || 0) : 0;
         return `
           <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
-            <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || "Staff")}</td>
+            <td class="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">${escapeHtml(u.username)}</td>
+            <td class="py-3 px-3 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(u.role || "Staff")}</td>
             <td class="py-3 px-3">
               <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" maxlength="64" placeholder="School card string" value="${escapeHtml(card)}"
                 class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
@@ -5257,11 +5257,11 @@
               </label>`;
           html += `
             <tr class="hover:bg-slate-50 transition">
-              <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(u.username)}</td>
-              <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(u.role || 'Staff')}</td>
-              <td class="py-3 px-3 font-bold text-amber-600">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
-              <td class="py-3 px-3">${toggleHtml}</td>
-              <td class="py-3 px-3">
+              <td class="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">${escapeHtml(u.username)}</td>
+              <td class="py-3 px-3 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(u.role || 'Staff')}</td>
+              <td class="py-3 px-3 font-bold text-amber-600 whitespace-nowrap">${escapeHtml(u.userCode || '1')} (Prefix: ${u.userCode || '1'}00x)</td>
+              <td class="py-3 px-3 whitespace-nowrap">${toggleHtml}</td>
+              <td class="py-3 px-3 whitespace-nowrap">
                 ${u.googleEmail
                   ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-sky-100 text-sky-700"><i class="fa-brands fa-google mr-0.5"></i>${escapeHtml(u.googleEmail)}</span>`
                   : `<span class="text-[10px] font-bold text-slate-400">Not linked</span>`}
@@ -5288,17 +5288,19 @@
           const coldPaused = item.coldPaused || (state.coldPaused && String(item.tempOptions).includes("Cold"));
           html += `
             <tr class="hover:bg-slate-50 transition">
-              <td class="py-3 px-3 font-extrabold text-slate-800">${escapeHtml(item.name)}</td>
-              <td class="py-3 px-3"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
-              <td class="py-3 px-3 font-semibold text-slate-500">${escapeHtml(item.tempOptions)}</td>
-              <td class="py-3 px-3 font-black text-amber-600">${fmtPrice(item.price)}</td>
+              <td class="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">${escapeHtml(item.name)}</td>
+              <td class="py-3 px-3 whitespace-nowrap"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
+              <td class="py-3 px-3 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(item.tempOptions)}</td>
+              <td class="py-3 px-3 font-black text-amber-600 whitespace-nowrap">${fmtPrice(item.price)}</td>
               <td class="py-3 px-3">
-                <span class="font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-                  ${isPaused ? 'Paused' : 'Active'}
-                </span>
-                ${String(item.tempOptions).includes("Cold") ? `<span class="font-bold px-2 py-0.5 rounded-full text-[10px] ml-1 ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                    ${isPaused ? 'Paused' : 'Active'}
+                  </span>
+                  ${String(item.tempOptions).includes("Cold") ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
+                </div>
               </td>
-              <td class="py-3 px-3 text-right space-x-1">
+              <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
                 <button onclick="togglePauseItem('${escapeHtml(item.name)}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
                   ${isPaused ? 'Unpause' : 'Pause'}
                 </button>
