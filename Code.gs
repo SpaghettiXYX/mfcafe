@@ -260,9 +260,27 @@ function authenticateUser(username, password) {
   return { success: false, error: "Invalid username or password" };
 }
 
+// One Users row may hold several card codes in the StaffCard cell, because a
+// single account can be opened by more than one card (old + new school card).
+// Separators: comma, semicolon, pipe, slash, tab, or line break.
+function parseStaffCards_(value) {
+  const seen = {};
+  return String(value || "")
+    .split(/[,;|/\n\r\t]+/)
+    .map(c => String(c || "").trim())
+    .filter(c => {
+      if (!c) return false;
+      const key = c.toLowerCase();
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+}
+
 // Staff-card login: a USB barcode scanner types the card's UserCode and then
-// presses Enter. One card may be shared by several accounts, so the response
-// always returns every matching account and the UI asks which one to use.
+// presses Enter. One account may own several cards, and one card may be shared
+// by several accounts, so the response always returns every matching account
+// and the UI asks which one to use.
 function authenticateByStaffCode(code) {
   const wanted = String(code || "").trim().toLowerCase();
   if (!wanted) return { success: false, error: "No staff card code received" };
@@ -272,14 +290,14 @@ function authenticateByStaffCode(code) {
   const accounts = [];
   for (let i = 1; i < data.length; i++) {
     if (!data[i][0]) continue;
-    const card = String(data[i][6] || "").trim().toLowerCase();
-    if (!card) continue;
-    if (card === wanted) {
+    const cards = parseStaffCards_(data[i][6]);
+    if (!cards.length) continue;
+    if (cards.some(c => c.toLowerCase() === wanted)) {
       accounts.push({
         username: String(data[i][0]).trim(),
         role: String(data[i][2] || "Staff").trim(),
         userCode: String(data[i][3] || "1").trim(),
-        staffCard: String(data[i][6] || "").trim(),
+        staffCard: cards.join(", "),
         canPrint: String(data[i][4] || "").trim().toUpperCase() === "TRUE"
       });
     }
@@ -343,7 +361,8 @@ function addUser(username, password, role, userCode, staffCard) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
   const canPrint = (role || "Staff").toLowerCase() === "Admin" ? "TRUE" : "FALSE";
-  usersSheet.appendRow([username, password, role || "Staff", userCode || "1", canPrint, "", String(staffCard || "").trim()]);
+  const cards = parseStaffCards_(staffCard).join(", ");
+  usersSheet.appendRow([username, password, role || "Staff", userCode || "1", canPrint, "", cards]);
   bumpVersion();
   return { success: true };
 }
@@ -363,17 +382,19 @@ function setUserCanPrint(username, canPrint) {
 }
 
 function setUserStaffCard(username, staffCard) {
-  const card = String(staffCard || "").trim();
-  if (!card) return { success: false, error: "Staff card code is required" };
-  if (card.length > 64) return { success: false, error: "Staff card code is too long" };
+  const cards = parseStaffCards_(staffCard);
+  if (!cards.length) return { success: false, error: "At least one staff card code is required" };
+  const tooLong = cards.find(c => c.length > 64);
+  if (tooLong) return { success: false, error: "Staff card code is too long (max 64 characters)" };
+  const stored = cards.join(", ");
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ensureUsersSheet(ss);
   const data = usersSheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
-      usersSheet.getRange(i + 1, 7).setValue(card);
+      usersSheet.getRange(i + 1, 7).setValue(stored);
       bumpVersion();
-      return { success: true, username: String(data[i][0]).trim(), staffCard: card };
+      return { success: true, username: String(data[i][0]).trim(), staffCard: stored, staffCards: cards };
     }
   }
   return { success: false, error: "User not found" };

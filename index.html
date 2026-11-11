@@ -1192,11 +1192,11 @@
       <div data-admin-section="staffcards" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <div class="border-b border-slate-100 pb-3">
           <h3 class="font-black text-slate-800 text-lg">Staff Card Login</h3>
-          <p class="text-xs text-slate-400">Assign the school-issued card string each account uses on the login screen. One card can serve several accounts — give them the same code and the login will ask which account to use.</p>
+          <p class="text-xs text-slate-400">Assign the school-issued card strings each account accepts on the login screen. One account can hold several cards (separate them with commas), and one card can serve several accounts — the login will then ask which account to use.</p>
         </div>
         <div class="bg-sky-50 border border-sky-200 rounded-2xl px-4 py-3 text-[11px] font-semibold text-sky-800 leading-relaxed">
           <i class="fa-solid fa-circle-info mr-1"></i>
-          Staff Card Code is independent of the order prefix in Users. Codes are case-insensitive and may contain any letters or numbers. Leave it blank if the account should not use card login.
+          Separate multiple cards with commas, e.g. <span class="font-black">CARD-A, CARD-B</span>. Staff Card Codes are independent of the order prefix in Users. Codes are case-insensitive and may contain any letters or numbers. Leave it blank if the account should not use card login.
         </div>
         <div class="overflow-x-auto">
           <table class="w-full min-w-[760px] text-left text-xs border-collapse">
@@ -1412,8 +1412,8 @@
           <input type="number" id="newUserCode" placeholder="e.g. 1 for 1001+, 2 for 2001+" value="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card Code (optional)</label>
-          <input type="text" id="newStaffCard" placeholder="School-issued card string" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card Codes (optional)</label>
+          <input type="text" id="newStaffCard" placeholder="CARD-A, CARD-B (comma separated)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
         </div>
       </div>
 
@@ -4800,30 +4800,48 @@
     }
 
     // ==================== ADMIN: STAFF CARD LOGIN ====================
+    // Mirrors parseStaffCards_() in Code.gs: one account may hold several card
+    // codes, separated by commas / semicolons / pipes / line breaks.
+    function splitStaffCards(value) {
+      const seen = {};
+      return String(value || "")
+        .split(/[,;|/\n\r\t]+/)
+        .map(c => c.trim())
+        .filter(c => {
+          if (!c) return false;
+          const key = c.toLowerCase();
+          if (seen[key]) return false;
+          seen[key] = true;
+          return true;
+        });
+    }
+
     function renderAdminStaffCards() {
       const tbody = document.getElementById("adminStaffCardsTableBody");
       if (!tbody) return;
       const users = Array.isArray(state.users) ? state.users : [];
-      const counts = {};
-      users.forEach(u => {
-        const card = String(u.staffCard || "").trim().toLowerCase();
-        if (card) counts[card] = (counts[card] || 0) + 1;
-      });
+      const owners = {};
+      users.forEach(u => splitStaffCards(u.staffCard).forEach(c => {
+        const key = c.toLowerCase();
+        owners[key] = (owners[key] || 0) + 1;
+      }));
       tbody.innerHTML = users.map((u, i) => {
-        const card = String(u.staffCard || "").trim();
-        const shared = card ? (counts[card.toLowerCase()] || 0) : 0;
+        const cards = splitStaffCards(u.staffCard);
+        const shared = cards.reduce((max, c) => Math.max(max, owners[c.toLowerCase()] || 0), 0);
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">${escapeHtml(u.username)}</td>
             <td class="py-3 px-3 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(u.role || "Staff")}</td>
             <td class="py-3 px-3">
-              <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" maxlength="64" placeholder="School card string" value="${escapeHtml(card)}"
-                class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
+              <input id="staffCardCodeInput${i}" data-username="${escapeHtml(u.username)}" type="text" maxlength="200" placeholder="CARD-A, CARD-B" value="${escapeHtml(cards.join(", "))}"
+                class="w-64 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800">
             </td>
             <td class="py-3 px-3">
-              ${shared > 1
+              ${cards.length === 0
+                ? `<span class="text-[10px] font-bold text-slate-400">No card</span>`
+                : shared > 1
                 ? `<span class="inline-flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full bg-sky-100 text-sky-700"><i class="fa-solid fa-user-group"></i>${shared} accounts</span>`
-                : `<span class="text-[10px] font-bold text-slate-400">Not shared</span>`}
+                : `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-slate-100 text-slate-600"><i class="fa-solid fa-id-card"></i>${cards.length} card${cards.length > 1 ? "s" : ""}</span>`}
             </td>
             <td class="py-3 px-3 text-right">
               <button onclick="saveStaffCardCode(${i})" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Save</button>
@@ -4842,7 +4860,7 @@
         const res = await apiPost({ action: "setUserStaffCard", username, staffCard: code });
         if (!res || !res.success) return showToast((res && res.error) || "Failed to update staff card", "error");
         const u = (state.users || []).find(x => String(x.username || "").toLowerCase() === String(username).toLowerCase());
-        if (u) u.staffCard = code;
+        if (u) u.staffCard = res.staffCard || splitStaffCards(code).join(", ");
         renderAdminStaffCards();
         renderAll();
         showToast(`${username}: card updated`, "success", 2000);
