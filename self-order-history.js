@@ -107,8 +107,17 @@
       tabBar.appendChild(menuTab);
       tabBar.appendChild(ordersTab);
 
-      // Insert the tab bar directly after the header, before the chips row.
-      header.parentNode.insertBefore(tabBar, header.nextSibling);
+      // Insert the tab bar inside the header, between the title row and the
+      // category chips. This keeps the pills sticky alongside the title so
+      // they never scroll out of sight.
+      var chipsEl = document.getElementById("customerCategoryTabs")
+        || document.getElementById("opendayCategoryTabs")
+        || document.querySelector("#chips");
+      if (chipsEl && header.contains(chipsEl)) {
+        header.insertBefore(tabBar, chipsEl);
+      } else {
+        header.appendChild(tabBar);
+      }
 
       // Inline orders container — lives in the document flow, not as a modal.
       ordersWrap = document.createElement("div");
@@ -136,8 +145,9 @@
           }
         }
       };
-      // Append ordersWrap right after the tab bar.
-      tabBar.parentNode.insertBefore(ordersWrap, tabBar.nextSibling);
+      // Append ordersWrap as a sibling of the header, so it lives in the
+      // normal document flow (under the sticky header + chips row).
+      header.parentNode.insertBefore(ordersWrap, header.nextSibling);
 
       renderTabCount();
       return tabBar;
