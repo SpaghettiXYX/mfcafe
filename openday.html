@@ -653,6 +653,7 @@
       applyReservation: applyReservationState, closeReceipt: closeReceiptModal, notify: showToast
     });
     let menuPollingStarted = false;
+    let lastMenuSig = "";
     let promoPopupShown = false;
 
     // ===== SAFE PRICE HELPER =====
@@ -746,7 +747,9 @@
             renderPickupOptions();
             applyInstructions();
             applyReservationState();
-            renderMenu();
+            // Only rebuild the grid when something visible actually changed —
+            // a blind rebuild every 15s is what reset the scroll position.
+            if (menuSignature() !== lastMenuSig) renderMenu();
           })
           .catch(() => {});
       }, 15000);
@@ -763,9 +766,23 @@
       if (reasonEl) reasonEl.innerText = state.openDayPauseReason || "The Open Day order portal is temporarily closed due to high volume. Please order at the counter.";
     }
 
+    // Snapshot of everything renderMenu() paints with. The 15s poll uses it to
+    // skip needless rebuilds.
+    function menuSignature() {
+      return JSON.stringify([
+        state.selectedCategory, !!state.coldPaused,
+        (state.menu || []).map(i => [i.name, i.category, i.price, i.imageUrl, i.description,
+          i.available, i.soldOut, i.tempOptions, i.coldPaused])
+      ]);
+    }
+
     function renderMenu() {
       const container = document.getElementById('customerMenuList');
       if (!container) return;
+      // Rebuilding the list empties the container for a frame, the page height
+      // collapses and the browser clamps scrollY to 0. Remember the position
+      // and restore it once the cards are back.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
 
       const tabsEl = document.getElementById('customerCategoryTabs');
       if (tabsEl) {
@@ -791,6 +808,8 @@
 
       if (filtered.length === 0) {
         container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
+        if (scrollY > 0) window.scrollTo(0, scrollY);
+        lastMenuSig = menuSignature();
         return;
       }
 
@@ -824,6 +843,9 @@
         `;
         container.appendChild(btn);
       });
+
+      if (scrollY > 0) window.scrollTo(0, scrollY);
+      lastMenuSig = menuSignature();
     }
 
     function selectCustomerCategory(cat) {
