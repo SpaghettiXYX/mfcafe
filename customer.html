@@ -439,39 +439,7 @@
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400">Choose Drink</label>
         <span id="mobileAvailableCount" class="text-[11px] font-bold text-slate-400">8 available</span>
       </div>
-      <div class="grid grid-cols-2 gap-2.5" id="customerMenuList"><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Espresso</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$13.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Americano</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$14.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Cafe Latte</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$20.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Cappuccino</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$20.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Mocha</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$23.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Chocolate</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$18.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Matcha Latte🍵</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">$21.00</p>
-        </button><button class="p-3 rounded-2xl border text-left transition shadow-sm border-slate-200 bg-white hover:border-slate-300">
-          <p class="font-extrabold text-xs text-slate-800">Test Drink</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">Hot &amp; Cold</p>
-          <p class="text-amber-600 font-black text-xs mt-1.5">HK$0.00</p>
-        </button></div>
+      <div class="space-y-5" id="customerMenuList"></div>
     </div>
 
     <!-- Drink Customization Configurator (bottom sheet, like bulky.html) -->
@@ -791,13 +759,29 @@
     }
 
     // Snapshot of everything renderMenu() paints with. The 15s poll uses it to
-    // skip needless rebuilds.
+    // skip needless rebuilds. The active chip is excluded on purpose: scrolling
+    // changes it and must not trigger a menu rebuild.
     function menuSignature() {
       return JSON.stringify([
-        state.selectedCategory, !!state.coldPaused,
+        !!state.coldPaused,
         (state.menu || []).map(i => [i.name, i.category, i.price, i.imageUrl, i.offerPrice,
           i.available, i.soldOut, i.tempOptions, i.coldPaused])
       ]);
+    }
+
+    function catSectionId(c) { return "cat-" + String(c).replace(/[^a-zA-Z0-9_-]/g, "_"); }
+
+    // Chips are a jump bar for the sectioned menu below, like bulky.html.
+    function updateCategoryChips() {
+      const tabsEl = document.getElementById('customerCategoryTabs');
+      if (!tabsEl) return;
+      const list = state.catList || [];
+      tabsEl.innerHTML = list.map(cat => {
+        const active = state.selectedCategory === cat;
+        return `<button onclick="selectCustomerCategory('${escapeHtml(cat).replace(/'/g, "\\'")}')" class="cat-chip ${active ? 'is-on' : ''}">${escapeHtml(cat)}</button>`;
+      }).join('');
+      const on = tabsEl.querySelector('.cat-chip.is-on');
+      if (on) tabsEl.scrollLeft = Math.max(0, on.offsetLeft - tabsEl.clientWidth / 2 + on.offsetWidth / 2);
     }
 
     function renderMenu() {
@@ -808,16 +792,6 @@
       // and restore it once the cards are back.
       const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
 
-      // Render category tabs
-      const tabsEl = document.getElementById('customerCategoryTabs');
-      if (tabsEl) {
-        const cats = ["All", ...state.categories];
-        tabsEl.innerHTML = cats.map(cat => {
-          const active = state.selectedCategory === cat;
-          return `<button onclick="selectCustomerCategory('${escapeHtml(cat)}')" class="cat-chip ${active ? 'is-on' : ''}">${escapeHtml(cat)}</button>`;
-        }).join('');
-      }
-
       const availableItems = state.menu.filter(i => {
         if (i.available === false) return false;
         const opts = i.tempOptions || "";
@@ -826,48 +800,83 @@
         return true;
       });
 
-      const filtered = state.selectedCategory === "All" ? availableItems : availableItems.filter(i => (i.category || "Other") === state.selectedCategory);
-
       const badge = document.getElementById('mobileAvailableCount');
-      if (badge) badge.innerText = `${filtered.filter(i => !i.soldOut).length} available`;
+      if (badge) badge.innerText = `${availableItems.filter(i => !i.soldOut).length} available`;
 
-      if (filtered.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-xs col-span-2 text-center py-6 font-medium">No items available right now.</p>`;
+      if (availableItems.length === 0) {
+        state.catList = [];
+        state.selectedCategory = "";
+        updateCategoryChips();
+        container.innerHTML = `<p class="text-slate-400 text-xs text-center py-6 font-medium">No items available right now.</p>`;
         if (scrollY > 0) window.scrollTo(0, scrollY);
         lastMenuSig = menuSignature();
         return;
       }
 
+      // Group by category, keeping the admin-configured order.
+      const cats = [];
+      (state.categories || []).forEach(c => { if (!cats.includes(c)) cats.push(c); });
+      availableItems.forEach(i => {
+        const c = String(i.category || "Other").trim() || "Other";
+        if (!cats.includes(c)) cats.push(c);
+      });
+      const groups = cats
+        .map(cat => ({ cat, items: availableItems.filter(i => (String(i.category || "Other").trim() || "Other") === cat) }))
+        .filter(g => g.items.length);
+
+      state.catList = groups.map(g => g.cat);
+      if (!state.catList.includes(state.selectedCategory)) state.selectedCategory = state.catList[0];
+      updateCategoryChips();
+
       container.innerHTML = "";
-      filtered.forEach(item => {
-        const isSelected = state.selectedItem?.name === item.name;
-        const soldOut = !!item.soldOut;
-        const btn = document.createElement('button');
-        btn.disabled = soldOut;
-        btn.className = `product-card text-left bg-white rounded-2xl border overflow-hidden ${soldOut ? 'opacity-60 cursor-not-allowed' : ''}`;
-        btn.style.borderColor = isSelected && !soldOut ? "var(--caramel)" : "var(--line)";
-        btn.style.boxShadow = isSelected && !soldOut ? "0 0 0 2px rgba(192,128,63,.45)" : "0 1px 2px rgba(46,33,26,.05)";
-        btn.onclick = () => selectItem(item);
-        const img = String(item.imageUrl || "").trim();
-        const offer = Number(item.offerPrice) || 0;
-        const showOffer = offer > (Number(item.price) || 0);
-        btn.innerHTML = `
-          <div class="relative w-full overflow-hidden" style="aspect-ratio:1/1;background:#EFE5D8">
-            ${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
-              style="width:100%;height:100%;object-fit:cover"
-              onerror="this.style.display='none'">` : `<div class="w-full h-full flex items-center justify-center" style="color:rgba(107,78,61,.3)"><i class="fa-solid fa-mug-hot text-2xl"></i></div>`}
-            ${soldOut ? `<div class="absolute inset-0 bg-white/55 flex items-center justify-center"><span class="text-white text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full" style="background:var(--espresso)">SOLD OUT</span></div>` : ""}
-          </div>
-          <div class="p-2.5">
-            <p class="font-extrabold text-xs leading-snug line-clamp-1" style="color:var(--espresso)">${escapeHtml(item.name)}</p>
-            <p class="text-[10px] font-semibold leading-snug mt-0.5 line-clamp-2" style="height:26px;color:rgba(107,78,61,.62)">${escapeHtml(item.tempOptions)}</p>
-            <div class="flex items-center justify-between mt-1.5">
-              <p class="font-black text-xs" style="color:var(--espresso)">${fmtPrice(item.price)}${showOffer ? `<span class="text-[10px] font-bold line-through ml-1" style="color:rgba(107,78,61,.45)">${fmtPrice(offer)}</span>` : ""}</p>
-              ${soldOut ? "" : `<span class="w-6 h-6 rounded-full text-white flex items-center justify-center" style="background:var(--espresso)"><i class="fa-solid fa-plus text-[9px]"></i></span>`}
+      groups.forEach(group => {
+        const section = document.createElement('section');
+        section.dataset.catSection = group.cat;
+        section.id = catSectionId(group.cat);
+
+        const head = document.createElement('div');
+        head.className = "flex items-center justify-between mb-2.5";
+        head.innerHTML = `
+          <h2 class="text-[15px] font-black tracking-tight" style="color:var(--espresso)">${escapeHtml(group.cat)}</h2>
+          <span class="text-[10px] font-bold" style="color:rgba(107,78,61,.5)">${group.items.length} item${group.items.length > 1 ? 's' : ''}</span>`;
+        section.appendChild(head);
+
+        const grid = document.createElement('div');
+        grid.className = "grid grid-cols-2 gap-2.5";
+
+        group.items.forEach(item => {
+          const isSelected = state.selectedItem?.name === item.name;
+          const soldOut = !!item.soldOut;
+          const btn = document.createElement('button');
+          btn.disabled = soldOut;
+          btn.className = `product-card text-left bg-white rounded-2xl border overflow-hidden ${soldOut ? 'opacity-60 cursor-not-allowed' : ''}`;
+          btn.style.borderColor = isSelected && !soldOut ? "var(--caramel)" : "var(--line)";
+          btn.style.boxShadow = isSelected && !soldOut ? "0 0 0 2px rgba(192,128,63,.45)" : "0 1px 2px rgba(46,33,26,.05)";
+          btn.onclick = () => selectItem(item);
+          const img = String(item.imageUrl || "").trim();
+          const offer = Number(item.offerPrice) || 0;
+          const showOffer = offer > (Number(item.price) || 0);
+          btn.innerHTML = `
+            <div class="relative w-full overflow-hidden" style="aspect-ratio:1/1;background:#EFE5D8">
+              ${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
+                style="width:100%;height:100%;object-fit:cover"
+                onerror="this.style.display='none'">` : `<div class="w-full h-full flex items-center justify-center" style="color:rgba(107,78,61,.3)"><i class="fa-solid fa-mug-hot text-2xl"></i></div>`}
+              ${soldOut ? `<div class="absolute inset-0 bg-white/55 flex items-center justify-center"><span class="text-white text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full" style="background:var(--espresso)">SOLD OUT</span></div>` : ""}
             </div>
-          </div>
-        `;
-        container.appendChild(btn);
+            <div class="p-2.5">
+              <p class="font-extrabold text-xs leading-snug line-clamp-1" style="color:var(--espresso)">${escapeHtml(item.name)}</p>
+              <p class="text-[10px] font-semibold leading-snug mt-0.5 line-clamp-2" style="height:26px;color:rgba(107,78,61,.62)">${escapeHtml(item.tempOptions)}</p>
+              <div class="flex items-center justify-between mt-1.5">
+                <p class="font-black text-xs" style="color:var(--espresso)">${fmtPrice(item.price)}${showOffer ? `<span class="text-[10px] font-bold line-through ml-1" style="color:rgba(107,78,61,.45)">${fmtPrice(offer)}</span>` : ""}</p>
+                ${soldOut ? "" : `<span class="w-6 h-6 rounded-full text-white flex items-center justify-center" style="background:var(--espresso)"><i class="fa-solid fa-plus text-[9px]"></i></span>`}
+              </div>
+            </div>
+          `;
+          grid.appendChild(btn);
+        });
+
+        section.appendChild(grid);
+        container.appendChild(section);
       });
 
       if (scrollY > 0) window.scrollTo(0, scrollY);
@@ -876,8 +885,35 @@
 
     function selectCustomerCategory(cat) {
       state.selectedCategory = cat;
-      renderMenu();
+      updateCategoryChips();
+      const sec = document.getElementById(catSectionId(cat));
+      if (!sec) return;
+      // Land just below the sticky header + chip bar.
+      const top = sec.getBoundingClientRect().top + (window.scrollY || 0) - 132;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     }
+
+    // Scroll spy: the highlighted chip follows whatever section is on screen.
+    let catSpyTick = false;
+    function syncActiveCategory() {
+      const container = document.getElementById('customerMenuList');
+      if (!container) return;
+      const secs = container.querySelectorAll('[data-cat-section]');
+      if (!secs.length) return;
+      let current = secs[0].dataset.catSection;
+      secs.forEach(sec => {
+        if (sec.getBoundingClientRect().top <= 150) current = sec.dataset.catSection;
+      });
+      if (current !== state.selectedCategory) {
+        state.selectedCategory = current;
+        updateCategoryChips();
+      }
+    }
+    window.addEventListener('scroll', () => {
+      if (catSpyTick) return;
+      catSpyTick = true;
+      requestAnimationFrame(() => { catSpyTick = false; syncActiveCategory(); });
+    }, { passive: true });
 
     function getItemPrice(item, temp) {
       if (!item) return 0;
