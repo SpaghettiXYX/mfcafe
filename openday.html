@@ -756,6 +756,10 @@
         fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
           .then(res => res.json())
           .then(data => {
+            // A background refresh repaints the menu; it must never move the
+            // guest. Remember where they were and put it back if the page
+            // height collapsed for a frame.
+            const keepY = window.scrollY || document.documentElement.scrollTop || 0;
             if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
             if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
             if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
@@ -771,6 +775,9 @@
             // Only rebuild the grid when something visible actually changed —
             // a blind rebuild every 15s is what reset the scroll position.
             if (menuSignature() !== lastMenuSig) renderMenu();
+            if (keepY > 0 && (window.scrollY || document.documentElement.scrollTop || 0) < keepY - 4) {
+              window.scrollTo(0, keepY);
+            }
           })
           .catch(() => {});
       }, 15000);

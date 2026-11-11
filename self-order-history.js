@@ -413,6 +413,9 @@
           .then(function (res) { return res.json(); })
           .then(function (res) {
             if (!res || !res.success || !res.order) return;
+            // Status refreshes run every 10s and may repaint the list; they must
+            // never move the guest. Restore the offset if it collapsed.
+            var keepY = window.pageYOffset || document.documentElement.scrollTop || 0;
             var updated = normalize(res.order);
             var idx = -1;
             for (var i = orders.length - 1; i >= 0; i--) {
@@ -430,6 +433,9 @@
             }
             if (currentNum === updated.orderNum && opts.updateStatus) {
               opts.updateStatus(updated.status, updated.paymentStatus);
+            }
+            if (keepY > 0 && (window.pageYOffset || document.documentElement.scrollTop || 0) < keepY - 4) {
+              try { window.scrollTo(0, keepY); } catch (e) {}
             }
           })
           .catch(function () {});
