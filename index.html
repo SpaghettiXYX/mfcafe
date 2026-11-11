@@ -814,8 +814,12 @@
             <span class="text-xs font-bold text-slate-500">Open Day Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
             <button id="adminToggleOpenDayReservationBtn" onclick="toggleOpenDayReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
           </div>
+          <div class="flex items-center justify-between md:justify-start md:flex-col md:items-start bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <span class="text-xs font-bold text-slate-500">Bulky (Multi-Cup) Pre-Order <span class="text-[9px] text-slate-400 font-semibold">(pause = closed)</span></span>
+            <button id="adminToggleBulkyReservationBtn" onclick="toggleBulkyReservationSubmit()" class="mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"><i class="fa-solid fa-play mr-1"></i> Open</button>
+          </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-bold text-slate-500 mb-1">Teacher Pause Reason</label>
             <textarea id="adminTeacherPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when teacher pre-order is paused..."></textarea>
@@ -823,6 +827,10 @@
           <div>
             <label class="block text-xs font-bold text-slate-500 mb-1">Open Day Pause Reason</label>
             <textarea id="adminOpenDayPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when Open Day pre-order is paused..."></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Bulky Pause Reason</label>
+            <textarea id="adminBulkyPauseReasonInput" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800" placeholder="Reason shown when bulky pre-order is paused..."></textarea>
           </div>
         </div>
         <button onclick="savePauseReasonsSubmit()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-extrabold transition">Save Pause Reasons</button>
@@ -1659,8 +1667,10 @@
       coldPaused: false,
       teacherReservationOpen: true,
       openDayReservationOpen: true,
+      bulkyReservationOpen: true,
       teacherPauseReason: "",
       openDayPauseReason: "",
+      bulkyPauseReason: "",
       pushMessage: { active: false, text: "", sender: "", timestamp: 0 },
       openingHours: { enabled: true, start: "07:30", end: "15:30", slots: [], specificTimes: [], slotsPerHour: 0, minLead: 0 },
       promoPopup: { active: false, title: "", body: "", imageUrl: "", timestamp: 0 },
@@ -2326,8 +2336,10 @@
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
           if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
           if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
+          if (typeof data.bulkyReservationOpen === "boolean") state.bulkyReservationOpen = data.bulkyReservationOpen;
           if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
           if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
+          if (typeof data.bulkyPauseReason === "string") state.bulkyPauseReason = data.bulkyPauseReason;
           if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
           if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
           if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
@@ -2930,9 +2942,53 @@
     }
 
     function confirmOrderPayment(orderNum) {
-      const targetNum = String(orderNum).trim().replace("#", "");
-      // Look from the newest row backwards so a recycled order number hits the
-      // live order, not a cleared one from earlier in the day.
+      const targetNum = String(orderNum).trim().replace(/#/g, "");
+      const baseMatch = targetNum.match(/^(\d+)(?:-\d+)?$/);
+      const isBase = !!baseMatch && !targetNum.includes("-");
+
+      // --- Multi-cup base number path ---
+      if (isBase) {
+        // First flip any RESERVED rows in the group to UNPAID so the user is
+        // billed for every cup, not just the cups that already had a status.
+        fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ action: "bulkActivateReserved", orderNum: targetNum })
+        })
+        .then(r => r.json())
+        .catch(() => ({ success: false }))
+        .then(actRes => {
+          if (actRes.success && actRes.activated) {
+            showToast(`Activated ${actRes.activated} cup(s) of ${targetNum}`, "info");
+          }
+          // Then confirm payment for every row in the group at once.
+          const groupUpdated = [];
+          for (const o of state.orders) {
+            const n = String(o.orderNum);
+            if (n === targetNum || n.startsWith(targetNum + "-")) {
+              o.status = (o.status || "").toUpperCase() === "UNPAID" ? "PENDING" : o.status;
+              o.paymentStatus = "PAID";
+              groupUpdated.push(n);
+            }
+          }
+          renderAll();
+
+          fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
+          })
+          .then(r => r.json())
+          .then(res => {
+            if (!res.success) showToast("Base payment failed: " + (res.error || "Unknown error"), "error");
+            else showToast(`Order ${targetNum} paid — ${res.count || groupUpdated.length} cup(s)`, "success");
+          })
+          .catch(() => showToast("Payment confirmation failed (network)", "error"));
+        });
+        return true;
+      }
+
+      // --- Single-cup / individual row path (unchanged) ---
       let order = null;
       for (let i = state.orders.length - 1; i >= 0; i--) {
         const o = state.orders[i];
@@ -5204,11 +5260,24 @@
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
       }
 
+      const bulkyBtn = document.getElementById('adminToggleBulkyReservationBtn');
+      if (bulkyBtn) {
+        bulkyBtn.innerHTML = state.bulkyReservationOpen
+          ? '<i class="fa-solid fa-play mr-1"></i> Open'
+          : '<i class="fa-solid fa-pause mr-1"></i> Closed';
+        bulkyBtn.className = state.bulkyReservationOpen
+          ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
+      }
+
       const teacherReasonInput = document.getElementById('adminTeacherPauseReasonInput');
       if (teacherReasonInput) teacherReasonInput.value = state.teacherPauseReason;
 
       const openDayReasonInput = document.getElementById('adminOpenDayPauseReasonInput');
       if (openDayReasonInput) openDayReasonInput.value = state.openDayPauseReason;
+
+      const bulkyReasonInput = document.getElementById('adminBulkyPauseReasonInput');
+      if (bulkyReasonInput) bulkyReasonInput.value = state.bulkyPauseReason;
 
       const catInput = document.getElementById('adminCategoriesInput');
       if (catInput) catInput.value = state.categories.join(", ");
@@ -5496,11 +5565,30 @@
       .catch(() => showToast("Network error updating Open Day switch", "error"));
     }
 
+    function toggleBulkyReservationSubmit() {
+      const newOpen = !state.bulkyReservationOpen;
+      state.bulkyReservationOpen = newOpen;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleBulkyReservation", open: newOpen })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newOpen ? "Bulky pre-order opened" : "Bulky pre-order paused", "success");
+        else showToast(res.error || "Failed to update Bulky switch", "error");
+      })
+      .catch(() => showToast("Network error updating Bulky switch", "error"));
+    }
+
     function savePauseReasonsSubmit() {
       const teacherReason = document.getElementById('adminTeacherPauseReasonInput').value.trim();
       const openDayReason = document.getElementById('adminOpenDayPauseReasonInput').value.trim();
+      const bulkyReason = document.getElementById('adminBulkyPauseReasonInput').value.trim();
       state.teacherPauseReason = teacherReason;
       state.openDayPauseReason = openDayReason;
+      state.bulkyPauseReason = bulkyReason;
 
       const p1 = fetch(APPS_SCRIPT_URL, {
         method: "POST",
@@ -5514,7 +5602,13 @@
         body: JSON.stringify({ action: "savePauseReason", target: "openday", reason: openDayReason })
       }).then(r => r.json());
 
-      Promise.all([p1, p2])
+      const p3 = fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "savePauseReason", target: "bulky", reason: bulkyReason })
+      }).then(r => r.json());
+
+      Promise.all([p1, p2, p3])
         .then(results => {
           const ok = results.every(r => r.success);
           if (ok) showToast("Pause reasons saved", "success");

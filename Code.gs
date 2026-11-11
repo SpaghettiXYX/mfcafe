@@ -486,18 +486,31 @@ function setOpenDayReservationOpen(open) {
   return { success: true, openDayReservationOpen: open };
 }
 
-// Pause reason shown on customer/openday pages when ordering is paused
+// Bulky (multi-cup) pre-order switch
+function getBulkyReservationOpen() {
+  const v = PropertiesService.getScriptProperties().getProperty("BULKY_RESERVATION_OPEN");
+  return v === null ? true : v === "true";
+}
+
+function setBulkyReservationOpen(open) {
+  PropertiesService.getScriptProperties().setProperty("BULKY_RESERVATION_OPEN", open ? "true" : "false");
+  bumpVersion();
+  return { success: true, bulkyReservationOpen: open };
+}
+
+// Pause reason shown on customer/openday/bulky pages when ordering is paused
 function getPauseReason(target) {
-  const key = target === "teacher" ? "PAUSE_REASON_TEACHER" : "PAUSE_REASON_OPENDAY";
+  const key = target === "teacher" ? "PAUSE_REASON_TEACHER" : target === "bulky" ? "PAUSE_REASON_BULKY" : "PAUSE_REASON_OPENDAY";
   const defaults = {
     teacher: "Online pre-order is temporarily paused. Please order at the counter.",
-    openday: "Open Day pre-order is temporarily paused. Please order at the counter."
+    openday: "Open Day pre-order is temporarily paused. Please order at the counter.",
+    bulky: "Bulky (multi-cup) orders are temporarily paused. Please place smaller orders at the counter."
   };
   return PropertiesService.getScriptProperties().getProperty(key) || defaults[target] || defaults.teacher;
 }
 
 function setPauseReason(target, reason) {
-  const key = target === "teacher" ? "PAUSE_REASON_TEACHER" : "PAUSE_REASON_OPENDAY";
+  const key = target === "teacher" ? "PAUSE_REASON_TEACHER" : target === "bulky" ? "PAUSE_REASON_BULKY" : "PAUSE_REASON_OPENDAY";
   PropertiesService.getScriptProperties().setProperty(key, String(reason || ""));
   bumpVersion();
   return { success: true, target: target, reason: reason };
@@ -971,8 +984,10 @@ function getInitialData() {
   const coldPausedGlobal = getColdPaused();
   const teacherReservationOpen = getTeacherReservationOpen();
   const openDayReservationOpen = getOpenDayReservationOpen();
+  const bulkyReservationOpen = getBulkyReservationOpen();
   const teacherPauseReason = getPauseReason("teacher");
   const openDayPauseReason = getPauseReason("openday");
+  const bulkyPauseReason = getPauseReason("bulky");
   const pushMessage = getPushMessage();
 
   // Menu with category and cold pause
@@ -1087,8 +1102,10 @@ function getInitialData() {
     coldPaused: coldPausedGlobal,
     teacherReservationOpen: teacherReservationOpen,
     openDayReservationOpen: openDayReservationOpen,
+    bulkyReservationOpen: bulkyReservationOpen,
     teacherPauseReason: teacherPauseReason,
     openDayPauseReason: openDayPauseReason,
+    bulkyPauseReason: bulkyPauseReason,
     pushMessage: pushMessage,
     statusStrip: getKdsStatusStrip(),
     openingHours: getOpeningHours(),
@@ -1350,6 +1367,29 @@ function confirmPaymentStatus(orderNum) {
   const target = String(orderNum).trim();
   const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
 
+  // --- Multi-cup base number: pay every sibling row at once ---
+  const baseMatch = target.match(/^(\d+)(?:-\d+)?$/);
+  const isBase = !!baseMatch && !target.includes("-");
+  if (isBase) {
+    const base = baseMatch[1];
+    const updated = [];
+    for (let i = 1; i < data.length; i++) {
+      const rowNum = String(data[i][0] || "").trim();
+      if (rowNum !== base && !rowNum.startsWith(base + "-")) continue;
+      const status = String(data[i][9] || "").trim().toUpperCase();
+      const pay = String(data[i][11] || "PAID").trim().toUpperCase();
+      if (status === "CLEARED" && pay === "PAID") continue; // already finished
+      const nextStatus = (status === "RESERVED" || status === "UNPAID") ? "PENDING" : status;
+      sheet.getRange(i + 1, 10).setValue(nextStatus);
+      sheet.getRange(i + 1, 12).setValue("PAID");
+      updated.push(rowNum);
+    }
+    if (!updated.length) return { success: false, error: "No active orders for " + target };
+    SpreadsheetApp.flush();
+    bumpVersion();
+    return { success: true, orderNum: target, paid: updated, count: updated.length };
+  }
+
   let matchIndex = -1;
   for (let i = data.length - 1; i >= 1; i--) {
     if (String(data[i][0]).trim() !== target) continue;
@@ -1367,6 +1407,40 @@ function confirmPaymentStatus(orderNum) {
   SpreadsheetApp.flush();
   bumpVersion();
   return { success: true, orderNum: orderNum, status: nextStatus, paymentStatus: "PAID" };
+}
+
+// Scan a base number and flip every RESERVED row in the group to UNPAID so
+// the cashier can collect payment, instead of having to scan each per-cup code.
+function bulkActivateReserved(baseNum) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ensureOrdersSheet(ss);
+  const data = sheet.getDataRange().getValues();
+  const target = String(baseNum).trim();
+  const baseMatch = target.match(/^(\d+)$/);
+  if (!baseMatch) return { success: false, error: "Scan the base order number (e.g. 1035), not a per-cup code" };
+  const base = baseMatch[1];
+
+  let changed = 0;
+  const updated = [];
+  for (let i = 1; i < data.length; i++) {
+    const rowNum = String(data[i][0] || "").trim();
+    if (rowNum !== base && !rowNum.startsWith(base + "-")) continue;
+    const status = String(data[i][9] || "").trim().toUpperCase();
+    const pay = String(data[i][11] || "PAID").trim().toUpperCase();
+    // Already paid or cleared — leave it alone
+    if (status === "CLEARED" && pay === "PAID") continue;
+    if (status === "RESERVED") {
+      sheet.getRange(i + 1, 10).setValue("UNPAID");
+      changed++;
+    } else if (status === "UNPAID") {
+      changed++; // already waiting for payment
+    }
+    updated.push(rowNum);
+  }
+  if (!updated.length) return { success: false, error: "No rows found for " + base };
+  SpreadsheetApp.flush();
+  bumpVersion();
+  return { success: true, orderNum: base, activated: changed, total: updated.length };
 }
 
 // Clear an order from a scanned code. The scanner may read either:
@@ -2038,6 +2112,7 @@ function doPost(e) {
     if (action === "toggleColdPause") return jsonResponse(setColdPaused(data.paused));
     if (action === "toggleTeacherReservation") return jsonResponse(setTeacherReservationOpen(data.open));
     if (action === "toggleOpenDayReservation") return jsonResponse(setOpenDayReservationOpen(data.open));
+    if (action === "toggleBulkyReservation") return jsonResponse(setBulkyReservationOpen(data.open));
     if (action === "savePauseReason") return jsonResponse(setPauseReason(data.target, data.reason));
     if (action === "savePushMessage") return jsonResponse(setPushMessage(data.text, data.sender, data.active));
     if (action === "saveKdsStatusStrip") return jsonResponse(setKdsStatusStrip(data.config));
@@ -2063,14 +2138,17 @@ function doPost(e) {
     // Multi-cup bulky order: every cup gets its own row and its own KDS block,
     // sharing one base number (1001-1, 1001-2, …).
     if (action === "createOrders") {
+      if (!getBulkyReservationOpen()) return jsonResponse({ success: false, error: getPauseReason("bulky") });
       const win = isPreorderWindowOpen();
       if (!win.open) return jsonResponse({ success: false, error: closedPreorderMessage_(win.hours) });
       const items = Array.isArray(data.orders) ? data.orders : [];
       if (!items.length) return jsonResponse({ success: false, error: "No items in this order." });
+      if (items.length > 20) return jsonResponse({ success: false, error: "Bulky orders are limited to 20 cups. Please split into multiple orders." });
       items.forEach(item => { item.status = "RESERVED"; });
       return jsonResponse(createOrderLocked(items));
     }
     if (action === "confirmPayment") return jsonResponse(confirmPaymentStatus(data.orderNum));
+    if (action === "bulkActivateReserved") return jsonResponse(bulkActivateReserved(data.orderNum));
     if (action === "assignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "ASSIGNED"));
     if (action === "unassignOrder") return jsonResponse(updateOrderStatus(data.orderNum, "PENDING"));
     if (action === "markReady") return jsonResponse(updateOrderStatus(data.orderNum, "READY"));

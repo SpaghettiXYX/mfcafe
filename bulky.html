@@ -6,6 +6,8 @@
 <title>MFCafe — Bulky Order</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -30,9 +32,36 @@
   .pop{animation:pop .35s ease-out}
   .chip{transition:all .2s ease}
   .pill{transition:all .15s ease}
+
+  /* Boot loader + paused overlay */
+  #appLoader{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--cream);transition:opacity .3s ease}
+  #appLoader.hide{opacity:0;pointer-events:none}
+  #appLoader img{animation:app-pulse 1.6s ease-in-out infinite}
+  .app-spinner{width:26px;height:26px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--caramel);animation:app-spin .8s linear infinite}
+  @keyframes app-spin{to{transform:rotate(360deg)}}
+  @keyframes app-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+  @media (prefers-reduced-motion: reduce){.app-spinner,#appLoader img{animation:none}}
+  #pausedOverlay{display:none}
+  #pausedOverlay.on{display:flex}
 </style>
 </head>
 <body>
+
+<!-- Boot loader -->
+<div id="appLoader">
+  <img src="assets/mfcafe-logo.png" alt="MFCafe" class="w-16 h-16 rounded-2xl bg-white border border-[var(--line)] p-1.5 shadow-sm" draggable="false">
+  <div class="app-spinner"></div>
+  <p class="text-[11px] font-bold" style="color:rgba(107,78,61,.6)">Loading bulky menu…</p>
+</div>
+
+<!-- Paused overlay -->
+<div id="pausedOverlay" class="fixed inset-0 z-[90] flex-col items-center justify-center text-center p-6 bg-[#FBF6EF]">
+  <div class="w-16 h-16 rounded-full bg-[#F4E2CB] text-[#A5682C] flex items-center justify-center mb-4">
+    <i class="fa-solid fa-pause text-2xl"></i>
+  </div>
+  <h2 class="text-[20px] font-black" style="color:var(--espresso)">Bulky Pre-Order Paused</h2>
+  <p id="pausedReason" class="text-[12px] font-semibold mt-2 max-w-[280px]" style="color:rgba(107,78,61,.75)">Bulky orders are temporarily paused. Please place smaller orders at the counter.</p>
+</div>
 
 <div class="phone">
   <header class="sticky top-0 z-40 bg-[#FBF6EF]/93 backdrop-blur-xl border-b border-[var(--line)]">
@@ -185,7 +214,7 @@
           <span class="text-[11px] font-bold text-[var(--mocha)]">Total</span>
           <span id="cartTotal" class="text-[20px] font-black">HK$0.00</span>
         </div>
-        <p class="text-[9px] font-semibold text-[var(--mocha)]/55 mb-3">All cups share one order number, numbered -1, -2, -3…</p>
+        <p id="cartCupsHint" class="text-[9px] font-bold text-[var(--mocha)]/55 mb-3">0 / 20 cups · all share one order number</p>
         <button id="btnSubmit" onclick="submitOrder()" class="w-full h-12 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[13px] font-black active:scale-[.99] transition">
           Place order
         </button>
@@ -201,9 +230,19 @@
       </div>
       <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--mocha)]/55">Order placed</p>
       <p id="sBaseNum" class="text-[46px] font-black leading-none mt-1">—</p>
-      <p class="text-[11px] font-semibold text-[var(--mocha)]/70 mt-1">Collect at counter when called</p>
-      <div id="sCups" class="mt-4 space-y-2 text-left max-h-52 overflow-y-auto"></div>
-      <button onclick="finishOrder()" class="mt-5 w-full h-11 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[12px] font-black">Done</button>
+      <p class="text-[11px] font-semibold text-[var(--mocha)]/70 mt-1">One QR + one barcode covers every cup in this order — scan either at the counter.</p>
+      <div id="sTicket" class="mt-4 bg-white border border-[var(--line)] rounded-2xl p-3 flex items-center justify-center gap-3">
+        <div id="sQrWrap" class="w-28 h-28 bg-white flex items-center justify-center"></div>
+        <div class="flex flex-col items-center gap-2">
+          <svg id="sBarcode" class="w-full" style="width:150px"></svg>
+          <p id="sBarcodeLabel" class="text-[9px] font-black tracking-[0.18em] text-[var(--mocha)]/70"></p>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button id="sDownloadBtn" onclick="downloadSuccessTicket()" class="flex-1 h-10 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[11px] font-black"><i class="fa-solid fa-download mr-1"></i> Download Receipt</button>
+        <button onclick="finishOrder()" class="flex-1 h-10 rounded-xl bg-white border border-[var(--line)] text-[var(--espresso)] text-[11px] font-black">Done</button>
+      </div>
+      <div id="sCups" class="mt-4 space-y-2 text-left max-h-40 overflow-y-auto"></div>
     </div>
   </div>
 
@@ -218,7 +257,7 @@
     cart: {}, detail: null, qty: 1,
     cupType: "", pickup: "NOW",
     openingHours: {}, coldExtra: 0, coldPaused: false,
-    submitting: false, promo: null
+    submitting: false, promo: null, pollTimer: null
   };
 
   const money = n => "HK$" + (Number(n) || 0).toFixed(2);
@@ -237,12 +276,45 @@
         buildCategories();
         renderMenu();
         renderPickupOptions();
+        // Bulky pause: show overlay and lock cart + submit if backend flag is off
+        const pauseEl = document.getElementById("pausedOverlay");
+        const reasonEl = document.getElementById("pausedReason");
+        if (pauseEl) {
+          if (data.bulkyReservationOpen === false) {
+            pauseEl.classList.add("on");
+            if (reasonEl) reasonEl.textContent = data.bulkyPauseReason || "Bulky orders are temporarily paused. Please place smaller orders at the counter.";
+          } else {
+            pauseEl.classList.remove("on");
+          }
+        }
+        // Periodic sync so Admin toggle updates this page live
+        clearInterval(state.pollTimer);
+        state.pollTimer = setInterval(() => {
+          fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
+            .then(r => r.json()).then(d => {
+              if (d.bulkyReservationOpen === false) {
+                pauseEl?.classList.add("on");
+                if (reasonEl) reasonEl.textContent = d.bulkyPauseReason || reasonEl.textContent;
+              } else {
+                pauseEl?.classList.remove("on");
+              }
+            }).catch(() => {});
+        }, 15000);
+        hideAppLoader();
       })
       .catch(() => {
         document.getElementById("menu").innerHTML =
           `<div class="text-center py-16"><p class="text-[12px] font-bold text-[var(--mocha)]">Menu unavailable</p>
            <button onclick="loadMenu()" class="mt-3 text-[11px] font-black text-[var(--caramel-dark)] underline">Retry</button></div>`;
+        hideAppLoader();
       });
+  }
+
+  function hideAppLoader() {
+    const loader = document.getElementById("appLoader");
+    if (!loader || loader.classList.contains("hide")) return;
+    loader.classList.add("hide");
+    setTimeout(() => loader.remove(), 400);
   }
 
   function buildCategories() {
@@ -464,6 +536,8 @@
 
   /* ================= Cart ================= */
   function addToCart(p, qty, temp, note) {
+    const current = cartCount();
+    if (current >= 20) { toast("Max 20 cups per bulky order"); return false; }
     const key = [p.id || p.name, temp, note].join("|");
     if (!state.cart[key]) {
       state.cart[key] = {
@@ -471,9 +545,15 @@
         img: String(p.imageUrl || "").trim(), qty: 0
       };
     }
-    state.cart[key].qty += qty;
+    // Cap at 20 cups total — if user selected a qty that would overshoot,
+    // only add up to the limit so the user sees exactly what they'll get.
+    const remaining = 20 - current;
+    const actual = Math.min(qty, remaining);
+    if (actual <= 0) { toast("Max 20 cups per bulky order"); return false; }
+    state.cart[key].qty += actual;
     renderCart();
-    toast(`${p.name} × ${qty} added`);
+    toast(`${p.name} × ${actual} added`);
+    return true;
   }
 
   function cartItems() { return Object.values(state.cart); }
@@ -587,6 +667,14 @@
     document.getElementById("cartBar").classList.toggle("hidden", count === 0);
     document.getElementById("cartBarCount").textContent = count;
     document.getElementById("cartBarTotal").textContent = money(total);
+
+    // Cups-out-of-20 indicator under the cart footer hint
+    const cupsHint = document.getElementById("cartCupsHint");
+    if (cupsHint) {
+      cupsHint.textContent = `${count} / 20 cups`;
+      cupsHint.className = "text-[9px] font-black mb-3 tracking-wider " +
+        (count >= 20 ? "text-rose-500" : count >= 16 ? "text-amber-500" : "text-[var(--mocha)]/55");
+    }
     document.getElementById("cartSub").textContent = `${count} cup${count === 1 ? "" : "s"} · one order number`;
     document.getElementById("cartTotal").textContent = money(total);
 
@@ -728,7 +816,20 @@
 
   function showSuccess(res) {
     const list = res.orders || [];
-    document.getElementById("sBaseNum").textContent = res.orderNum || "—";
+    const base = res.orderNum || (list[0] && list[0].orderNum) || "—";
+    document.getElementById("sBaseNum").textContent = base;
+
+    // Single large QR + barcode for the base number — one scan at POS pays every cup.
+    const qrWrap = document.getElementById("sQrWrap");
+    if (qrWrap) { qrWrap.innerHTML = ""; new QRCode(qrWrap, { text: String(base), width: 112, height: 112, correctLevel: QRCode.CorrectLevel.M }); }
+    const bc = document.getElementById("sBarcode");
+    if (bc && window.JsBarcode) {
+      try { JsBarcode(bc, String(base), { format: "CODE128", width: 2, height: 40, displayValue: false, margin: 0 }); }
+      catch(e) {}
+    }
+    const lbl = document.getElementById("sBarcodeLabel");
+    if (lbl) lbl.textContent = base;
+
     document.getElementById("sCups").innerHTML = list.map(o => `
       <div class="flex items-center gap-3 bg-white border border-[var(--line)] rounded-xl px-3 py-2">
         <span class="text-[13px] font-black text-[var(--caramel-dark)] w-16 shrink-0">${esc(o.orderNum)}</span>
@@ -740,12 +841,107 @@
     el.classList.add("flex");
   }
 
+  // Build a canvas receipt with the base number, one QR + one barcode,
+  // every cup listed, total and guest name — mirrors customer/openday tickets.
+  function downloadSuccessTicket() {
+    const base = document.getElementById("sBaseNum").textContent || "—";
+    const items = Object.values(state.cart);
+    const name = document.getElementById("custName").value.trim() || "Guest";
+    const isTakeaway = state.cupType === "Takeaway";
+    const pb = promoBreakdown();
+    const total = Math.max(0, pb.sub - pb.discount);
+
+    const C = document.createElement("canvas");
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = 480, H = 760;
+    C.width = W * dpr; C.height = H * dpr;
+    C.style.width = W + "px"; C.style.height = H + "px";
+    const g = C.getContext("2d");
+    g.scale(dpr, dpr);
+    g.fillStyle = "#FBF6EF"; g.fillRect(0, 0, W, H);
+
+    // Brand
+    g.fillStyle = "#2E211A"; g.font = "900 22px Inter, system-ui"; g.textAlign = "center";
+    g.fillText("MFCafe", W/2, 38);
+    g.fillStyle = "#6B4E3D"; g.font = "700 10px Inter, system-ui";
+    g.fillText("BULKY PRE-ORDER RECEIPT", W/2, 56);
+    g.setLineDash([4, 4]); g.strokeStyle = "#EDE3D7"; g.beginPath(); g.moveTo(32, 72); g.lineTo(W-32, 72); g.stroke(); g.setLineDash([]);
+
+    // Big number
+    g.fillStyle = "#2E211A"; g.font = "900 72px Inter, system-ui";
+    g.fillText(base, W/2, 150);
+    g.fillStyle = "#6B4E3D"; g.font = "700 12px Inter, system-ui";
+    g.fillText(isTakeaway ? "TAKEAWAY" : "IN-STORE", W/2, 172);
+
+    // QR
+    const qrCanvas = document.createElement("canvas");
+    new QRCode(qrCanvas, { text: String(base), width: 160, height: 160, correctLevel: QRCode.CorrectLevel.M });
+    // QRCode library draws into canvas directly when a canvas element is passed
+    const qr = qrCanvas.querySelector("canvas") || qrCanvas;
+    try { g.drawImage(qr, 40, 195, 160, 160); } catch(e) {}
+
+    // Barcode
+    const bcWrap = document.createElement("div");
+    const bcSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    bcSvg.setAttribute("id", "tmpBc");
+    bcWrap.appendChild(bcSvg);
+    document.body.appendChild(bcWrap);
+    if (window.JsBarcode) {
+      try { JsBarcode(bcSvg, String(base), { format: "CODE128", width: 2, height: 40, displayValue: false, margin: 0 }); } catch(e) {}
+    }
+    const xml = new XMLSerializer().serializeToString(bcSvg);
+    const b64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(xml)));
+    const bcImg = new Image();
+    bcImg.onload = () => {
+      g.drawImage(bcImg, 280, 220, 160, 44);
+      g.fillStyle = "#2E211A"; g.font = "900 11px Inter, system-ui"; g.textAlign = "center";
+      g.fillText(base, 360, 280);
+
+      // Guest + cups list
+      g.textAlign = "left"; g.fillStyle = "#6B4E3D"; g.font = "800 11px Inter, system-ui";
+      g.fillText("Guest: " + name, 32, 390);
+      g.fillStyle = "#2E211A"; g.font = "700 11px Inter, system-ui";
+      let y = 410;
+      items.forEach(it => {
+        const qty = Number(it.qty) || 0;
+        for (let n = 0; n < qty; n++) {
+          const cupIdx = items.slice(0, items.indexOf(it)).reduce((s, i) => s + i.qty, 0) + n + 1;
+          g.fillText(base + "-" + cupIdx + "  " + it.name + (it.temp ? " (" + it.temp + ")" : ""), 32, y);
+          y += 18;
+          if (y > 640) return;
+        }
+      });
+
+      // Total
+      g.fillStyle = "#EDE3D7"; g.fillRect(32, 660, W - 64, 2);
+      g.fillStyle = "#2E211A"; g.font = "900 12px Inter, system-ui";
+      g.fillText("TOTAL", 32, 690);
+      g.fillText(money(total), W - 32, 690);
+      g.textAlign = "right";
+
+      g.fillStyle = "#6B4E3D"; g.font = "600 10px Inter, system-ui"; g.textAlign = "center";
+      g.fillText("Scan the QR or barcode at the counter to pay — covers all cups.", W/2, 726);
+      g.fillText("Thank you!", W/2, 742);
+
+      bcWrap.remove();
+      const link = document.createElement("a");
+      link.download = "mfcafe-bulky-" + base + ".png";
+      link.href = C.toDataURL("image/png");
+      link.click();
+    };
+    bcImg.onerror = () => { bcWrap.remove(); toast("Couldn't build receipt image"); };
+    bcImg.src = b64;
+  }
+
   function finishOrder() {
     const el = document.getElementById("successSheet");
     el.classList.add("hidden");
     el.classList.remove("flex");
     document.getElementById("custName").value = "";
+    state.cart = {};
+    state.promo = null;
     setCupType("");
+    renderCart();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

@@ -318,6 +318,11 @@
     /* instructions entry pill */
     #instructionsBtn{ background:#fff !important; border-color:var(--line) !important; color:var(--caramel-dark) !important; }
 
+    /* Collapsible promo / history sections */
+    details > summary::-webkit-details-marker{ display:none; }
+    details > summary{ user-select:none; }
+    details[open] > summary .fa-chevron-down{ transform:rotate(180deg); }
+
     /* boot loader: covers the page until menu data is ready */
     #appLoader{ position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:var(--cream); transition:opacity .3s ease; }
     #appLoader.hide{ opacity:0; pointer-events:none; }
@@ -370,34 +375,39 @@
         <input type="text" id="custPickupTime" placeholder="e.g. 2:30 PM / Now" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
         <select id="custPickupSlot" class="hidden w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition"></select>
       </div>
-      <!-- Promo Code + Totals -->
-      <div>
-        <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">Promo Code <span class="normal-case font-bold text-slate-400">(optional)</span></label>
-        <div class="flex space-x-2">
-          <input type="text" id="custPromoCode" placeholder="Enter promo code" autocomplete="off"
-            class="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
-          <button type="button" onclick="applyCustPromoCode()" id="custPromoApplyBtn"
-            class="px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed">
-            Apply
-          </button>
-          <button type="button" onclick="clearCustPromoCode()" id="custPromoClearBtn"
-            class="hidden px-3 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500 transition">
-            Clear
-          </button>
+      <!-- Promo Code + Totals (collapsible) -->
+      <details open class="rounded-2xl border border-[var(--line)] bg-white">
+        <summary class="cursor-pointer select-none list-none flex items-center justify-between px-3 py-2">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-[var(--mocha)]">Promo Code <span class="normal-case font-bold text-[var(--mocha)]/55">(optional)</span></span>
+          <i class="fa-solid fa-chevron-down text-[10px] text-[var(--mocha)]/55 transition"></i>
+        </summary>
+        <div class="px-3 pb-3 space-y-2">
+          <div class="flex space-x-2">
+            <input type="text" id="custPromoCode" placeholder="Enter promo code" autocomplete="off"
+              class="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-bold text-slate-800 focus:outline-none focus:border-amber-500 transition">
+            <button type="button" onclick="applyCustPromoCode()" id="custPromoApplyBtn"
+              class="px-4 py-2.5 rounded-xl text-sm font-bold border border-amber-400 bg-amber-100 text-amber-900 shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed">
+              Apply
+            </button>
+            <button type="button" onclick="clearCustPromoCode()" id="custPromoClearBtn"
+              class="hidden px-3 py-2.5 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-500 transition">
+              Clear
+            </button>
+          </div>
+          <p id="custPromoStatus" class="text-[11px] font-bold mt-1.5 text-slate-400"></p>
+          <div class="pt-2 border-t border-slate-200 space-y-1">
+            <div class="flex justify-between text-[11px] font-bold text-slate-400">
+              <span>Subtotal</span><span id="custSubtotalDisplay" class="text-slate-800">HK$0.00</span>
+            </div>
+            <div class="flex justify-between text-[11px] font-bold text-slate-400">
+              <span>Discount</span><span id="custDiscountDisplay" class="text-emerald-600">-HK$0.00</span>
+            </div>
+            <div class="flex justify-between text-xs font-extrabold text-slate-500">
+              <span>Total</span><span id="custTotalDisplay" class="text-amber-600 text-sm font-black">HK$0.00</span>
+            </div>
+          </div>
         </div>
-        <p id="custPromoStatus" class="text-[11px] font-bold mt-1.5 text-slate-400"></p>
-        <div class="mt-2 pt-2 border-t border-slate-200 space-y-1">
-          <div class="flex justify-between text-[11px] font-bold text-slate-400">
-            <span>Subtotal</span><span id="custSubtotalDisplay" class="text-slate-800">HK$0.00</span>
-          </div>
-          <div class="flex justify-between text-[11px] font-bold text-slate-400">
-            <span>Discount</span><span id="custDiscountDisplay" class="text-emerald-600">-HK$0.00</span>
-          </div>
-          <div class="flex justify-between text-xs font-extrabold text-slate-500">
-            <span>Total</span><span id="custTotalDisplay" class="text-amber-600 text-sm font-black">HK$0.00</span>
-          </div>
-        </div>
-      </div>
+      </details>
       <!-- Cup Type — mandatory -->
       <div>
         <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-1">
