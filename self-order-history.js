@@ -5,7 +5,8 @@
  * Responsibilities:
  *  - Persist submitted orders in localStorage so a refresh keeps the ticket.
  *  - Poll the Apps Script backend for live production / payment status.
- *  - Inject an "Ordered" button into the header with a history modal.
+ *  - Inject a page-level tab bar (Menu / My Orders) so saved orders live
+ *    inline in the page instead of a floating modal.
  *  - Let the guest view or manually delete any remembered order.
  */
 (function () {
@@ -70,10 +71,170 @@
     var polling = false;
     var lastPaused = false;
     var lastReason = "";
-    var panel = null;
-    var button = null;
+    var tabBar = null;
+    var menuTab = null;
+    var ordersTab = null;
+    var ordersWrap = null;
+    var currentTab = "menu"; // "menu" | "orders"
 
-    // ---------- storage ----------
+    // ---------- injected UI (page-level tab bar) ----------
+    function ensureTabs() {
+      if (tabBar && document.body.contains(tabBar)) return tabBar;
+      var header = document.querySelector("header");
+      if (!header) return null;
+
+      // Tab bar sits inline under the header (before the category chips) so it
+      // stays visible while scrolling the menu. We inject it once next to the
+      // header's second child (the categories div) so ordering works.
+      tabBar = document.createElement("div");
+      tabBar.id = "sohTabBar";
+      tabBar.style.cssText = [
+        "display:flex", "gap:6px", "padding:0 16px 10px",
+        "border-bottom:1px solid var(--border, rgba(15,23,42,0.08))"
+      ].join(";");
+      menuTab = document.createElement("button");
+      menuTab.type = "button";
+      menuTab.id = "sohMenuTab";
+      menuTab.style.cssText = tabBtnStyle(true);
+      menuTab.innerHTML = '<i class="fa-solid fa-mug-hot"></i><span>Menu</span>';
+      menuTab.onclick = function () { switchTo("menu"); };
+      ordersTab = document.createElement("button");
+      ordersTab.type = "button";
+      ordersTab.id = "sohOrdersTab";
+      ordersTab.style.cssText = tabBtnStyle(false);
+      ordersTab.innerHTML = '<i class="fa-solid fa-receipt"></i><span>My Orders</span><span id="sohOrderedCount" style="margin-left:4px;background:#f59e0b;color:#0b1120;border-radius:9999px;padding:1px 7px;font-size:10px;font-weight:900;">0</span>';
+      ordersTab.onclick = function () { switchTo("orders"); };
+      tabBar.appendChild(menuTab);
+      tabBar.appendChild(ordersTab);
+
+      // Insert the tab bar directly after the header, before the chips row.
+      header.parentNode.insertBefore(tabBar, header.nextSibling);
+
+      // Inline orders container — lives in the document flow, not as a modal.
+      ordersWrap = document.createElement("div");
+      ordersWrap.id = "sohOrdersWrap";
+      ordersWrap.style.cssText = [
+        "max-width:448px", "margin:0 auto", "padding:12px 16px 24px",
+        "display:none"
+      ].join(";");
+      ordersWrap.innerHTML = [
+        '<div id="sohOrderList"></div>',
+        '<p style="font-size:10px;font-weight:600;opacity:0.55;text-align:center;margin:14px 0 0;">Orders are kept on this device for 7 days, or until you delete them.</p>'
+      ].join("");
+      ordersWrap.onclick = function (e) {
+        var btn = e.target.closest ? e.target.closest("button[data-action]") : null;
+        if (!btn) return;
+        var num = btn.getAttribute("data-num");
+        if (btn.getAttribute("data-action") === "delete") {
+          removeOrder(num);
+          if (opts.notify) opts.notify("Order #" + num + " removed from this device.", "info");
+        } else if (btn.getAttribute("data-action") === "ticket") {
+          var order = findOrder(num);
+          if (order) {
+            switchTo("menu");
+            openTicketAndShow(order);
+          }
+        }
+      };
+      // Append ordersWrap right after the tab bar.
+      tabBar.parentNode.insertBefore(ordersWrap, tabBar.nextSibling);
+
+      renderTabCount();
+      return tabBar;
+    }
+
+    function tabBtnStyle(active) {
+      var base = [
+        "display:inline-flex", "align-items:center", "gap:6px",
+        "padding:7px 13px", "border-radius:9999px", "cursor:pointer",
+        "font-size:11px", "font-weight:900", "line-height:1",
+        "border:1px solid var(--border-2, rgba(15,23,42,0.14))",
+        "transition:all .18s ease"
+      ];
+      if (active) {
+        base.push("background:var(--espresso-dark, #2E211A)");
+        base.push("color:#FBF6EF");
+        base.push("border-color:transparent");
+        base.push("box-shadow:0 2px 8px rgba(46,33,26,0.25)");
+      } else {
+        base.push("background:transparent");
+        base.push("color:var(--text-2, #334155)");
+      }
+      return base.join(";");
+    }
+
+    function renderTabCount() {
+      if (!ordersTab) return;
+      var count = document.getElementById("sohOrderedCount");
+      if (count) count.innerText = String(orders.length);
+    }
+
+    function switchTo(tab) {
+      ensureTabs();
+      currentTab = tab;
+      if (!menuTab || !ordersTab) return;
+
+      // Tab pill visuals
+      menuTab.style.cssText = tabBtnStyle(tab === "menu");
+      ordersTab.style.cssText = tabBtnStyle(tab === "orders");
+
+      // Hide category chips when viewing orders (they belong on Menu only).
+      var chips = document.getElementById("customerCategoryTabs");
+      if (chips) chips.style.display = tab === "menu" ? "" : "none";
+
+      // Toggle visibility of ordersWrap vs menu view.
+      if (tab === "orders") {
+        if (ordersWrap) ordersWrap.style.display = "block";
+        if (ordersWrap) renderInlineList();
+        var orderView = document.getElementById("orderView");
+        var footer = document.getElementById("orderFooter");
+        if (orderView) orderView.style.display = "none";
+        if (footer) footer.style.display = "none";
+      } else {
+        if (ordersWrap) ordersWrap.style.display = "none";
+        var orderView2 = document.getElementById("orderView");
+        var footer2 = document.getElementById("orderFooter");
+        if (orderView2) orderView2.style.display = "";
+        if (footer2) footer2.style.display = "";
+      }
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+
+    function renderInlineList() {
+      if (!ordersWrap) return;
+      var list = document.getElementById("sohOrderList");
+      if (!list) return;
+      if (orders.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:32px 8px;"><div style="width:52px;height:52px;border-radius:50%;background:rgba(46,33,26,0.06);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fa-solid fa-receipt" style="opacity:0.45;font-size:18px;"></i></div><p style="font-size:12px;font-weight:700;opacity:0.65;">No orders yet</p><p style="font-size:10px;font-weight:600;opacity:0.5;margin:4px 0 0;">Your orders will appear here.</p></div>';
+        return;
+      }
+      var rows = orders.slice().reverse().map(function (o) {
+        var st = statusStyle(o.status);
+        var unpaid = o.paymentStatus === "UNPAID" && o.status !== "UNPAID" && o.status !== "RESERVED";
+        var unpaidBadge = unpaid
+          ? '<span style="background:#e11d48;color:#fff;border-radius:9999px;padding:2px 7px;font-size:9px;font-weight:900;">UNPAID</span>'
+          : "";
+        return [
+          '<div style="border:1px solid var(--border, rgba(15,23,42,0.08));border-radius:14px;padding:12px 14px;margin-bottom:8px;background:var(--surface-2, #f7f9fc);">',
+          '  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">',
+          '    <span style="font-weight:900;font-size:15px;">#' + escapeHtml(o.orderNum) + '</span>',
+          '    <div style="display:flex;gap:4px;flex-wrap:wrap;">',
+          '      <span style="background:' + st.bg + ';color:' + st.fg + ';border-radius:9999px;padding:2px 8px;font-size:9px;font-weight:900;">' + escapeHtml(st.label) + '</span>',
+          unpaidBadge,
+          '    </div>',
+          '  </div>',
+          '  <p style="margin:6px 0 0;font-size:12px;font-weight:700;">' + escapeHtml(o.productName) + (o.temp ? ' <span style="font-weight:500;opacity:0.7;">(' + escapeHtml(o.temp) + ')</span>' : '') + '</p>',
+          '  <p style="margin:3px 0 0;font-size:10px;font-weight:600;opacity:0.65;">Pickup: ' + escapeHtml(o.pickupTime || "Scheduled") + '</p>',
+          '  <p style="margin:1px 0 0;font-size:10px;font-weight:600;opacity:0.55;">Guest: ' + escapeHtml(o.guestName) + '</p>',
+          '  <div style="display:flex;gap:6px;margin-top:10px;">',
+          '    <button type="button" data-action="ticket" data-num="' + escapeHtml(o.orderNum) + '" style="flex:1;background:var(--espresso-dark,#2E211A);color:#FBF6EF;border:0;border-radius:10px;padding:8px 8px;font-size:11px;font-weight:900;cursor:pointer;">View ticket</button>',
+          '    <button type="button" data-action="delete" data-num="' + escapeHtml(o.orderNum) + '" style="background:transparent;color:#e11d48;border:1px solid #e11d48;border-radius:10px;padding:8px 10px;font-size:11px;font-weight:800;cursor:pointer;">Delete</button>',
+          '  </div>',
+          '</div>'
+        ].join("");
+      }).join("");
+      list.innerHTML = rows;
+    }
     function load() {
       try {
         var raw = localStorage.getItem(storageKey);
@@ -122,8 +283,8 @@
       if (idx >= 0) orders[idx] = clean; else orders.push(clean);
       if (orders.length > MAX_ORDERS) orders = orders.slice(-MAX_ORDERS);
       save();
-      renderButton();
-      if (panel) renderPanel();
+      renderTabCount();
+      if (currentTab === "orders") renderInlineList();
       return clean;
     }
 
@@ -139,8 +300,8 @@
       var target = String(num || "").trim();
       orders = orders.filter(function (o) { return o.orderNum !== target; });
       save();
-      renderButton();
-      if (panel) renderPanel();
+      renderTabCount();
+      if (currentTab === "orders") renderInlineList();
       if (currentNum === target) {
         currentNum = null;
         saveCurrent(null);
@@ -152,129 +313,9 @@
       return ACTIVE_STATUSES.indexOf(String(order.status || "").toUpperCase()) !== -1;
     }
 
-    // ---------- injected UI ----------
-    function ensureButton() {
-      if (button && document.body.contains(button)) return button;
-      var header = document.querySelector("header");
-      if (!header) return null;
-      var bar = document.createElement("div");
-      bar.id = "sohTopBar";
-      bar.style.cssText = "display:flex;justify-content:flex-end;padding:0 4px 6px;";
-      button = document.createElement("button");
-      button.type = "button";
-      button.id = "sohOrderedBtn";
-      button.style.cssText = [
-        "display:inline-flex", "align-items:center", "gap:6px",
-        "padding:6px 12px", "border-radius:9999px", "cursor:pointer",
-        "font-size:11px", "font-weight:800", "line-height:1",
-        "border:1px solid var(--border-2, #cbd5e1)",
-        "background:var(--surface, #ffffff)", "color:var(--text-2, #334155)",
-        "box-shadow:0 2px 8px rgba(15,23,42,0.08)"
-      ].join(";");
-      button.innerHTML = '<i class="fa-solid fa-receipt"></i><span>Ordered</span><span id="sohOrderedCount" style="background:#f59e0b;color:#0b1120;border-radius:9999px;padding:2px 6px;font-size:10px;">0</span>';
-      button.onclick = function (e) { e.preventDefault(); openPanel(); };
-      bar.appendChild(button);
-      header.parentNode.insertBefore(bar, header);
-      renderButton();
-      return button;
-    }
-
-    function renderButton() {
-      if (!button) return;
-      var count = document.getElementById("sohOrderedCount");
-      if (count) count.innerText = String(orders.length);
-      button.style.display = "inline-flex";
-    }
-
-    function ensurePanel() {
-      if (panel && document.body.contains(panel)) return panel;
-      panel = document.createElement("div");
-      panel.id = "orderedView";
-      panel.style.cssText = [
-        "position:fixed", "inset:0", "z-index:120", "display:none",
-        "align-items:center", "justify-content:center", "padding:16px",
-        "background:rgba(16,21,31,0.72)", "backdrop-filter:blur(4px)"
-      ].join(";");
-      panel.innerHTML = [
-        '<div id="sohPanelCard" style="width:100%;max-width:26rem;max-height:88vh;overflow-y:auto;border-radius:20px;padding:16px;background:var(--surface, #ffffff);color:var(--text, #0f172a);border:1px solid var(--border, #e2e8f0);box-shadow:0 20px 50px rgba(0,0,0,0.35);">',
-        '  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;">',
-        '    <h3 style="font-size:16px;font-weight:900;margin:0;">My Orders</h3>',
-        '    <button type="button" id="sohClosePanel" style="background:transparent;border:1px solid var(--border-2, #cbd5e1);color:inherit;border-radius:10px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>',
-        '  </div>',
-        '  <div id="sohOrderList"></div>',
-        '  <p style="font-size:10px;opacity:0.6;margin:12px 0 0;">Orders are kept on this device for 7 days, or until you delete them.</p>',
-        '</div>'
-      ].join("");
-      document.body.appendChild(panel);
-      panel.onclick = function (e) { if (e.target === panel) closePanel(); };
-      document.getElementById("sohClosePanel").onclick = closePanel;
-      renderPanel();
-      return panel;
-    }
-
-    function openPanel() {
-      ensurePanel();
-      renderPanel();
-      panel.style.display = "flex";
-    }
-
-    function closePanel() {
-      if (panel) panel.style.display = "none";
-    }
-
-    function renderPanel() {
-      if (!panel) return;
-      var list = document.getElementById("sohOrderList");
-      if (!list) return;
-      if (orders.length === 0) {
-        list.innerHTML = '<p style="font-size:12px;font-weight:600;opacity:0.65;text-align:center;padding:18px 0;">No remembered orders yet.</p>';
-        return;
-      }
-      var rows = orders.slice().reverse().map(function (o) {
-        var st = statusStyle(o.status);
-        var unpaid = o.paymentStatus === "UNPAID" && o.status !== "UNPAID" && o.status !== "RESERVED";
-        var unpaidBadge = unpaid
-          ? '<span style="background:#e11d48;color:#fff;border-radius:9999px;padding:2px 7px;font-size:9px;font-weight:900;">UNPAID</span>'
-          : "";
-        return [
-          '<div style="border:1px solid var(--border, #e2e8f0);border-radius:14px;padding:10px;margin-bottom:8px;background:var(--surface-2, #f1f5f9);">',
-          '  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">',
-          '    <span style="font-weight:900;font-size:14px;">#' + escapeHtml(o.orderNum) + '</span>',
-          '    <div style="display:flex;gap:4px;flex-wrap:wrap;">',
-          '      <span style="background:' + st.bg + ';color:' + st.fg + ';border-radius:9999px;padding:2px 7px;font-size:9px;font-weight:900;">' + escapeHtml(st.label) + '</span>',
-          unpaidBadge,
-          '    </div>',
-          '  </div>',
-          '  <p style="margin:6px 0 0;font-size:12px;font-weight:700;">' + escapeHtml(o.productName) + ' (' + escapeHtml(o.temp) + ')</p>',
-          '  <p style="margin:2px 0 0;font-size:10px;opacity:0.7;">Pickup: ' + escapeHtml(o.pickupTime || "Scheduled") + ' · ' + escapeHtml(o.guestName) + '</p>',
-          '  <div style="display:flex;gap:6px;margin-top:8px;">',
-          '    <button type="button" data-action="view" data-num="' + escapeHtml(o.orderNum) + '" style="flex:1;background:#f59e0b;color:#0b1120;border:0;border-radius:10px;padding:7px 8px;font-size:11px;font-weight:900;cursor:pointer;">View ticket</button>',
-          '    <button type="button" data-action="delete" data-num="' + escapeHtml(o.orderNum) + '" style="background:transparent;color:#e11d48;border:1px solid #e11d48;border-radius:10px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;">Delete</button>',
-          '  </div>',
-          '</div>'
-        ].join("");
-      }).join("");
-      list.innerHTML = rows;
-
-      Array.prototype.forEach.call(list.querySelectorAll("button[data-action]"), function (btn) {
-        btn.onclick = function () {
-          var num = btn.getAttribute("data-num");
-          if (btn.getAttribute("data-action") === "delete") {
-            removeOrder(num);
-            if (opts.notify) opts.notify("Order #" + num + " removed from this device.", "info");
-          } else {
-            var order = findOrder(num);
-            if (order) {
-              closePanel();
-              openTicketAndShow(order);
-            }
-          }
-        };
-      });
-    }
-
     // ---------- ticket / view management ----------
     function showMenuView() {
+      switchTo("menu");
       var ticketEl = document.getElementById("qrTicketView");
       if (ticketEl) ticketEl.classList.add("hidden");
       if (opts.closeReceipt) opts.closeReceipt();
@@ -305,24 +346,41 @@
       var overlay = document.getElementById("pausedOverlay");
       var orderView = document.getElementById("orderView");
       var footer = document.getElementById("orderFooter");
-      var tabs = document.getElementById("customerCategoryTabs");
+      var chips = document.getElementById("customerCategoryTabs");
+      var tabBarEl = document.getElementById("sohTabBar");
+      var wrapEl = document.getElementById("sohOrdersWrap");
 
       if (ticketVisible) {
-        // Never cover a live ticket with the paused screen, and the menu's
-        // category chips don't belong on the barcode ticket either.
+        // Never cover a live ticket with the paused screen, and menus
+        // (chips, tab bar, inline orders) don't belong on a ticket view.
         if (overlay) overlay.classList.add("hidden");
-        if (tabs) tabs.classList.add("hidden");
+        if (chips) chips.style.display = "none";
+        if (tabBarEl) tabBarEl.style.display = "none";
+        if (wrapEl) wrapEl.style.display = "none";
         return;
       }
 
-      if (overlay) overlay.classList.toggle("hidden", !paused);
-      if (orderView) orderView.classList.toggle("hidden", paused);
-      if (footer) footer.classList.toggle("hidden", paused);
-      if (tabs) tabs.classList.toggle("hidden", paused);
+      // Show tab bar whenever a header exists.
+      if (tabBarEl) tabBarEl.style.display = "";
 
-      var reasonEl = document.getElementById("pausedOverlayReason");
-      if (reasonEl && lastReason) reasonEl.innerText = lastReason;
-      if (!paused) {
+      if (paused) {
+        if (overlay) overlay.classList.remove("hidden");
+        if (chips) chips.style.display = "none";
+        if (wrapEl) wrapEl.style.display = "none";
+        if (orderView) orderView.style.display = "none";
+        if (footer) footer.style.display = "none";
+        var reasonEl = document.getElementById("pausedOverlayReason");
+        if (reasonEl && lastReason) reasonEl.innerText = lastReason;
+      } else {
+        if (overlay) overlay.classList.add("hidden");
+        // Let switchTo() handle menu vs orders toggle — only restore menu
+        // view if we haven't explicitly switched to orders.
+        if (currentTab === "menu") {
+          if (chips) chips.style.display = "";
+          if (orderView) orderView.style.display = "";
+          if (footer) footer.style.display = "";
+          if (wrapEl) wrapEl.style.display = "none";
+        }
         try { window.scrollTo(0, 0); } catch (e) {}
       }
     }
@@ -351,7 +409,7 @@
             orders[idx] = updated;
             if (changed) {
               save();
-              if (panel) renderPanel();
+              if (currentTab === "orders") renderInlineList();
             }
             if (currentNum === updated.orderNum && opts.updateStatus) {
               opts.updateStatus(updated.status, updated.paymentStatus);
@@ -377,7 +435,7 @@
     // ---------- lifecycle ----------
     function restore() {
       orders = load();
-      ensureButton();
+      ensureTabs();
       var latest = null;
       // Re-open the ticket the guest last looked at, so a refresh keeps them on
       // the same order; otherwise fall back to the newest open order.
@@ -401,15 +459,15 @@
         }
         startPolling();
       } else {
-        renderButton();
+        renderTabCount();
       }
     }
 
     function newOrder() {
       currentNum = null;
       saveCurrent(null);
-      closePanel();
-      renderButton();
+      switchTo("menu");
+      renderTabCount();
     }
 
     return {
@@ -419,8 +477,8 @@
       newOrder: newOrder,
       restore: restore,
       applyView: applyView,
-      openPanel: openPanel,
-      closePanel: closePanel
+      openPanel: function () { ensureTabs(); switchTo("orders"); },
+      closePanel: function () { switchTo("menu"); }
     };
   }
 
