@@ -928,11 +928,13 @@
           <p class="text-[11px] text-slate-400 mt-2">Shown behind the Instructions button on the selected self-order page. Each step has a short title and a longer explanation. Teacher and Open Day pages keep separate copies.</p>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Editing Instructions For</label>
-          <select id="manualAudienceSelect" onchange="switchManualAudience(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
-            <option value="teacher">Teacher Self-Order Page</option>
-            <option value="openday">Open Day Page</option>
-          </select>
+          <label class="block text-xs font-bold text-slate-500 mb-2">Editing Instructions For</label>
+          <div class="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit" id="manualAudienceTabs">
+            <button type="button" data-audience="teacher" onclick="switchManualAudience('teacher')" class="manual-aud-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Teacher</button>
+            <button type="button" data-audience="openday" onclick="switchManualAudience('openday')" class="manual-aud-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Open Day</button>
+            <button type="button" data-audience="bulky" onclick="switchManualAudience('bulky')" class="manual-aud-tab px-4 py-1.5 rounded-lg text-xs font-black transition">Bulky</button>
+          </div>
+          <input type="hidden" id="manualAudienceSelect" value="teacher">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-500 mb-1">Panel Title</label>
@@ -1698,6 +1700,7 @@
       instructions: null,        // editable self-order "How to make a reservation order?" sheet
       instructionsTeacher: null,
       instructionsOpenDay: null,
+      instructionsBulky: null,
       manualAudience: "teacher", // which instruction sheet the admin editor is showing
       promoCodes: [],
       posPromo: null,            // { code, type, value, discount }
@@ -2370,6 +2373,7 @@
             state.instructionsTeacher = data.instructionsTeacher || data.instructions;
           }
           if (data.instructionsOpenDay && typeof data.instructionsOpenDay === "object") state.instructionsOpenDay = data.instructionsOpenDay;
+          if (data.instructionsBulky && typeof data.instructionsBulky === "object") state.instructionsBulky = data.instructionsBulky;
           if (data.statusStrip && typeof data.statusStrip === "object") {
             state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
             renderKdsStatusEditor();
@@ -4971,28 +4975,60 @@
     }
 
     // ==================== ADMIN: SELF-ORDER INSTRUCTIONS ====================
-    function currentManualInstructions() {
-      if (state.manualAudience === "openday") {
-        return state.instructionsOpenDay || state.instructions || null;
+    // --- Manual editor audience (pill tabs) ---
+    function manualTabStyle(active) {
+      const base = [
+        "display:inline-flex", "align-items:center", "justify-content:center",
+        "padding:7px 14px", "border-radius:8px", "cursor:pointer",
+        "font-size:11px", "font-weight:900", "line-height:1", "border:0",
+        "transition:all .16s ease"
+      ];
+      if (active) {
+        base.push("background:#ffffff");
+        base.push("color:#0f172a");
+        base.push("box-shadow:0 2px 6px rgba(15,23,42,0.1)");
+      } else {
+        base.push("background:transparent");
+        base.push("color:#94a3b8");
       }
-      return state.instructionsTeacher || state.instructions || null;
+      return base.join(";");
+    }
+
+    function renderManualAudienceTabs() {
+      const el = document.getElementById("manualAudienceTabs");
+      if (!el) return;
+      ["teacher", "openday", "bulky"].forEach(a => {
+        const btn = el.querySelector('button[data-audience="' + a + '"]');
+        if (btn) btn.style.cssText = manualTabStyle(state.manualAudience === a);
+      });
+      const hidden = document.getElementById("manualAudienceSelect");
+      if (hidden) hidden.value = state.manualAudience;
+    }
+
+    function currentManualInstructions() {
+      if (state.manualAudience === "bulky") return state.instructionsBulky || null;
+      if (state.manualAudience === "openday") return state.instructionsOpenDay || null;
+      return state.instructionsTeacher || null;
     }
 
     function switchManualAudience(audience) {
-      state.manualAudience = audience === "openday" ? "openday" : "teacher";
+      if (!["teacher", "openday", "bulky"].includes(audience)) audience = "teacher";
+      state.manualAudience = audience;
+      renderManualAudienceTabs();
       renderManualEditor();
       setAdminStatus("manualStatus", "", false);
     }
 
     function renderManualEditor() {
+      renderManualAudienceTabs();
       const ins = currentManualInstructions() || {
-        title: "How to make a reservation order?",
+        title: (state.manualAudience === "bulky"
+          ? "How to order multiple cups?"
+          : "How to make a reservation order?"),
         heading: "In only 4 steps~",
         steps: [],
         note: ""
       };
-      const audienceEl = document.getElementById("manualAudienceSelect");
-      if (audienceEl) audienceEl.value = state.manualAudience === "openday" ? "openday" : "teacher";
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ""; };
       setVal("manualTitleInput", ins.title);
       setVal("manualHeadingInput", ins.heading);
@@ -5015,9 +5051,10 @@
     }
 
     function saveManualSubmit() {
+      const audience = state.manualAudience;
       const payload = {
         action: "saveInstructions",
-        audience: state.manualAudience === "openday" ? "openday" : "teacher",
+        audience: audience,
         title: ((document.getElementById("manualTitleInput") || {}).value || "").trim(),
         heading: ((document.getElementById("manualHeadingInput") || {}).value || "").trim(),
         steps: collectManualSteps(),
@@ -5027,7 +5064,8 @@
       setAdminStatus("manualStatus", "Saving…");
       apiPost(payload).then(res => {
         if (!res || !res.success) { setAdminStatus("manualStatus", (res && res.error) || "Save failed.", false); return; }
-        if (res.audience === "openday") state.instructionsOpenDay = res.instructions;
+        if (res.audience === "bulky") state.instructionsBulky = res.instructions;
+        else if (res.audience === "openday") state.instructionsOpenDay = res.instructions;
         else { state.instructionsTeacher = res.instructions; state.instructions = res.instructions; }
         renderManualEditor();
         setAdminStatus("manualStatus", "Saved.");
@@ -5037,10 +5075,11 @@
     function resetManualSubmit() {
       if (!confirm("Reset the self-order instructions back to the built-in copy?")) return;
       setAdminStatus("manualStatus", "Resetting…");
-      const audience = state.manualAudience === "openday" ? "openday" : "teacher";
+      const audience = state.manualAudience;
       apiPost({ action: "saveInstructions", audience, title: "", heading: "", steps: [], note: "" }).then(res => {
         if (!res || !res.success) { setAdminStatus("manualStatus", "Reset failed.", false); return; }
-        if (audience === "openday") state.instructionsOpenDay = res.instructions;
+        if (audience === "bulky") state.instructionsBulky = res.instructions;
+        else if (audience === "openday") state.instructionsOpenDay = res.instructions;
         else { state.instructionsTeacher = res.instructions; state.instructions = res.instructions; }
         renderManualEditor();
         setAdminStatus("manualStatus", "Reset to default.");

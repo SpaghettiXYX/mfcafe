@@ -678,16 +678,19 @@ const DEFAULT_SELF_ORDER_INSTRUCTIONS = {
   note: ""
 };
 
-// The teacher page and the Open Day page keep separate copies.
+// The teacher page, Open Day page and Bulky page keep separate copies.
 function instructionsKey_(audience) {
-  return audience === "openday" ? "SELF_ORDER_INSTRUCTIONS_OPENDAY" : "SELF_ORDER_INSTRUCTIONS_TEACHER";
+  if (audience === "bulky") return "SELF_ORDER_INSTRUCTIONS_BULKY";
+  if (audience === "openday") return "SELF_ORDER_INSTRUCTIONS_OPENDAY";
+  return "SELF_ORDER_INSTRUCTIONS_TEACHER";
 }
 
 function getSelfOrderInstructions(audience) {
   const key = instructionsKey_(audience);
   let raw = PropertiesService.getScriptProperties().getProperty(key);
-  // First run after the split: inherit the old shared copy for the teacher page.
-  if (!raw && audience !== "openday") {
+  // First run after the split: inherit the old shared copy only for the
+  // teacher page (Open Day and Bulky get a blank default copy).
+  if (!raw && audience !== "openday" && audience !== "bulky") {
     raw = PropertiesService.getScriptProperties().getProperty("SELF_ORDER_INSTRUCTIONS");
   }
   if (!raw) return DEFAULT_SELF_ORDER_INSTRUCTIONS;
@@ -709,8 +712,14 @@ function getSelfOrderInstructions(audience) {
   }
 }
 
+function normalizeAudience_(audience) {
+  if (audience === "bulky" || audience === "openday") return audience;
+  return "teacher";
+}
+
 function setSelfOrderInstructions(audience, title, heading, steps, note) {
   const key = instructionsKey_(audience);
+  const cleanAudience = normalizeAudience_(audience);
   const cleanTitle = String(title || "").trim();
   const cleanHeading = String(heading || "").trim();
   const list = Array.isArray(steps) ? steps : [];
@@ -724,7 +733,7 @@ function setSelfOrderInstructions(audience, title, heading, steps, note) {
   if (!cleanTitle && !cleanHeading && !cleanSteps.length && !cleanNote) {
     props.deleteProperty(key);
     bumpVersion();
-    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, audience: audience === "openday" ? "openday" : "teacher", reset: true };
+    return { success: true, instructions: DEFAULT_SELF_ORDER_INSTRUCTIONS, audience: cleanAudience, reset: true };
   }
   const payload = {
     title: cleanTitle || DEFAULT_SELF_ORDER_INSTRUCTIONS.title,
@@ -735,7 +744,7 @@ function setSelfOrderInstructions(audience, title, heading, steps, note) {
   };
   props.setProperty(key, JSON.stringify(payload));
   bumpVersion();
-  return { success: true, instructions: payload, audience: audience === "openday" ? "openday" : "teacher" };
+  return { success: true, instructions: payload, audience: cleanAudience };
 }
 
 // ==================== PROMO POPUP (guest self-order) ====================
@@ -1114,6 +1123,7 @@ function getInitialData() {
     instructions: getSelfOrderInstructions("teacher"),
     instructionsTeacher: getSelfOrderInstructions("teacher"),
     instructionsOpenDay: getSelfOrderInstructions("openday"),
+    instructionsBulky: getSelfOrderInstructions("bulky"),
     categoryColors: getCategoryColors(),
     receiptLayout: getReceiptLayout()
   };
