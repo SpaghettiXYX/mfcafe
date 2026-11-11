@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>图片裁切工具 · MFCafe</title>
+<title>Image Cropper · MFCafe</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -23,8 +23,8 @@
 <div class="max-w-md mx-auto px-4 py-5">
 
   <header class="mb-4">
-    <h1 class="text-[19px] font-black flex items-center gap-2"><i class="fa-solid fa-crop-simple text-[var(--caramel)]"></i>图片裁切工具</h1>
-    <p class="text-[11px] text-[var(--mocha)]/70 mt-0.5">在源头裁好比例再上传，菜单就不会再裁掉/盖住内容。菜单卡片用 <b>1:1</b>。</p>
+    <h1 class="text-[19px] font-black flex items-center gap-2"><i class="fa-solid fa-crop-simple text-[var(--caramel)]"></i>Image Cropper</h1>
+    <p class="text-[11px] text-[var(--mocha)]/70 mt-0.5">Crop to the right ratio before uploading so the menu won't cut anything off. Menu cards use <b>1:1</b>.</p>
   </header>
 
   <!-- Stage -->
@@ -39,8 +39,8 @@
     </div>
     <label id="dropzone" class="absolute inset-0 m-3 rounded-xl border-2 border-dashed border-white/30 flex flex-col items-center justify-center gap-2 text-white/70 cursor-pointer active:scale-[.99] transition">
       <i class="fa-solid fa-image text-3xl"></i>
-      <p class="text-[13px] font-bold">点击选择图片</p>
-      <p class="text-[10px] opacity-70">也可以拖进来 / 直接粘贴</p>
+      <p class="text-[13px] font-bold">Tap to choose an image</p>
+      <p class="text-[10px] opacity-70">or drag &amp; drop / paste</p>
       <input id="fileInput" type="file" accept="image/*" class="hidden">
     </label>
   </div>
@@ -49,31 +49,31 @@
   <div id="controls" class="hidden mt-4 space-y-4">
 
     <div>
-      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-2">裁切比例</p>
+      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-2">Aspect ratio</p>
       <div id="ratioPills" class="flex flex-wrap gap-2"></div>
     </div>
 
     <div>
       <div class="flex items-center justify-between mb-2">
-        <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">缩放 · 拖动图片调整要展示的部分</p>
+        <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60">Zoom · drag the image to choose what's shown</p>
         <span id="zoomLabel" class="text-[11px] font-black text-[var(--caramel-dark)]">100%</span>
       </div>
       <input id="zoomSlider" type="range" min="100" max="600" value="100" class="w-full">
     </div>
 
     <div class="flex gap-2">
-      <button onclick="resetView()" class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5"><i class="fa-solid fa-rotate-left text-xs"></i>重置</button>
-      <label class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-arrow-rotate-right text-xs"></i>换一张<input type="file" accept="image/*" class="hidden" onchange="loadFile(this.files[0])"></label>
+      <button onclick="resetView()" class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5"><i class="fa-solid fa-rotate-left text-xs"></i>Reset</button>
+      <label class="h-10 px-4 rounded-xl bg-white border border-[var(--line)] text-[12px] font-bold flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-arrow-rotate-right text-xs"></i>New image<input type="file" accept="image/*" class="hidden" onchange="loadFile(this.files[0])"></label>
     </div>
 
     <div class="bg-white rounded-2xl border border-[var(--line)] p-4">
-      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-3">输出</p>
+      <p class="text-[10px] font-black uppercase tracking-widest text-[var(--mocha)]/60 mb-3">Export</p>
       <div class="flex gap-2 mb-3">
         <select id="sizeSel" class="flex-1 h-10 rounded-xl bg-[#FBF6EF] border border-[var(--line)] px-3 text-[12px] font-bold">
-          <option value="720">长边 720 px</option>
-          <option value="1080" selected>长边 1080 px</option>
-          <option value="1600">长边 1600 px</option>
-          <option value="2048">长边 2048 px</option>
+          <option value="720">Long edge 720 px</option>
+          <option value="1080" selected>Long edge 1080 px</option>
+          <option value="1600">Long edge 1600 px</option>
+          <option value="2048">Long edge 2048 px</option>
         </select>
         <select id="fmtSel" class="w-28 h-10 rounded-xl bg-[#FBF6EF] border border-[var(--line)] px-3 text-[12px] font-bold">
           <option value="jpeg" selected>JPG</option>
@@ -84,18 +84,18 @@
         <canvas id="preview" class="w-20 h-20 rounded-lg border border-[var(--line)] bg-[#EFE5D8] object-cover shrink-0"></canvas>
         <div class="flex-1 min-w-0">
           <p id="outMeta" class="text-[12px] font-black">— × — px</p>
-          <p class="text-[10px] text-[var(--mocha)]/60 mt-0.5">成品预览如上，下载后传到 GitHub <b>assets/</b> 文件夹</p>
+          <p class="text-[10px] text-[var(--mocha)]/60 mt-0.5">Preview on the left. After downloading, upload the file to the GitHub <b>assets/</b> folder</p>
         </div>
       </div>
       <button onclick="download()" class="mt-3 w-full h-11 rounded-xl bg-[var(--caramel)] hover:bg-[var(--caramel-dark)] text-white text-[13px] font-black flex items-center justify-center gap-2 active:scale-[.99] transition">
-        <i class="fa-solid fa-download"></i>下载图片
+        <i class="fa-solid fa-download"></i>Download image
       </button>
     </div>
 
     <div class="rounded-2xl bg-[var(--espresso)]/5 border border-[var(--line)] p-3 text-[11px] leading-relaxed text-[var(--mocha)]">
-      <p class="font-black mb-1"><i class="fa-solid fa-circle-info mr-1"></i>下载之后怎么用</p>
-      1. 把文件上传到仓库 <b>assets/</b> 文件夹（GitHub 网页 → Add file → Upload files）<br>
-      2. Admin › Menu 里图片链接直接填 <b>assets/文件名.jpg</b> 即可
+      <p class="font-black mb-1"><i class="fa-solid fa-circle-info mr-1"></i>After downloading</p>
+      1. Upload the file to the repo's <b>assets/</b> folder (GitHub web → Add file → Upload files)<br>
+      2. In Admin › Menu, set the item's image URL to <b>assets/filename.jpg</b>
     </div>
   </div>
 </div>
