@@ -250,6 +250,7 @@
   <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[70] px-4 py-2.5 rounded-xl bg-[var(--espresso)] text-white text-[11px] font-bold shadow-xl opacity-0 pointer-events-none transition-all"></div>
 </div>
 
+<script src="self-order-history.js"></script>
 <script>
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyTM3A3HhocOLhNMNM4bTcwpA63l8FsWbI6dI3aj0fDc1cGozIFARZ0RFFSFMnJUYmRfw/exec";
 
@@ -831,6 +832,27 @@
     const el = document.getElementById("successSheet");
     el.classList.remove("hidden");
     el.classList.add("flex");
+
+    // Remember each cup in My Orders — so guests can later view individual
+    // cup tickets or delete rows. Status is whatever the backend set (usually
+    // RESERVED). selfOrderHistory creates each record via upsert() and polls
+    // status updates from lookupOrder on the backend.
+    if (selfOrderHistory) {
+      list.forEach(o => {
+        selfOrderHistory.remember({
+          orderNum: String(o.orderNum || ""),
+          orderTime: o.orderTime || new Date().toISOString(),
+          pickupTime: String(o.pickupTime || state.pickup || "NOW"),
+          guestName: String(o.guestName || (document.getElementById("custName") || {}).value || "Guest"),
+          productName: String(o.productName || ""),
+          temp: String(o.temp || ""),
+          price: Number(o.price) || 0,
+          status: String(o.status || "RESERVED"),
+          paymentStatus: String(o.paymentStatus || "UNPAID"),
+          cupType: String(o.cupType || state.cupType || "")
+        });
+      });
+    }
   }
 
   // Build a canvas receipt with the base number, one QR + one barcode,
@@ -934,6 +956,7 @@
     state.promo = null;
     setCupType("");
     renderCart();
+    if (selfOrderHistory) selfOrderHistory.newOrder();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -982,8 +1005,55 @@
     if (current && current !== state.activeCat) { state.activeCat = current; renderChips(); }
   }, { passive: true });
 
+  /* ================= Self-order history (My Orders tab) ================= */
+  let selfOrderHistory = null;
+
+  function reOpenBulkyTicket(order) {
+    // Populate successSheet from a saved My-Orders record and show it.
+    // Each bulky cup is stored individually in My Orders (orderNum = "1035-1" etc.)
+    // but the QR/barcode must use the base number so one POS scan pays every cup.
+    const cupNum = String(order.orderNum || "—");
+    const base = cupNum.replace(/-\d+$/, "");
+    document.getElementById("sBaseNum").textContent = base;
+    const qrWrap = document.getElementById("sQrWrap");
+    if (qrWrap) { qrWrap.innerHTML = ""; new QRCode(qrWrap, { text: base, width: 112, height: 112, correctLevel: QRCode.CorrectLevel.M }); }
+    const bc = document.getElementById("sBarcode");
+    if (bc && window.JsBarcode) { try { JsBarcode(bc, base, { format: "CODE128", width: 2, height: 40, displayValue: false, margin: 0 }); } catch(e) {} }
+    const lbl = document.getElementById("sBarcodeLabel");
+    if (lbl) lbl.textContent = base;
+    // Show the one cup this card represents (matching the per-cup card in My Orders)
+    const cupsEl = document.getElementById("sCups");
+    if (cupsEl) {
+      cupsEl.innerHTML = `
+        <div class="flex items-center gap-3 bg-white border border-[var(--line)] rounded-xl px-3 py-2">
+          <span class="text-[13px] font-black text-[var(--caramel-dark)] w-20 shrink-0">${esc(cupNum)}</span>
+          <span class="text-[11px] font-bold text-[var(--espresso)] truncate flex-1">${esc(order.productName || "")}</span>
+          <span class="text-[9px] font-bold text-[var(--mocha)]/55">${esc(order.temp || "")}</span>
+        </div>
+        <p class="text-[9px] font-bold text-[var(--mocha)]/50 text-center mt-2">Base ${esc(base)} · one scan at POS pays every cup</p>`;
+    }
+    document.getElementById("successSheet").classList.remove("hidden");
+    document.getElementById("successSheet").classList.add("flex");
+  }
+
+  function closeReceiptModal() {
+    const el = document.getElementById("successSheet");
+    if (!el) return;
+    el.classList.add("hidden");
+    el.classList.remove("flex");
+  }
+
   loadMenu();
   renderCart();
+
+  selfOrderHistory = SelfOrderHistory.create({
+    storageKey: 'mfcafe_bulky_orders_v1',
+    apiUrl: APPS_SCRIPT_URL,
+    showTicket: reOpenBulkyTicket,
+    closeReceipt: closeReceiptModal,
+    notify: toast
+  });
+  selfOrderHistory.restore();
 </script>
 </body>
 </html>
