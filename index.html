@@ -809,6 +809,17 @@
           </div>
         </div>
 
+        <!-- Snack upsell popup: global pre-checkout popup on/off -->
+        <div class="border-t border-slate-100 pt-4">
+          <div class="flex items-center justify-between gap-3 bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <div>
+              <p class="text-xs font-bold text-slate-500">Snack upsell popup</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">Offer snack add-ons before checkout</p>
+            </div>
+            <button id="adminToggleUpsellBtn" onclick="toggleUpsellSubmit()" class="px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700">On</button>
+          </div>
+        </div>
+
         <!-- Portal tabs: Teacher / Open Day / Bulky — one at a time to save space -->
         <div class="border-t border-slate-100 pt-4">
           <div class="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit mb-4" id="adminPortalTabs">
@@ -1515,6 +1526,14 @@
           Sold out (still shown on the menu, cannot be ordered)
         </label>
         <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+          <input type="checkbox" id="editItemIsSnack" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+          Snack item (add-on sold with drinks)
+        </label>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+          <input type="checkbox" id="editItemShowInUpsell" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+          Offer in upsell popup
+        </label>
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
           <input type="checkbox" id="editItemAllowNotes" checked class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
           Allow customer notes / special requests for this item
         </label>
@@ -1688,6 +1707,7 @@
       serverVersion: null,
       coldExtra: 2,
       coldPaused: false,
+      upsellEnabled: false,
       teacherReservationOpen: true,
       openDayReservationOpen: true,
       bulkyReservationOpen: true,
@@ -2358,6 +2378,7 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+          if (typeof data.upsellEnabled === "boolean") state.upsellEnabled = data.upsellEnabled;
           if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
           if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
           if (typeof data.bulkyReservationOpen === "boolean") state.bulkyReservationOpen = data.bulkyReservationOpen;
@@ -3404,6 +3425,10 @@
                   <p class="text-xs text-amber-800 font-bold leading-tight">${escapeHtml(o.customization)}</p>
                 </div>
               ` : ''}
+
+              ${String(o.extras || "").trim() ? `
+                <p class="text-[11px] font-bold text-amber-700 leading-tight">+ ${escapeHtml(String(o.extras).trim())}</p>
+              ` : ''}
             </div>
 
             <div class="space-y-2">
@@ -4028,6 +4053,13 @@
       return sanitizePrintText(receiptRawLineFor(block, order)).trim();
     }
 
+    // Snack add-ons ride with the drink, so they print on one extra line right
+    // under the drink name. "" when the order has no extras.
+    function receiptExtrasLine(order) {
+      const extras = String((order && order.extras) || "").trim();
+      return extras ? "EXTRAS: " + extras : "";
+    }
+
     // Build ESC/POS byte buffer for a single cup label, driven by the layout.
     function buildLabelESCpos(order) {
       const buf = [];
@@ -4050,6 +4082,10 @@
           size,
           bold: isPrimaryNumber ? true : block.bold
         });
+        if (block.type === "field" && block.field === "productName") {
+          const extrasLine = receiptExtrasLine(order);
+          if (extrasLine) pushPrintText(buf, extrasLine, { align: "left", size: 1, bold: false });
+        }
       }
       buf.push(0x0a, 0x0a);
       // Continuous 48mm roll — no cutter. GS V is skipped: on firmware that
@@ -4223,6 +4259,10 @@
         const weight = (isPrimaryNumber || b.bold) ? "800" : "400";
         const align = isPrimaryNumber ? "center" : (b.align || "left");
         rows.push(`<div style="text-align:${align};font-size:${px}px;font-weight:${weight};white-space:pre;overflow:hidden;">${layoutEsc(text)}</div>`);
+        if (b.type === "field" && b.field === "productName") {
+          const extrasLine = receiptExtrasLine(order);
+          if (extrasLine) rows.push(`<div style="text-align:left;font-size:11px;font-weight:400;white-space:pre;overflow:hidden;">${layoutEsc(extrasLine)}</div>`);
+        }
       }
       paper.innerHTML = rows.join("");
     }
@@ -5247,6 +5287,9 @@
       pushPrintText(buf, "Order #" + order.orderNum + "  " + new Date().toLocaleTimeString(), { align: "left", size: 1 });
       pushPrintText(buf, "Guest: " + (order.guestName || "Guest"), { align: "left", size: 1 });
       pushPrintText(buf, String(order.productName).toUpperCase(), { align: "center", size: 3, bold: true });
+      if (String(order.extras || "").trim()) {
+        pushPrintText(buf, "  EXTRAS: " + String(order.extras).trim(), { align: "left", size: 1 });
+      }
       pushPrintText(buf, "  " + (order.temp || "") + "   " + (order.cupType || "In-Store").toUpperCase(), { align: "left", size: 1 });
       pushPrintText(buf, "  Tile: " + (order.qrTile || "-"), { align: "left", size: 1 });
       if (order.customization) {
@@ -5317,6 +5360,14 @@
         coldPauseBtn.className = state.coldPaused
           ? "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700"
           : "mt-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700";
+      }
+
+      const upsellBtn = document.getElementById('adminToggleUpsellBtn');
+      if (upsellBtn) {
+        upsellBtn.innerText = state.upsellEnabled ? "On" : "Off";
+        upsellBtn.className = state.upsellEnabled
+          ? "px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-emerald-100 text-emerald-700"
+          : "px-3 py-1.5 rounded-lg text-xs font-extrabold transition bg-rose-100 text-rose-700";
       }
 
       const teacherBtn = document.getElementById('adminToggleTeacherReservationBtn');
@@ -5450,6 +5501,8 @@
                     ${isPaused ? 'Paused' : 'Active'}
                   </span>
                   ${String(item.tempOptions).includes("Cold") ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
+                  ${item.isSnack ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] bg-amber-100 text-amber-800">Snack</span>` : ''}
+                  ${item.showInUpsell ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] bg-slate-100 text-slate-500">Pop-up</span>` : ''}
                 </div>
               </td>
               <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
@@ -5608,6 +5661,23 @@
         else showToast(res.error || "Failed to update cold pause", "error");
       })
       .catch(() => showToast("Network error updating cold pause", "error"));
+    }
+
+    function toggleUpsellSubmit() {
+      const newEnabled = !state.upsellEnabled;
+      state.upsellEnabled = newEnabled;
+      renderAll();
+      fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "toggleUpsell", enabled: newEnabled })
+      })
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) showToast(newEnabled ? "Snack upsell popup enabled" : "Snack upsell popup disabled", "success");
+        else showToast(res.error || "Failed to update snack upsell", "error");
+      })
+      .catch(() => showToast("Network error updating snack upsell", "error"));
     }
 
     function toggleTeacherReservationSubmit() {
@@ -6178,6 +6248,8 @@
       document.getElementById('editItemImageUrl').value = item.imageUrl || "";
       document.getElementById('editItemOfferPrice').value = item.offerPrice || "";
       document.getElementById('editItemSoldOut').checked = !!item.soldOut;
+      document.getElementById('editItemIsSnack').checked = !!item.isSnack;
+      document.getElementById('editItemShowInUpsell').checked = !!item.showInUpsell;
       document.getElementById('editItemAllowNotes').checked = item.allowNotes !== false;
 
       document.getElementById('menuModal').classList.remove('hidden');
@@ -6196,6 +6268,8 @@
       document.getElementById('editItemImageUrl').value = "";
       document.getElementById('editItemOfferPrice').value = "";
       document.getElementById('editItemSoldOut').checked = false;
+      document.getElementById('editItemIsSnack').checked = false;
+      document.getElementById('editItemShowInUpsell').checked = false;
       document.getElementById('editItemAllowNotes').checked = true;
       populateCategorySelect("Other");
 
@@ -6217,14 +6291,16 @@
       const imageUrl = document.getElementById('editItemImageUrl').value.trim();
       const offerPrice = parseFloat(document.getElementById('editItemOfferPrice').value) || 0;
       const soldOut = document.getElementById('editItemSoldOut').checked;
+      const isSnack = document.getElementById('editItemIsSnack').checked;
+      const showInUpsell = document.getElementById('editItemShowInUpsell').checked;
       const allowNotes = document.getElementById('editItemAllowNotes').checked;
 
       if (!name) return showToast("Please enter item name!", "warning");
 
-      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused, imageUrl, offerPrice, soldOut, allowNotes };
+      const itemData = { originalName, name, price, tempOptions, status, category, coldPaused, imageUrl, offerPrice, soldOut, isSnack, showInUpsell, allowNotes };
 
       if (isModalAddMode) {
-        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl, offerPrice, soldOut, allowNotes });
+        state.menu.push({ name, price, tempOptions, status, available: status === "Active", category, coldPaused, imageUrl, offerPrice, soldOut, isSnack, showInUpsell, allowNotes });
       } else {
         const item = state.menu.find(i => i.name === originalName);
         if (item) {
@@ -6237,6 +6313,8 @@
           item.imageUrl = imageUrl;
           item.offerPrice = offerPrice;
           item.soldOut = soldOut;
+          item.isSnack = isSnack;
+          item.showInUpsell = showInUpsell;
           item.allowNotes = allowNotes;
           item.available = status === "Active";
         }

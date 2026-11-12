@@ -171,6 +171,27 @@
       transition: opacity .25s ease;
     }
     #itemScrim.open { opacity: 1; pointer-events: auto; }
+    /* Upsell sheet mirrors the configurator sheet. */
+    #upsellSheet {
+      position: fixed; left: 50%; bottom: 0; z-index: 90;
+      width: min(430px, 100%);
+      transform: translate(-50%, 105%);
+      border-radius: 1.25rem 1.25rem 0 0 !important;
+      border-width: 1px 1px 0 !important;
+      max-height: 82vh; overflow-y: auto;
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 -12px 40px -12px rgba(46,33,26,.35) !important;
+      transition: transform .32s cubic-bezier(.32,.72,0,1);
+    }
+    #upsellSheet.hidden { display: none !important; }
+    #upsellSheet.open { transform: translate(-50%, 0); }
+    #upsellScrim {
+      position: fixed; inset: 0; z-index: 85;
+      background: rgba(46,33,26,.45);
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s ease;
+    }
+    #upsellScrim.open { opacity: 1; pointer-events: auto; }
     /* Ordered panel follows the same dark-mode weight cushion. */
     [data-theme="dark"] #sohOrderedBtn { font-weight: 480 !important; }
     [data-theme="dark"] #sohPanelCard { font-weight: 300 !important; font-variant-numeric: tabular-nums; }
@@ -183,6 +204,7 @@
     @media (prefers-reduced-motion: reduce) {
       .stream-char { animation: none; opacity: 1; filter: none; }
       #itemOptions { transition: none; }
+      #upsellSheet { transition: none; }
     }
 
     /* ===== INSTRUCTIONS ENTRY + SHEET ===== */
@@ -375,6 +397,7 @@
       <div class="space-y-2">
         <h2 class="text-sm font-black tracking-tight" style="color:var(--espresso)">Your order</h2>
         <div id="reviewList" class="space-y-1.5"></div>
+        <div id="reviewExtras" class="hidden rounded-2xl border bg-white px-3 py-2 space-y-1" style="border-color:var(--line)"></div>
       </div>
 
     <!-- Guest Info -->
@@ -646,6 +669,9 @@
       selectedNotes: [],      // pill notes toggled on for the current drink
       selectedTemp: "Cold",
       basket: [],             // one entry per cup; each becomes its own order
+      extras: {},             // snack add-ons: name -> { name, price, qty }
+      upsellEnabled: false,
+      upsellShown: false,
       step: "menu",           // "menu" | "review"
       selectedCupType: "",  // "" | "In-Store" | "Takeaway"
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
@@ -732,6 +758,7 @@
           if (data.openingHours) state.openingHours = data.openingHours;
           if (data.instructionsOpenDay || data.instructions) state.instructions = data.instructionsOpenDay || data.instructions;
           if (data.promoPopup) state.promoPopup = data.promoPopup;
+          if (typeof data.upsellEnabled === "boolean") state.upsellEnabled = data.upsellEnabled;
           renderPickupOptions();
           applyInstructions();
           applyReservationState();
@@ -872,7 +899,7 @@
           btn.className = `product-card text-left bg-white rounded-2xl border overflow-hidden ${soldOut ? 'opacity-60 cursor-not-allowed' : ''}`;
           btn.style.borderColor = isSelected && !soldOut ? "var(--caramel)" : "var(--line)";
           btn.style.boxShadow = isSelected && !soldOut ? "0 0 0 2px rgba(192,128,63,.45)" : "0 1px 2px rgba(46,33,26,.05)";
-          btn.onclick = () => selectItem(item);
+          btn.onclick = () => item.isSnack === true ? addSnack(item) : selectItem(item);
           const img = String(item.imageUrl || "").trim();
           const offer = Number(item.offerPrice) || 0;
           const showOffer = offer > (Number(item.price) || 0);
@@ -881,6 +908,7 @@
               ${img ? `<img src="${escapeHtml(img)}" alt="${escapeHtml(item.name)}" loading="lazy"
                 style="width:100%;height:100%;object-fit:cover"
                 onerror="this.style.display='none'">` : `<div class="w-full h-full flex items-center justify-center" style="color:rgba(107,78,61,.3)"><i class="fa-solid fa-mug-hot text-2xl"></i></div>`}
+              ${item.isSnack === true ? `<span class="absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950">Snack</span>` : ""}
               ${soldOut ? `<div class="absolute inset-0 bg-white/55 flex items-center justify-center"><span class="text-white text-[10px] font-black tracking-widest px-2.5 py-1 rounded-full" style="background:var(--espresso)">SOLD OUT</span></div>` : ""}
             </div>
             <div class="p-2.5">
@@ -1171,7 +1199,7 @@
     }
 
     function updateCustPriceSummary() {
-      const subtotal = state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : basketSubtotal();
+      const subtotal = drinkSubtotal() + extrasTotal();
       const discount = getCustDiscount();
       const total = Math.max(0, subtotal - discount);
 
@@ -1319,6 +1347,39 @@
       if (btnTake) btnTake.className = 'flex-1 py-2.5 rounded-xl text-sm font-bold border transition ' + (t === 'Takeaway' ? 'border-emerald-400 bg-emerald-100 text-emerald-900 shadow-sm' : idleCls);
     }
 
+    // ===== EXTRAS (snacks) =====
+    function drinkSubtotal() {
+      return state.selectedItem ? getItemPrice(state.selectedItem, state.selectedTemp) : basketSubtotal();
+    }
+
+    function extrasList() {
+      return Object.keys(state.extras || {})
+        .map(name => state.extras[name])
+        .filter(e => e && Number(e.qty) > 0)
+        .map(e => ({ name: e.name, price: Number(e.price) || 0, qty: Number(e.qty) || 0 }));
+    }
+
+    function extrasCount() {
+      return extrasList().reduce((sum, e) => sum + e.qty, 0);
+    }
+
+    function extrasTotal() {
+      return extrasList().reduce((sum, e) => sum + e.price * e.qty, 0);
+    }
+
+    function addSnack(item) {
+      if (!item || item.available === false || item.soldOut) {
+        return showToast("This item is sold out.", "warning");
+      }
+      const name = item.name;
+      const existing = state.extras[name];
+      if (existing) existing.qty = (Number(existing.qty) || 0) + 1;
+      else state.extras[name] = { name: name, price: Number(item.price) || 0, qty: 1 };
+      showToast(`Added · ${name}`, "success");
+      updateSubmitButton();
+      if (state.step === 'review') renderReview();
+    }
+
     // ===== BASKET (multi-cup, one order per cup) =====
     function basketCount() { return (state.basket || []).length; }
 
@@ -1338,7 +1399,7 @@
 
     function basketTotal() {
       const first = state.basket && state.basket[0];
-      return Math.max(0, basketSubtotal() - calcPromoDiscountFor(first ? first.price : 0));
+      return Math.max(0, basketSubtotal() + extrasTotal() - calcPromoDiscountFor(first ? first.price : 0));
     }
 
     function updateSubmitButton() {
@@ -1349,7 +1410,7 @@
       if (txt) {
         txt.innerText = onReview
           ? `Place order · ${fmtPrice(basketTotal())}`
-          : `Review order · ${n} cup${n === 1 ? '' : 's'}${n ? ` · ${fmtPrice(basketSubtotal())}` : ''}`;
+          : `Review order · ${n} drink${n === 1 ? '' : 's'}${n ? ` · ${fmtPrice(basketSubtotal() + extrasTotal())}` : ''}`;
       }
       if (btn) {
         const off = !onReview && n === 0;
@@ -1396,7 +1457,198 @@
     }
 
     function onFooterAction() {
-      return state.step === 'review' ? submitSelfOrder() : openReview();
+      return state.step === 'review' ? startUpsell() : openReview();
+    }
+
+    // ===== UPSELL SHEET =====
+    let upsellSelection = {};
+
+    function upsellCandidates() {
+      return (state.menu || []).filter(i => i.showInUpsell && i.isSnack === true && i.available !== false && !i.soldOut);
+    }
+
+    function startUpsell() {
+      if (!state.upsellEnabled || state.upsellShown) return submitSelfOrder();
+      const candidates = upsellCandidates();
+      if (!candidates.length) return submitSelfOrder();
+      state.upsellShown = true;
+      openUpsellSheet(candidates);
+    }
+
+    function ensureUpsellSheet() {
+      if (document.getElementById('upsellSheet')) return;
+      const scrim = document.createElement('div');
+      scrim.id = 'upsellScrim';
+      scrim.onclick = () => closeUpsellSheet(true);
+
+      const sheet = document.createElement('div');
+      sheet.id = 'upsellSheet';
+      sheet.className = 'p-4 border hidden';
+      sheet.style.borderColor = 'var(--border)';
+
+      const handle = document.createElement('div');
+      handle.className = 'mx-auto -mt-1 mb-2 h-1.5 w-10 rounded-full';
+      handle.style.background = 'var(--border)';
+      sheet.appendChild(handle);
+
+      const head = document.createElement('div');
+      head.className = 'flex items-center justify-between border-b pb-2 mb-3';
+      head.style.borderColor = 'var(--border)';
+      const title = document.createElement('span');
+      title.className = 'font-black text-sm';
+      title.style.color = 'var(--text)';
+      title.textContent = 'Add a snack?';
+      head.appendChild(title);
+      sheet.appendChild(head);
+
+      const list = document.createElement('div');
+      list.id = 'upsellList';
+      list.className = 'space-y-2 mb-3';
+      sheet.appendChild(list);
+
+      const footer = document.createElement('div');
+      footer.className = 'flex gap-2';
+      const noBtn = document.createElement('button');
+      noBtn.type = 'button';
+      noBtn.className = 'flex-1 py-3 rounded-2xl text-sm font-extrabold border';
+      noBtn.style.borderColor = 'var(--border)';
+      noBtn.style.color = 'var(--text-3)';
+      noBtn.textContent = 'No thanks';
+      noBtn.onclick = () => closeUpsellSheet(true);
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.id = 'upsellAddBtn';
+      addBtn.className = 'flex-1 btn-espresso text-white py-3 rounded-2xl text-sm font-extrabold';
+      addBtn.onclick = () => confirmUpsell();
+      footer.appendChild(noBtn);
+      footer.appendChild(addBtn);
+      sheet.appendChild(footer);
+
+      document.body.appendChild(scrim);
+      document.body.appendChild(sheet);
+    }
+
+    function openUpsellSheet(candidates) {
+      ensureUpsellSheet();
+      upsellSelection = {};
+      renderUpsellSheet(candidates);
+      const sheet = document.getElementById('upsellSheet');
+      const scrim = document.getElementById('upsellScrim');
+      if (!sheet) return;
+      sheet.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      requestAnimationFrame(() => {
+        sheet.classList.add('open');
+        if (scrim) scrim.classList.add('open');
+      });
+    }
+
+    function closeUpsellSheet(submitAfter) {
+      const sheet = document.getElementById('upsellSheet');
+      const scrim = document.getElementById('upsellScrim');
+      if (scrim) scrim.classList.remove('open');
+      if (sheet) {
+        sheet.classList.remove('open');
+        document.body.style.overflow = '';
+        setTimeout(() => { if (!sheet.classList.contains('open')) sheet.classList.add('hidden'); }, 320);
+      }
+      if (submitAfter) submitSelfOrder();
+    }
+
+    function upsellTotal() {
+      return Object.keys(upsellSelection).reduce((sum, name) => {
+        const item = upsellSelection[name];
+        return sum + (Number(item.price) || 0) * (Number(item.qty) || 0);
+      }, 0);
+    }
+
+    function setUpsellQty(name, delta, candidates) {
+      const item = candidates.find(c => c.name === name);
+      if (!item) return;
+      const current = upsellSelection[name] || { name: item.name, price: Number(item.price) || 0, qty: 0 };
+      const qty = Math.max(0, (Number(current.qty) || 0) + delta);
+      if (qty > 0) upsellSelection[name] = { name: item.name, price: Number(item.price) || 0, qty: qty };
+      else delete upsellSelection[name];
+      renderUpsellSheet(candidates);
+    }
+
+    function renderUpsellSheet(candidates) {
+      const list = document.getElementById('upsellList');
+      if (!list) return;
+      list.innerHTML = "";
+      candidates.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 rounded-2xl border px-2.5 py-2';
+        row.style.borderColor = 'var(--border)';
+
+        const img = String(item.imageUrl || "").trim();
+        if (img) {
+          const thumb = document.createElement('img');
+          thumb.src = img;
+          thumb.alt = item.name;
+          thumb.className = 'w-10 h-10 rounded-xl object-cover shrink-0';
+          thumb.onerror = () => { thumb.style.display = 'none'; };
+          row.appendChild(thumb);
+        }
+
+        const info = document.createElement('div');
+        info.className = 'min-w-0 flex-1';
+        const nameEl = document.createElement('p');
+        nameEl.className = 'text-xs font-extrabold truncate';
+        nameEl.style.color = 'var(--text)';
+        nameEl.textContent = item.name;
+        const priceEl = document.createElement('p');
+        priceEl.className = 'text-[10px] font-bold';
+        priceEl.style.color = 'var(--text-3)';
+        priceEl.textContent = fmtPrice(item.price);
+        info.appendChild(nameEl);
+        info.appendChild(priceEl);
+        row.appendChild(info);
+
+        const qty = (upsellSelection[item.name] && upsellSelection[item.name].qty) || 0;
+        const stepper = document.createElement('div');
+        stepper.className = 'flex items-center gap-2 shrink-0';
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.className = 'w-7 h-7 rounded-full text-sm font-black leading-none border';
+        minus.style.borderColor = 'var(--border)';
+        minus.style.color = 'var(--text-3)';
+        minus.textContent = '−';
+        minus.setAttribute('aria-label', `Remove one ${item.name}`);
+        minus.onclick = () => setUpsellQty(item.name, -1, candidates);
+        const qtyEl = document.createElement('span');
+        qtyEl.className = 'w-4 text-center text-xs font-black';
+        qtyEl.style.color = 'var(--text)';
+        qtyEl.textContent = String(qty);
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.className = 'w-7 h-7 rounded-full text-sm font-black leading-none text-white';
+        plus.style.background = 'var(--espresso)';
+        plus.textContent = '+';
+        plus.setAttribute('aria-label', `Add one ${item.name}`);
+        plus.onclick = () => setUpsellQty(item.name, 1, candidates);
+        stepper.appendChild(minus);
+        stepper.appendChild(qtyEl);
+        stepper.appendChild(plus);
+        row.appendChild(stepper);
+
+        list.appendChild(row);
+      });
+      const addBtn = document.getElementById('upsellAddBtn');
+      if (addBtn) addBtn.textContent = `Add to order · ${fmtPrice(upsellTotal())}`;
+    }
+
+    function confirmUpsell() {
+      Object.keys(upsellSelection).forEach(name => {
+        const sel = upsellSelection[name];
+        if (!sel || !(sel.qty > 0)) return;
+        const existing = state.extras[name];
+        if (existing) existing.qty = (Number(existing.qty) || 0) + sel.qty;
+        else state.extras[name] = { name: sel.name, price: Number(sel.price) || 0, qty: sel.qty };
+      });
+      upsellSelection = {};
+      updateSubmitButton();
+      closeUpsellSheet(true);
     }
 
     function removeBasketCup(index) {
@@ -1447,7 +1699,92 @@
 
         list.appendChild(row);
       });
+      renderReviewExtras();
       updateCustPriceSummary();
+    }
+
+    function setExtrasQty(name, delta) {
+      const entry = state.extras[name];
+      if (!entry) return;
+      entry.qty = (Number(entry.qty) || 0) + delta;
+      if (entry.qty <= 0) delete state.extras[name];
+      renderReviewExtras();
+      updateCustPriceSummary();
+    }
+
+    function renderReviewExtras() {
+      const wrap = document.getElementById('reviewExtras');
+      if (!wrap) return;
+      wrap.innerHTML = "";
+      const list = extrasList();
+      if (!list.length) { wrap.classList.add('hidden'); return; }
+      wrap.classList.remove('hidden');
+
+      const title = document.createElement('p');
+      title.className = 'text-[10px] font-black uppercase tracking-wider';
+      title.style.color = 'var(--mocha)';
+      title.textContent = 'Extras';
+      wrap.appendChild(title);
+
+      list.forEach(extra => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 py-1';
+
+        const nameEl = document.createElement('p');
+        nameEl.className = 'min-w-0 flex-1 text-xs font-bold truncate';
+        nameEl.style.color = 'var(--espresso)';
+        nameEl.textContent = extra.name;
+        row.appendChild(nameEl);
+
+        const stepper = document.createElement('div');
+        stepper.className = 'flex items-center gap-1.5 shrink-0';
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.className = 'w-6 h-6 rounded-full text-sm font-bold leading-none';
+        minus.style.background = 'var(--surface)';
+        minus.style.color = 'rgba(107,78,61,.65)';
+        minus.textContent = '−';
+        minus.setAttribute('aria-label', `Remove one ${extra.name}`);
+        minus.onclick = () => setExtrasQty(extra.name, -1);
+        const qtyEl = document.createElement('span');
+        qtyEl.className = 'w-4 text-center text-xs font-black';
+        qtyEl.style.color = 'var(--espresso)';
+        qtyEl.textContent = String(extra.qty);
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.className = 'w-6 h-6 rounded-full text-white text-sm font-bold leading-none';
+        plus.style.background = 'var(--espresso)';
+        plus.textContent = '+';
+        plus.setAttribute('aria-label', `Add one ${extra.name}`);
+        plus.onclick = () => setExtrasQty(extra.name, 1);
+        stepper.appendChild(minus);
+        stepper.appendChild(qtyEl);
+        stepper.appendChild(plus);
+        row.appendChild(stepper);
+
+        const priceEl = document.createElement('span');
+        priceEl.className = 'w-14 text-right text-xs font-black shrink-0';
+        priceEl.style.color = 'var(--espresso)';
+        priceEl.textContent = fmtPrice(extra.price * extra.qty);
+        row.appendChild(priceEl);
+
+        wrap.appendChild(row);
+      });
+
+      const totalRow = document.createElement('div');
+      totalRow.className = 'flex justify-between items-center pt-1 border-t';
+      totalRow.style.borderColor = 'var(--line)';
+      const totalLabel = document.createElement('span');
+      totalLabel.className = 'text-[11px] font-bold';
+      totalLabel.style.color = 'rgba(107,78,61,.7)';
+      totalLabel.textContent = 'Extras';
+      const totalValue = document.createElement('span');
+      totalValue.className = 'text-xs font-black';
+      totalValue.style.color = 'var(--espresso)';
+      totalValue.textContent = fmtPrice(extrasTotal());
+      totalRow.appendChild(totalLabel);
+      totalRow.appendChild(totalValue);
+      wrap.appendChild(totalRow);
     }
 
     function addCurrentItemToBasket() {
@@ -1502,6 +1839,8 @@
       const firstPrice = Number((cups[0] || {}).price) || 0;
       const firstDiscount = calcPromoDiscountFor(firstPrice);
       const firstPromoCode = state.promoCode ? state.promoCode.code : "";
+      const extraItems = extrasList();
+      const extraTotal = extrasTotal();
       const created = [];
 
       try {
@@ -1517,7 +1856,9 @@
             productName: cup.name,
             temp: cup.temp,
             customization: cup.notes || "",
-            price: Number(cup.price) || 0,
+            price: (Number(cup.price) || 0) + extraTotal,
+            extras: extraItems,
+            extrasTotal: extraTotal,
             discount: created.length === 0 ? firstDiscount : 0,
             promoCode: created.length === 0 ? firstPromoCode : "",
             status: "UNPAID",
@@ -1535,13 +1876,15 @@
             apiErr.isApi = true;
             throw apiErr;
           }
-          created.push({ ...res.order, orderTime: res.order.orderTime || orderPayload.orderTime });
+          created.push({ ...res.order, orderTime: res.order.orderTime || orderPayload.orderTime, extras: extraItems });
           // Remove by identity: the guest may have deleted another cup from the
           // basket while this request was in flight.
           state.basket = state.basket.filter(c => c !== cup);
         }
 
         clearCustPromoCode();
+        state.extras = {};
+        state.upsellShown = false;
         state.step = 'menu';
         document.getElementById('menuStep')?.classList.remove('hidden');
         document.getElementById('reviewStep')?.classList.add('hidden');
@@ -1601,6 +1944,7 @@
       document.getElementById('ticketOrderTime').innerText = formatOrderTime(order.orderTime);
       document.getElementById('ticketPickup').innerText = order.pickupTime || "Not specified";
       document.getElementById('ticketDrink').innerText = `${order.productName} (${order.temp})`;
+      renderTicketExtras(order);
       document.getElementById('ticketPrice').innerText = fmtPrice(order.price);
 
       const barcodeEl = document.getElementById('barcode');
@@ -1621,6 +1965,27 @@
       if (!window.__sohRestoring) showToast("Order placed! Pay at the 2/F Chill Zone cashier.", "success", 4500);
       startStatusPolling(order.orderNum);
       syncCancelButton();
+    }
+
+    function renderTicketExtras(order) {
+      const drinkEl = document.getElementById('ticketDrink');
+      if (!drinkEl) return;
+      document.getElementById('ticketExtras')?.remove();
+      const extras = Array.isArray(order && order.extras)
+        ? order.extras.filter(e => e && Number(e.qty) > 0) : [];
+      if (!extras.length) return;
+      const p = document.createElement('p');
+      p.id = 'ticketExtras';
+      const label = document.createElement('strong');
+      label.className = 'text-slate-400';
+      label.textContent = 'Extras:';
+      const value = document.createElement('span');
+      value.className = 'text-slate-800 font-bold';
+      value.textContent = extras.map(e => `${e.name} x${e.qty}`).join(', ');
+      p.appendChild(label);
+      p.appendChild(document.createTextNode(' '));
+      p.appendChild(value);
+      drinkEl.closest('p')?.insertAdjacentElement('afterend', p);
     }
 
     // Summary of a multi-cup submit. The main #barcode block keeps the first
@@ -2055,6 +2420,9 @@
       state.selectedItem = null;
       state.selectedNotes = [];
       state.currentOrder = null;
+      state.extras = {};
+      state.upsellShown = false;
+      upsellSelection = {};
       selfOrderHistory.newOrder();
       setItemOptionsOpen(false);
       document.getElementById('custNotes').value = "";

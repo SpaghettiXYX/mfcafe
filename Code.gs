@@ -154,10 +154,13 @@ function ensureOrdersSheet(ss) {
       "CupType",  // "In-Store" or "Takeaway"
       "Discount", // amount off the whole order
       "PromoCode", // promo code applied at checkout, if any
-      "DiscountBy" // staff member who authorised a manual discount
+      "DiscountBy", // staff member who authorised a manual discount
+      "Extras", // snack upsell lines, e.g. "Cookie x2"
+      "ExtrasTotal" // snack subtotal (already included in Price)
     ]);
   } else {
-    const headers = sheet.getRange(1, 1, 1, 16).getValues()[0];
+    if (sheet.getMaxColumns() < 18) sheet.insertColumnsAfter(sheet.getMaxColumns(), 18 - sheet.getMaxColumns());
+    const headers = sheet.getRange(1, 1, 1, 18).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -180,6 +183,10 @@ function ensureOrdersSheet(ss) {
     if (!headers[13] || String(headers[13]).trim() === "") sheet.getRange(1, 14).setValue("Discount");
     if (!headers[14] || String(headers[14]).trim() === "") sheet.getRange(1, 15).setValue("PromoCode");
     if (!headers[15] || String(headers[15]).trim() === "") sheet.getRange(1, 16).setValue("DiscountBy");
+    // Snack upsell columns (17-18): what was added on top of the drink, and
+    // its subtotal (already included in Price so totals stay consistent).
+    if (!headers[16] || String(headers[16]).trim() === "") sheet.getRange(1, 17).setValue("Extras");
+    if (!headers[17] || String(headers[17]).trim() === "") sheet.getRange(1, 18).setValue("ExtrasTotal");
   }
   // Force OrderNum column (A) to plain text so Sheets never silently
   // reinterprets values like "1035" or "1035-1" as dates and breaks KDS.
@@ -225,7 +232,8 @@ function ensureQRTilesSheet(ss) {
 
 // Ensure menu sheet has Category (E) and ColdPaused (F) columns
 function ensureMenuSheetColumns(sheet) {
-  const headers = sheet.getRange(1, 1, 1, 10).getValues()[0];
+  if (sheet.getMaxColumns() < 12) sheet.insertColumnsAfter(sheet.getMaxColumns(), 12 - sheet.getMaxColumns());
+  const headers = sheet.getRange(1, 1, 1, 12).getValues()[0];
   if (!headers[4] || String(headers[4]).trim() === "") {
     sheet.getRange(1, 5).setValue("Category");
   }
@@ -243,6 +251,14 @@ function ensureMenuSheetColumns(sheet) {
   }
   if (!headers[9] || String(headers[9]).trim() === "") {
     sheet.getRange(1, 10).setValue("SoldOut");
+  }
+  // Snack upsell: K marks an item as a snack (exempt from the one-drink rule),
+  // L controls whether it is offered in the pre-checkout popup.
+  if (!headers[10] || String(headers[10]).trim() === "") {
+    sheet.getRange(1, 11).setValue("IsSnack");
+  }
+  if (!headers[11] || String(headers[11]).trim() === "") {
+    sheet.getRange(1, 12).setValue("ShowInUpsell");
   }
 }
 
@@ -539,6 +555,16 @@ function setPauseReason(target, reason) {
 
 // Push message broadcast to all portal users
 const PUSH_MESSAGE_TTL_MS = 48 * 60 * 60 * 1000; // 48h auto-expire
+
+function getUpsellEnabled() {
+  return PropertiesService.getScriptProperties().getProperty("UPSELL_ENABLED") === "true";
+}
+
+function setUpsellEnabled(enabled) {
+  PropertiesService.getScriptProperties().setProperty("UPSELL_ENABLED", enabled ? "true" : "false");
+  bumpVersion();
+  return { success: true, enabled: !!enabled };
+}
 
 function getPushMessage() {
   const raw = PropertiesService.getScriptProperties().getProperty("PUSH_MESSAGE");
@@ -1050,7 +1076,9 @@ function getInitialData() {
           // Original ("was") price shown struck through next to the real price.
           offerPrice: parseFloat(String(row[7] || "").replace(/[^0-9.]/g, "")) || 0,
           allowNotes: String(row[8] || "").trim().toLowerCase() !== "false",
-          soldOut: String(row[9] || "").trim().toLowerCase() === "true"
+          soldOut: String(row[9] || "").trim().toLowerCase() === "true",
+          isSnack: String(row[10] || "").trim().toLowerCase() === "true",
+          showInUpsell: String(row[11] || "").trim().toLowerCase() === "true"
         });
       }
     }
@@ -1104,7 +1132,9 @@ function getInitialData() {
         cupType: String(row[12] || "In-Store").trim() || "In-Store",
         discount: Number(row[13]) || 0,
         promoCode: String(row[14] || "").trim().toUpperCase(),
-        discountBy: String(row[15] || "").trim()
+        discountBy: String(row[15] || "").trim(),
+        extras: String(row[16] || "").trim(),
+        extrasTotal: Number(row[17]) || 0
       });
     }
   }
@@ -1141,6 +1171,7 @@ function getInitialData() {
     statusStrip: getKdsStatusStrip(),
     openingHours: getOpeningHours(),
     promoPopup: getPromoPopup(),
+    upsellEnabled: getUpsellEnabled(),
     promoCodes: getPromoCodes(),
     instructions: getSelfOrderInstructions("teacher"),
     instructionsTeacher: getSelfOrderInstructions("teacher"),
@@ -1183,7 +1214,9 @@ function getOrderHistory(limit) {
         cupType: String(row[12] || "In-Store").trim() || "In-Store",
         discount: Number(row[13]) || 0,
         promoCode: String(row[14] || "").trim().toUpperCase(),
-        discountBy: String(row[15] || "").trim()
+        discountBy: String(row[15] || "").trim(),
+        extras: String(row[16] || "").trim(),
+        extrasTotal: Number(row[17]) || 0
       });
       if (paymentStatus !== "UNPAID") revenue += (Number(row[8]) || 0) - (Number(row[13]) || 0);
     }
@@ -1295,6 +1328,17 @@ function createOrderLocked(orderOrOrders) {
       const promoCode = String(order.promoCode || "").trim().toUpperCase();
       const discountBy = String(order.discountBy || "").trim();
 
+      // Snack upsell — extra items bought on top of the drink. Their subtotal
+      // is already part of Price so every downstream total stays unchanged.
+      const extras = Array.isArray(order.extras) ? order.extras.filter(function (e) {
+        return e && String(e.name || "").trim();
+      }) : [];
+      const extrasText = extras.map(function (e) {
+        const qty = Math.max(1, Number(e.qty) || 1);
+        return String(e.name).trim() + " x" + qty;
+      }).join(", ");
+      const extrasTotal = Math.max(0, Number(order.extrasTotal) || 0);
+
       const createdOrder = {
         orderNum: assignedOrderNum,
         orderTime: orderTime,
@@ -1311,14 +1355,17 @@ function createOrderLocked(orderOrOrders) {
         status: status,
         qrTile: qrTile,
         paymentStatus: paymentStatus,
-        cupType: cupType
+        cupType: cupType,
+        extras: extrasText,
+        extrasTotal: extrasTotal
       };
 
       sheet.appendRow([
         createdOrder.orderNum, createdOrder.orderTime, pickupTime,
         createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
         createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
-        createdOrder.paymentStatus, cupType, discount, promoCode, discountBy
+        createdOrder.paymentStatus, cupType, discount, promoCode, discountBy,
+        extrasText, extrasTotal
       ]);
 
       // Bind QR tile if provided — reject unknown tiles so we never end up
@@ -1795,6 +1842,8 @@ function saveMenuItem(item) {
       sheet.getRange(i + 1, 8).setValue(Number(item.offerPrice) || "");
       sheet.getRange(i + 1, 9).setValue(item.allowNotes === false ? "false" : "true");
       sheet.getRange(i + 1, 10).setValue(item.soldOut ? "true" : "false");
+      sheet.getRange(i + 1, 11).setValue(item.isSnack ? "true" : "false");
+      sheet.getRange(i + 1, 12).setValue(item.showInUpsell ? "true" : "false");
       SpreadsheetApp.flush();
       bumpVersion();
       return { success: true };
@@ -1807,7 +1856,8 @@ function addMenuItem(item) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Financial & Menu Summary");
   ensureMenuSheetColumns(sheet);
   sheet.appendRow([item.name, item.tempOptions, item.price, item.status || "Active", item.category || "Other", item.coldPaused ? "true" : "false", String(item.imageUrl || "").trim(),
-    Number(item.offerPrice) || "", item.allowNotes === false ? "false" : "true", item.soldOut ? "true" : "false"]);
+    Number(item.offerPrice) || "", item.allowNotes === false ? "false" : "true", item.soldOut ? "true" : "false",
+    item.isSnack ? "true" : "false", item.showInUpsell ? "true" : "false"]);
   SpreadsheetApp.flush();
   bumpVersion();
   return { success: true };
@@ -1926,7 +1976,9 @@ function lookupOrder(rawCode) {
       qrTile: row[10] ? String(row[10]).trim() : "",
       paymentStatus: String(row[11] || "").trim().toUpperCase() || "PAID",
       category: category,
-      cupType: String(row[12] || "In-Store").trim() || "In-Store"
+      cupType: String(row[12] || "In-Store").trim() || "In-Store",
+      extras: String(row[16] || "").trim(),
+      extrasTotal: Number(row[17]) || 0
     },
     categoryColors: getCategoryColors()
   };
@@ -2151,6 +2203,7 @@ function doPost(e) {
     if (action === "saveOpeningHours") return jsonResponse(setOpeningHours(data.hours));
     if (action === "savePromoPopup") return jsonResponse(setPromoPopup(data.title, data.body, data.imageUrl, data.active));
     if (action === "saveInstructions") return jsonResponse(setSelfOrderInstructions(data.audience, data.title, data.heading, data.steps, data.note));
+    if (action === "toggleUpsell") return jsonResponse(setUpsellEnabled(!!data.enabled));
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
     if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal, data.unitPrices));
