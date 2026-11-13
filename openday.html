@@ -1639,16 +1639,22 @@
     }
 
     function confirmUpsell() {
+      let addedCount = 0;
       Object.keys(upsellSelection).forEach(name => {
         const sel = upsellSelection[name];
         if (!sel || !(sel.qty > 0)) return;
         const existing = state.extras[name];
         if (existing) existing.qty = (Number(existing.qty) || 0) + sel.qty;
         else state.extras[name] = { name: sel.name, price: Number(sel.price) || 0, qty: sel.qty };
+        addedCount += sel.qty;
       });
       upsellSelection = {};
-      updateSubmitButton();
-      closeUpsellSheet(true);
+      if (!addedCount) return closeUpsellSheet(true);
+
+      // Let the guest see the snacks in Your order before the final submit.
+      closeUpsellSheet(false);
+      renderReview();
+      showToast(`Added ${addedCount} snack${addedCount === 1 ? '' : 's'} to your order`, "success");
     }
 
     function removeBasketCup(index) {
