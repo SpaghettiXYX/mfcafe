@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MFCafe — Poster Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     MFCafe poster board — built for the Lakala USB screen
+     (ESP32-P4 + SC7705, 800 x 1280 portrait).
+     The canvas is authored at exactly 800x1280 and scaled to fit,
+     so the layout never reflows on a different window size.
+     ============================================================ */
+  :root{
+    --cream:#FBF6EF; --espresso:#2E211A; --mocha:#6B4E3D;
+    --caramel:#C0803F; --caramel-soft:#E9C9A3; --line:#EDE3D7;
+    --accent:#C0803F;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; margin:0; }
+  body{
+    background:#191310; color:var(--espresso);
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  #frame{
+    position:relative; width:800px; height:1280px; flex:0 0 auto;
+    background:var(--cream); overflow:hidden;
+    transform-origin:center center;
+    box-shadow:0 30px 120px rgba(0,0,0,.55);
+  }
+
+  /* ---------- slides ---------- */
+  #slides{ position:absolute; inset:0; }
+  .slide{
+    position:absolute; inset:0; opacity:0; visibility:hidden;
+    transition:opacity .7s ease, visibility .7s;
+    display:flex; flex-direction:column;
+  }
+  .slide.on{ opacity:1; visibility:visible; }
+  .slide .media{ position:absolute; inset:0; background:#E7DDD0; }
+  .slide .media img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .slide .scrim{
+    position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(24,17,13,.92) 0%, rgba(24,17,13,.55) 34%, rgba(24,17,13,.08) 62%, rgba(24,17,13,.28) 100%);
+  }
+  .slide .copy{
+    position:absolute; left:64px; right:64px; bottom:132px; color:#fff;
+  }
+  .kicker{
+    display:inline-flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:800; letter-spacing:.18em; text-transform:uppercase;
+    color:#F1D9BC; margin-bottom:18px;
+  }
+  .kicker::before{ content:""; width:44px; height:3px; border-radius:3px; background:var(--accent); }
+  h1{ margin:0; font-size:74px; line-height:1.03; font-weight:900; letter-spacing:-.03em; text-wrap:balance; }
+  h2{ margin:14px 0 0; font-size:30px; line-height:1.32; font-weight:500; color:#F3E8DB; text-wrap:pretty; }
+  .price-row{ display:flex; align-items:baseline; gap:18px; margin-top:26px; flex-wrap:wrap; }
+  .price{ font-size:56px; font-weight:900; letter-spacing:-.02em; color:#fff; }
+  .was{ font-size:30px; font-weight:600; color:rgba(255,255,255,.55); text-decoration:line-through; }
+  .badge{
+    display:inline-flex; align-items:center; padding:8px 16px; border-radius:999px;
+    background:var(--caramel); color:#2E211A; font-size:18px; font-weight:900;
+    letter-spacing:.04em; text-transform:uppercase;
+  }
+
+  /* ---------- editorial (no photo) slide ---------- */
+  .slide.paper{ background:var(--cream); }
+  .slide.paper .copy{ color:var(--espresso); bottom:150px; }
+  .slide.paper .kicker{ color:var(--mocha); }
+  .slide.paper h1{ font-size:82px; }
+  .slide.paper h2{ color:var(--mocha); }
+  .paper-mark{
+    position:absolute; right:-70px; top:-70px; width:420px; height:420px; border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--caramel-soft), transparent 68%);
+    opacity:.55;
+  }
+  .logo-plate{
+    position:absolute; left:64px; top:64px; display:flex; align-items:center; gap:18px;
+  }
+  .logo-plate img{
+    width:72px; height:72px; border-radius:20px; background:#fff;
+    border:1px solid var(--line); padding:7px; object-fit:contain;
+  }
+  .logo-plate .wordmark{ font-size:26px; font-weight:900; letter-spacing:-.02em; }
+
+  /* ---------- menu picks grid ---------- */
+  .slide.grid{ background:var(--cream); padding:150px 64px 150px; }
+  .slide.grid .head{ margin-bottom:34px; }
+  .slide.grid .head .kicker{ color:var(--mocha); margin-bottom:10px; }
+  .slide.grid .head h1{ font-size:56px; color:var(--espresso); }
+  .cards{ display:grid; gap:22px; flex:1; }
+  .cards.two{ grid-template-columns:1fr 1fr; }
+  .cards.three{ grid-template-columns:1fr; }
+  .card{
+    position:relative; border-radius:28px; overflow:hidden; background:#fff;
+    border:1px solid var(--line); display:flex; flex-direction:column; min-height:0;
+  }
+  .card .thumb{ position:relative; flex:1; min-height:0; background:#EFE6D9; }
+  .card .thumb img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .card .label{
+    padding:20px 22px 22px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+  }
+  .card .name{ font-size:24px; font-weight:800; line-height:1.2; letter-spacing:-.01em; }
+  .card .cat{ font-size:13px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:#96826E; margin-bottom:6px; }
+  .card .p{ font-size:26px; font-weight:900; white-space:nowrap; }
+  .card .p s{ display:block; font-size:15px; font-weight:600; color:#B3A292; text-align:right; }
+  .badge-float{
+    position:absolute; left:18px; top:18px; padding:7px 14px; border-radius:999px;
+    background:var(--caramel); color:#2E211A; font-size:14px; font-weight:900; letter-spacing:.05em;
+  }
+
+  /* ---------- chrome: logo, clock, dots ---------- */
+  #topbar{
+    position:absolute; left:0; right:0; top:0; height:112px; z-index:6;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 40px; pointer-events:none;
+  }
+  #topbar .brand{ display:flex; align-items:center; gap:14px; opacity:.96; }
+  #topbar .brand img{
+    width:52px; height:52px; border-radius:14px; background:#fff; padding:5px;
+    border:1px solid var(--line); object-fit:contain;
+  }
+  #topbar .brand span{ font-size:20px; font-weight:900; letter-spacing:-.01em; color:#fff; text-shadow:0 1px 8px rgba(0,0,0,.35); }
+  #topbar.right-dark .brand span{ color:var(--espresso); text-shadow:none; }
+  #meta{ display:flex; align-items:center; gap:12px; }
+  #clock{
+    font-variant-numeric:tabular-nums; font-size:19px; font-weight:800;
+    padding:9px 15px; border-radius:999px; color:#fff;
+    background:rgba(24,17,13,.42); backdrop-filter:blur(8px);
+  }
+  #topbar.right-dark #clock{ color:var(--espresso); background:rgba(255,255,255,.6); border:1px solid var(--line); }
+  #ledChip{
+    font-size:14px; font-weight:800; padding:9px 14px; border-radius:999px;
+    background:rgba(24,17,13,.42); color:#fff; backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.16); cursor:pointer; pointer-events:auto;
+  }
+  #ledChip.on{ background:rgba(192,128,63,.92); color:#2E211A; border-color:transparent; }
+  #topbar.right-dark #ledChip{ color:var(--espresso); background:rgba(255,255,255,.6); border-color:var(--line); }
+  #topbar.right-dark #ledChip.on{ background:var(--caramel); color:#2E211A; }
+
+  #dots{
+    position:absolute; left:0; right:0; bottom:44px; z-index:6;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  #dots i{
+    width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.35);
+    transition:all .3s ease; display:block;
+  }
+  #dots.light i{ background:rgba(46,33,26,.2); }
+  #dots i.on{ width:26px; border-radius:999px; background:var(--accent); }
+
+  #hint{
+    position:absolute; left:50%; bottom:86px; transform:translateX(-50%); z-index:6;
+    font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:rgba(255,255,255,.62); white-space:nowrap; transition:opacity .6s ease;
+  }
+  #hint.light{ color:rgba(46,33,26,.45); }
+  #hint.gone{ opacity:0; }
+
+  /* ---------- states ---------- */
+  #empty{
+    position:absolute; inset:0; z-index:7; display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:18px;
+    background:var(--cream); text-align:center; padding:80px;
+  }
+  #empty.show{ display:flex; }
+  #empty h3{ margin:0; font-size:34px; font-weight:900; letter-spacing:-.02em; }
+  #empty p{ margin:0; font-size:19px; line-height:1.6; color:var(--mocha); max-width:520px; }
+  #empty code{
+    font-size:16px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:6px 10px;
+  }
+  #boot{
+    position:absolute; inset:0; z-index:9; background:var(--cream);
+    display:flex; align-items:center; justify-content:center; transition:opacity .5s ease;
+  }
+  #boot.hide{ opacity:0; pointer-events:none; }
+  .spinner{
+    width:34px; height:34px; border-radius:50%;
+    border:3px solid var(--line); border-top-color:var(--caramel);
+    animation:spin .9s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg) } }
+  @media (prefers-reduced-motion:reduce){
+    .slide{ transition:none; }
+    .spinner{ animation:none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="frame">
+  <div id="slides"></div>
+
+  <div id="topbar">
+    <div class="brand">
+      <img src="assets/mfcafe-logo.png" alt="">
+      <span>MFCafe</span>
+    </div>
+    <div id="meta">
+      <button id="ledChip" title="Sync the external LED controller with the current poster">LED · off</button>
+      <div id="clock">--:--</div>
+    </div>
+  </div>
+
+  <div id="hint">← → browse · space pause · F fullscreen · L LED</div>
+  <div id="dots"></div>
+
+  <div id="empty">
+    <h3>No posters yet</h3>
+    <p>Drop JPG/PNG files into <code>assets/posters/</code> and list them in
+       <code>assets/posters/manifest.json</code>. Menu picks and the admin promo
+       appear automatically.</p>
+  </div>
+
+  <div id="boot"><div class="spinner"></div></div>
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3OrR1Vbk87gEZ2gCersU6Hbct7J052oAw_OkedvQDQcvEAHEttGGEkAOlJUwSdpP8lw/exec";
+
+  const SLIDE_MS = 12000;          // default dwell time
+  const MANIFEST = "assets/posters/manifest.json";
+
+  const state = {
+    posters: [],      // manual entries from the manifest
+    autos: [],        // promo / offer / picks built from the backend
+    slides: [],       // rendered deck
+    index: 0,
+    paused: false,
+    timer: null,
+    accent: "#C0803F",
+    menuSig: "",
+  };
+
+  /* ---------------- fit the 800x1280 canvas ---------------- */
+  function fitFrame() {
+    const frame = document.getElementById("frame");
+    const k = Math.min(window.innerWidth / 800, window.innerHeight / 1280);
+    frame.style.transform = `scale(${k})`;
+  }
+  window.addEventListener("resize", fitFrame);
+  fitFrame();
+
+  /* ---------------- clock ---------------- */
+  function tickClock() {
+    const now = new Date();
+    document.getElementById("clock").textContent =
+      now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+  setInterval(tickClock, 10000);
+  tickClock();
+
+  /* ---------------- helpers ---------------- */
+  const money = v => "HK$" + (Math.round(Number(v) * 10) / 10).toFixed(0);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  /* ---------------- manual posters ---------------- */
+  async function loadManifest() {
+    try {
+      const res = await fetch(`${MANIFEST}?v=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.posters || []);
+      state.posters = list.filter(p => p && p.src);
+    } catch (err) {
+      state.posters = [];
+    }
+  }
+
+  /* ---------------- backend content ---------------- */
+  async function loadRemote() {
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-store" });
+      const data = await res.json();
+      state.menuSig = JSON.stringify([
+        (data.menu || []).map(i => [i.name, i.price, i.offerPrice, i.imageUrl, i.available, i.soldOut]),
+        data.promoPopup || null,
+      ]);
+      state.autos = buildAutos(data);
+    } catch (err) {
+      state.autos = [];
+    }
+  }
+
+  function buildAutos(data) {
+    const out = [];
+    const promo = data.promoPopup || {};
+    if (promo.active && (promo.title || promo.imageUrl)) {
+      out.push({
+        type: "promo",
+        kicker: "Now on",
+        title: promo.title || "Today at MFCafe",
+        body: promo.body || "",
+        img: promo.imageUrl || "",
+        accent: "#C0803F",
+        seconds: 12000,
+      });
+    }
+
+    const menu = (data.menu || []).filter(i =>
+      i && i.available !== false && !i.soldOut && !i.isSnack && !i.coldPaused);
+
+    const offers = menu
+      .filter(i => num(i.offerPrice) > 0 && num(i.offerPrice) < num(i.price))
+      .sort((a, b) => num(a.offerPrice) / num(a.price) - num(b.offerPrice) / num(b.price))
+      .slice(0, 2);
+
+    offers.forEach(i => {
+      out.push({
+        type: "offer",
+        kicker: "Today's offer",
+        title: i.name,
+        body: i.description || "",
+        img: i.imageUrl || "",
+        price: num(i.offerPrice),
+        was: num(i.price),
+        accent: "#B4532F",
+        seconds: 12000,
+      });
+    });
+
+    const picks = menu.filter(i => i.imageUrl).slice(0, 6);
+    for (let n = 0; n < picks.length; n += 3) {
+      out.push({
+        type: "picks",
+        kicker: "Fresh from the bar",
+        title: n === 0 ? "Today's picks" : "More to love",
+        items: picks.slice(n, n + 3),
+        accent: "#C0803F",
+        seconds: 14000,
+      });
+    }
+    return out;
+  }
+
+  /* ---------------- rendering ---------------- */
+  function slideFromPoster(p) {
+    return {
+      type: "photo",
+      kicker: p.kicker || "MFCafe",
+      title: p.title || "",
+      body: p.caption || "",
+      img: p.src,
+      price: p.price != null ? num(p.price) : null,
+      was: p.was != null ? num(p.was) : null,
+      accent: p.accent || "#C0803F",
+      seconds: Math.max(4000, num(p.seconds) || SLIDE_MS),
+    };
+  }
+
+  function el(html) {
+    const t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstElementChild;
+  }
+
+  function pickCard(item) {
+    const off = num(item.offerPrice) > 0 && num(item.offerPrice) < num(item.price);
+    return `<div class="card">
+      <div class="thumb">${item.imageUrl ? `<img src="${esc(item.imageUrl)}" alt="">` : ""}</div>
+      ${off ? `<span class="badge-float">Offer</span>` : ""}
+      <div class="label">
+        <div>
+          <div class="cat">${esc(item.category || "Drink")}</div>
+          <div class="name">${esc(item.name)}</div>
+        </div>
+        <div class="p">${money(off ? item.offerPrice : item.price)}${off ? `<s>${money(item.price)}</s>` : ""}</div>
+      </div>
+    </div>`;
+  }
+
+  function slideMarkup(s) {
+    if (s.type === "picks") {
+      const cols = s.items.length <= 1 ? "three" : (s.items.length === 2 ? "two" : "three");
+      return `<div class="slide paper grid">
+        <div class="logo-plate"><img src="assets/mfcafe-logo.png" alt=""><div class="wordmark">MFCafe</div></div>
+        <div class="head">
+          <div class="kicker">${esc(s.kicker)}</div>
+          <h1>${esc(s.title)}</h1>
+        </div>
+        <div class="cards ${cols}">${s.items.map(pickCard).join("")}</div>
+      </div>`;
+    }
+
+    if (s.type === "offer" || s.type === "promo" || s.type === "photo") {
+      const photo = s.img ? `<div class="media"><img src="${esc(s.img)}" alt=""></div><div class="scrim"></div>` : "";
+      const paper = s.img ? "" : " paper";
+      const mark = s.img ? "" : `<div class="paper-mark"></div>`;
+      const plate = s.img ? "" : `<div class="logo-plate"><img src="assets/mfcafe-logo.png" alt=""><div class="wordmark">MFCafe</div></div>`;
+      const badge = s.type === "offer" ? `<span class="badge">Save ${Math.max(1, Math.round((1 - s.price / s.was) * 100))}%</span>` : "";
+      const prices = s.price != null
+        ? `<div class="price-row"><span class="price" style="color:${s.img ? "#fff" : "var(--espresso)"}">${money(s.price)}</span>${s.was != null ? `<span class="was" style="${s.img ? "" : "color:#A8988A"}">${money(s.was)}</span>` : ""}${badge}</div>`
+        : "";
+      return `<div class="slide${paper}" style="--accent:${esc(s.accent)}">
+        ${photo}${mark}${plate}
+        <div class="copy">
+          <div class="kicker">${esc(s.kicker)}</div>
+          <h1>${esc(s.title)}</h1>
+          ${s.body ? `<h2>${esc(s.body)}</h2>` : ""}
+          ${prices}
+        </div>
+      </div>`;
+    }
+    return "";
+  }
+
+  function deck() {
+    return [...state.posters.map(slideFromPoster), ...state.autos];
+  }
+
+  function render() {
+    const host = document.getElementById("slides");
+    const dots = document.getElementById("dots");
+    state.slides = deck();
+
+    host.innerHTML = "";
+    dots.innerHTML = "";
+    document.getElementById("empty").classList.toggle("show", state.slides.length === 0);
+    if (!state.slides.length) return;
+
+    state.slides.forEach((s, i) => {
+      const node = el(slideMarkup(s));
+      if (!node) return;
+      node.dataset.i = i;
+      host.appendChild(node);
+      dots.appendChild(el(`<i data-i="${i}"></i>`));
+    });
+
+    if (state.index >= state.slides.length) state.index = 0;
+    show(state.index, true);
+  }
+
+  function show(i, silent) {
+    const slides = document.querySelectorAll(".slide");
+    if (!slides.length) return;
+    state.index = (i + slides.length) % slides.length;
+    slides.forEach((n, k) => n.classList.toggle("on", k === state.index));
+
+    const s = state.slides[state.index];
+    document.querySelectorAll("#dots i").forEach((d, k) => d.classList.toggle("on", k === state.index));
+
+    const light = s.type === "picks" || !s.img;
+    document.getElementById("dots").classList.toggle("light", light);
+    document.getElementById("hint").classList.toggle("light", light);
+    document.getElementById("topbar").classList.toggle("right-dark", light);
+
+    document.documentElement.style.setProperty("--accent", s.accent || "#C0803F");
+    state.accent = s.accent || "#C0803F";
+    if (!silent) sendLed(state.accent);
+    restartTimer(s.seconds || SLIDE_MS);
+  }
+
+  function restartTimer(ms) {
+    clearTimeout(state.timer);
+    if (state.paused) return;
+    state.timer = setTimeout(() => show(state.index + 1), ms);
+  }
+
+  /* ---------------- LED bridge (Web Serial) ---------------- */
+  let ledPort = null;
+  let ledWriter = null;
+  let ledAuto = localStorage.getItem("mfcafe_poster_led") !== "0";
+
+  function ledChip() { return document.getElementById("ledChip"); }
+
+  function paintLedChip() {
+    const chip = ledChip();
+    if (!("serial" in navigator)) { chip.style.display = "none"; return; }
+    chip.classList.toggle("on", !!ledWriter);
+    chip.textContent = !ledWriter ? "LED · off" : (ledAuto ? "LED · auto" : "LED · linked");
+    chip.title = ledWriter
+      ? "Click to " + (ledAuto ? "hold" : "resume") + " automatic colour sync"
+      : "Click to connect the external LED controller";
+  }
+
+  async function connectLed() {
+    if (ledWriter) {
+      ledAuto = !ledAuto;
+      localStorage.setItem("mfcafe_poster_led", ledAuto ? "1" : "0");
+      if (ledAuto) sendLed(state.accent);
+      paintLedChip();
+      return;
+    }
+    try {
+      ledPort = await navigator.serial.requestPort();
+      await ledPort.open({ baudRate: 115200 });
+      ledWriter = ledPort.writable.getWriter();
+      ledAuto = true;
+      localStorage.setItem("mfcafe_poster_led", "1");
+      sendLed(state.accent);
+    } catch (err) {
+      ledWriter = null;
+    }
+    paintLedChip();
+  }
+
+  function sendLed(hex) {
+    if (!ledWriter || !ledAuto) return;
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+    if (!m) return;
+    const v = parseInt(m[1], 16);
+    const line = `RGB ${(v >> 16) & 255} ${(v >> 8) & 255} ${v & 255}\n`;
+    ledWriter.write(new TextEncoder().encode(line)).catch(() => {
+      ledWriter = null;
+      paintLedChip();
+    });
+  }
+
+  ledChip().addEventListener("click", connectLed);
+  paintLedChip();
+
+  /* ---------------- controls ---------------- */
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); show(state.index + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); show(state.index - 1); }
+    else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    } else if (e.key === "l" || e.key === "L") connectLed();
+    else if (e.key === "p" || e.key === "P") {
+      state.paused = !state.paused;
+      restartTimer(state.slides[state.index]?.seconds || SLIDE_MS);
+    }
+  });
+
+  document.getElementById("dots").addEventListener("click", e => {
+    const d = e.target.closest("i");
+    if (d) show(Number(d.dataset.i));
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearTimeout(state.timer);
+    else restartTimer(state.slides[state.index]?.seconds || SLIDE_MS);
+  });
+
+  /* ---------------- boot ---------------- */
+  (async function boot() {
+    await loadManifest();
+    await loadRemote();
+    render();
+    document.getElementById("boot").classList.add("hide");
+    setTimeout(() => document.getElementById("hint").classList.add("gone"), 7000);
+
+    // Refresh backend content every minute; keep the same slide if the deck
+    // is unchanged so the screen never blinks for nothing.
+    setInterval(async () => {
+      const before = state.menuSig;
+      await loadRemote();
+      if (state.menuSig !== before) {
+        const keep = state.index;
+        render();
+        show(Math.min(keep, state.slides.length - 1), true);
+      }
+    }, 60000);
+  })();
+</script>
+</body>
+</html>

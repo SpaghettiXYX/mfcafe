@@ -1,0 +1,20 @@
+[
+  {
+    "src": "assets/cropped-coldmatchalatte.jpg",
+    "kicker": "New this week",
+    "title": "Iced Matcha Latte",
+    "caption": "Stone-ground matcha, cold milk, just enough sweetness. Available while the weather stays warm.",
+    "price": 42,
+    "accent": "#5E7F4E",
+    "seconds": 12000
+  },
+  {
+    "src": "assets/cropped-coldhojichalatte.jpg",
+    "kicker": "Barista's pick",
+    "title": "Hojicha Cold Latte",
+    "caption": "Roasted tea, low bitterness, a clean finish. Ask for it less sweet and we'll dial it in.",
+    "price": 40,
+    "accent": "#9A5B33",
+    "seconds": 12000
+  }
+]
