@@ -668,7 +668,6 @@
       basket: [],             // one entry per cup; each becomes its own order
       extras: {},             // snack add-ons: name -> { name, price, qty }
       upsellEnabled: false,
-      upsellShown: false,
       step: "menu",           // "menu" | "review"
       selectedCupType: "",  // "" | "In-Store" | "Takeaway"
       remarkHotkeys: "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot",
@@ -1401,10 +1400,10 @@
     }
 
     function startUpsell() {
-      if (!state.upsellEnabled || state.upsellShown) return submitSelfOrder();
+      // Show the snack sheet on every Place order press, not just the first.
+      if (!state.upsellEnabled) return submitSelfOrder();
       const candidates = upsellCandidates();
       if (!candidates.length) return submitSelfOrder();
-      state.upsellShown = true;
       openUpsellSheet(candidates);
     }
 
@@ -1812,7 +1811,6 @@
 
         clearCustPromoCode();
         state.extras = {};
-        state.upsellShown = false;
         state.step = 'menu';
         document.getElementById('menuStep')?.classList.remove('hidden');
         document.getElementById('reviewStep')?.classList.add('hidden');
@@ -2422,7 +2420,6 @@
       state.selectedNotes = [];
       state.currentOrder = null;
       state.extras = {};
-      state.upsellShown = false;
       upsellSelection = {};
       selfOrderHistory.newOrder();
       setItemOptionsOpen(false);
