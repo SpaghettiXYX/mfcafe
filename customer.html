@@ -763,12 +763,16 @@
           if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
           if (data.openingHours) { state.openingHours = data.openingHours; renderPickupOptions(); }
           if (data.instructionsTeacher || data.instructions) { state.instructions = data.instructionsTeacher || data.instructions; applyInstructions(); }
-          if (data.promoPopup) { state.promoPopup = data.promoPopup; showPromoPopup(); }
+          if (data.promoPopup) state.promoPopup = data.promoPopup;
           if (typeof data.upsellEnabled === "boolean") state.upsellEnabled = data.upsellEnabled;
           applyReservationState();
           renderMenu();
           updateCustPriceSummary();
           hideAppLoader();
+          // Greet every visitor with the house instructions; the promo popup
+          // waits until they close it.
+          if (state.teacherReservationOpen !== false) openInstructions();
+          else showPromoPopup();
         })
         .catch(() => { hideAppLoader(); showToast("Failed to load menu. Please refresh.", "error"); });
 
@@ -2330,6 +2334,8 @@
       if (!modal) return;
       modal.classList.add('hidden');
       document.body.style.overflow = '';
+      // Anything that wanted to be seen after the greetings (promo) goes now.
+      showPromoPopup();
     }
 
     // Render the admin-edited instructions (falls back to the static markup).

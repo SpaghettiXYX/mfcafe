@@ -772,8 +772,11 @@
           applyReservationState();
           renderMenu();
           updateCustPriceSummary();
-          showPromoPopup();
           hideAppLoader();
+          // Greet every visitor with the house instructions; the promo popup
+          // waits until they close it.
+          if (state.openDayReservationOpen !== false) openInstructions();
+          else showPromoPopup();
         })
         .catch(() => { hideAppLoader(); showToast("Failed to load menu. Please refresh.", "error"); });
 
@@ -2401,6 +2404,8 @@
       if (!modal) return;
       modal.classList.add('hidden');
       document.body.style.overflow = '';
+      // Anything that wanted to be seen after the greetings (promo) goes now.
+      showPromoPopup();
     }
 
     document.addEventListener('keydown', (event) => {
