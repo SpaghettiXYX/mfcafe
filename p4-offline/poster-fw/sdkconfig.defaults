@@ -1,0 +1,29 @@
+# ESP32-P4 (WT0132P4-A1-N16R32X: 16MB flash / 32MB PSRAM)
+CONFIG_IDF_TARGET="esp32p4"
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+# flash mode / frequency are left at the target defaults: the P4 module uses
+# 16MB flash in a mode that does not have to be QIO@80M, and forcing it can
+# make the chip fail to boot.
+
+# PSRAM
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_HEX=y
+CONFIG_SPIRAM_SPEED_200M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=16384
+
+# Partition table
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# Logs
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# JPEG hardware decoder
+CONFIG_JPEG_ENABLE_DEBUG_LOG=n
+
+# SPIFFS defaults (must stay in sync with spiffsgen.py used by the build)
+CONFIG_SPIFFS_PAGE_SIZE=256
+CONFIG_SPIFFS_OBJ_NAME_LEN=32
+CONFIG_SPIFFS_USE_MAGIC=y
+CONFIG_SPIFFS_USE_MAGIC_LENGTH=y

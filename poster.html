@@ -225,6 +225,13 @@
   const SLIDE_MS = 12000;          // default dwell time
   const MANIFEST = "assets/posters/manifest.json";
 
+  // Used when the page is opened straight from disk (file://), where fetch()
+  // of a local JSON file is blocked by the browser.
+  const FALLBACK_POSTERS = [
+    { src: "assets/cropped-coldmatchalatte.jpg", kicker: "Cold", title: "Matcha Latte", caption: "Iced, shaken, not stirred", price: 42, accent: "#6E8B5B", seconds: 12000 },
+    { src: "assets/cropped-coldhojichalatte.jpg", kicker: "Cold", title: "Hojicha Latte", caption: "Roasted tea, creamy finish", price: 40, accent: "#A9713F", seconds: 12000 },
+  ];
+
   const state = {
     posters: [],      // manual entries from the manifest
     autos: [],        // promo / offer / picks built from the backend
@@ -278,7 +285,7 @@
       const list = Array.isArray(data) ? data : (data.posters || []);
       state.posters = list.filter(p => p && p.src);
     } catch (err) {
-      state.posters = [];
+      state.posters = FALLBACK_POSTERS.slice();
     }
   }
 
