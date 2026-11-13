@@ -4053,11 +4053,27 @@
       return sanitizePrintText(receiptRawLineFor(block, order)).trim();
     }
 
-    // Snack add-ons ride with the drink, so they print on one extra line right
-    // under the drink name. "" when the order has no extras.
-    function receiptExtrasLine(order) {
-      const extras = String((order && order.extras) || "").trim();
-      return extras ? "EXTRAS: " + extras : "";
+    // One line per snack so several add-ons cannot be truncated into a single
+    // 48mm line. Accept both the sheet's "Cookie x2, Muffin x1" text and the
+    // structured { name, qty } array used by checkout.
+    function receiptExtrasLines(order) {
+      const raw = order && order.extras;
+      const extras = Array.isArray(raw) ? raw : String(raw || "").split(",");
+      return extras.map(extra => {
+        let name = "";
+        let qty = 1;
+        if (extra && typeof extra === "object") {
+          name = String(extra.name || "").trim();
+          qty = Math.max(1, Math.floor(Number(extra.qty) || 1));
+        } else {
+          const text = String(extra == null ? "" : extra).trim();
+          const match = text.match(/^(.*?)\s*[x×]\s*(\d+)\s*$/i);
+          name = (match ? match[1] : text).trim();
+          if (match) qty = Math.max(1, parseInt(match[2], 10) || 1);
+        }
+        // Quantity comes first so it remains visible if a long name is clipped.
+        return name ? "SNACK x" + qty + ": " + name : "";
+      }).filter(Boolean);
     }
 
     // Build ESC/POS byte buffer for a single cup label, driven by the layout.
@@ -4083,8 +4099,9 @@
           bold: isPrimaryNumber ? true : block.bold
         });
         if (block.type === "field" && block.field === "productName") {
-          const extrasLine = receiptExtrasLine(order);
-          if (extrasLine) pushPrintText(buf, extrasLine, { align: "left", size: 1, bold: false });
+          receiptExtrasLines(order).forEach(line => {
+            pushPrintText(buf, line, { align: "left", size: 1, bold: true });
+          });
         }
       }
       buf.push(0x0a, 0x0a);
@@ -4104,7 +4121,7 @@
       return {
         orderNum: "A123", productName: "Iced Latte", temp: "Cold", cupType: "In-Store",
         guestName: "Guest", qrTile: "12", customization: "Less ice", price: "3.50",
-        status: "RESERVED", pickupTime: "14:30"
+        extras: "Cookie x2, Muffin x1", status: "RESERVED", pickupTime: "14:30"
       };
     }
 
@@ -4260,8 +4277,9 @@
         const align = isPrimaryNumber ? "center" : (b.align || "left");
         rows.push(`<div style="text-align:${align};font-size:${px}px;font-weight:${weight};white-space:pre;overflow:hidden;">${layoutEsc(text)}</div>`);
         if (b.type === "field" && b.field === "productName") {
-          const extrasLine = receiptExtrasLine(order);
-          if (extrasLine) rows.push(`<div style="text-align:left;font-size:11px;font-weight:400;white-space:pre;overflow:hidden;">${layoutEsc(extrasLine)}</div>`);
+          receiptExtrasLines(order).forEach(line => {
+            rows.push(`<div style="text-align:left;font-size:11px;font-weight:800;white-space:pre;overflow:hidden;">${layoutEsc(line)}</div>`);
+          });
         }
       }
       paper.innerHTML = rows.join("");
@@ -5258,6 +5276,7 @@
         guestName: "Sample Customer",
         qrTile: "5",
         customization: "+ Oat Milk, No Sugar",
+        extras: "Cookie x2, Muffin x1",
         categoryColor: "#0ea5e9"
       };
       printBluetoothLabel(sample);
@@ -5273,7 +5292,8 @@
         cupType: "In-Store",
         guestName: "Mr. Wong",
         qrTile: "3",
-        customization: "+ Extra Shot"
+        customization: "+ Extra Shot",
+        extras: "Cookie x2, Muffin x1"
       };
       printBluetoothKitchen(sample);
     }
@@ -5287,9 +5307,9 @@
       pushPrintText(buf, "Order #" + order.orderNum + "  " + new Date().toLocaleTimeString(), { align: "left", size: 1 });
       pushPrintText(buf, "Guest: " + (order.guestName || "Guest"), { align: "left", size: 1 });
       pushPrintText(buf, String(order.productName).toUpperCase(), { align: "center", size: 3, bold: true });
-      if (String(order.extras || "").trim()) {
-        pushPrintText(buf, "  EXTRAS: " + String(order.extras).trim(), { align: "left", size: 1 });
-      }
+      receiptExtrasLines(order).forEach(line => {
+        pushPrintText(buf, "  " + line, { align: "left", size: 1, bold: true });
+      });
       pushPrintText(buf, "  " + (order.temp || "") + "   " + (order.cupType || "In-Store").toUpperCase(), { align: "left", size: 1 });
       pushPrintText(buf, "  Tile: " + (order.qrTile || "-"), { align: "left", size: 1 });
       if (order.customization) {
