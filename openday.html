@@ -163,6 +163,15 @@
       transition: transform .32s cubic-bezier(.32,.72,0,1);
     }
     #itemOptions.hidden { display: none !important; }
+    /* The checkout button never scrolls away — pin it to the bottom edge.
+       dvh keeps the footer on-screen while mobile browser chrome shows. */
+    body { min-height: 100dvh; }
+    #orderFooter {
+      position: sticky; bottom: 0; z-index: 30;
+      margin: 0 -1rem;
+      padding: 0.75rem 1rem calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+      background: linear-gradient(to top, var(--bg) 72%, transparent);
+    }
     #itemOptions.open { transform: translate(-50%, 0); }
     #itemScrim {
       position: fixed; inset: 0; z-index: 70;
