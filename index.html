@@ -1700,6 +1700,7 @@
       selectedCategory: "All",
       selectedQRTile: "",
       orderHistory: [],
+      orderHistoryTotals: null,   // { revenue, count } over the WHOLE Orders Log
       currentUser: null,
       currentUserRole: "Staff",
       currentUserCanPrint: false,   // from login / Users sheet (Admins always true)
@@ -2211,10 +2212,16 @@
         .then(data => {
           if (Array.isArray(data.orders)) {
             state.orderHistory = data.orders;
+            // Totals are computed server-side over the full log: the array
+            // above is capped at `limit` rows and must not be summed.
+            state.orderHistoryTotals = {
+              revenue: Number(data.totalRevenue) || 0,
+              count: Number(data.totalCount) || 0
+            };
             const revEl = document.getElementById('adminRevenue');
             const cntEl = document.getElementById('adminTotalOrders');
-            if (revEl) revEl.innerText = fmtPrice(data.totalRevenue || 0);
-            if (cntEl) cntEl.innerText = data.totalCount || 0;
+            if (revEl) revEl.innerText = fmtPrice(state.orderHistoryTotals.revenue);
+            if (cntEl) cntEl.innerText = state.orderHistoryTotals.count;
             renderAdminFinancialLog();
           }
         })
@@ -5360,13 +5367,21 @@
       renderAdminPrinterStatus();
       switchAdminPortal('teacher');
 
-      // Use orderHistory (all orders incl. CLEARED) for stats; fall back to active orders
-      const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
-      const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
-      const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
-
-      document.getElementById('adminRevenue').innerText = fmtPrice(rev);
-      document.getElementById('adminTotalOrders').innerText = paidOrders.length;
+      // Dashboard totals come from the server, which scans the whole Orders
+      // Log. state.orderHistory is capped at 200 rows, so summing it would
+      // under-report both revenue and the order count.
+      const totals = state.orderHistoryTotals;
+      if (totals) {
+        document.getElementById('adminRevenue').innerText = fmtPrice(totals.revenue);
+        document.getElementById('adminTotalOrders').innerText = totals.count;
+      } else {
+        // Before the history arrives, fall back to what is already loaded.
+        const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
+        const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
+        const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+        document.getElementById('adminRevenue').innerText = fmtPrice(rev);
+        document.getElementById('adminTotalOrders').innerText = paidOrders.length;
+      }
       document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
 
       document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;

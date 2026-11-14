@@ -1190,15 +1190,18 @@ function getOrderHistory(limit) {
 
   const data = ordersSheet.getDataRange().getValues();
   const max = limit || 200;
+  const allowedStatuses = ["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"];
   let orders = [];
   let revenue = 0;
-  // Start from the end (most recent)
-  for (let i = data.length - 1; i >= 1 && orders.length < max; i--) {
+  let servedCount = 0;
+  // Scan the entire log so dashboard totals are not truncated at the page
+  // size; only the returned order list is capped at `max` rows.
+  for (let i = data.length - 1; i >= 1; i--) {
     const row = data[i];
     const status = String(row[9] || "").trim().toUpperCase();
-    if (["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"].includes(status)) {
+    if (allowedStatuses.includes(status)) {
       const paymentStatus = String(row[11] || "").trim().toUpperCase() || "PAID";
-      orders.push({
+      if (orders.length < max) orders.push({
         orderNum: row[0] instanceof Date ? String(row[0]).trim() : String(row[0] || "").trim(),
         orderTime: row[1] ? (row[1] instanceof Date ? Utilities.formatDate(row[1], Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss'Z'") : String(row[1])) : "",
         pickupTime: row[2] ? String(row[2]).replace(/^'/, "") : "",
@@ -1218,10 +1221,13 @@ function getOrderHistory(limit) {
         extras: String(row[16] || "").trim(),
         extrasTotal: Number(row[17]) || 0
       });
-      if (paymentStatus !== "UNPAID") revenue += (Number(row[8]) || 0) - (Number(row[13]) || 0);
+      if (paymentStatus !== "UNPAID") {
+        revenue += (Number(row[8]) || 0) - (Number(row[13]) || 0);
+        servedCount++;
+      }
     }
   }
-  return { orders: orders, totalRevenue: revenue, totalCount: orders.length };
+  return { orders: orders, totalRevenue: revenue, totalCount: servedCount };
 }
 
 // ==================== ORDERS ====================
