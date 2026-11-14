@@ -1,0 +1,16 @@
+[Unit]
+Description=MFCAFE poster screen sync (Pi -> ESP32-P4 USB)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/mfc-poster/poster_sync.py \
+    --api https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec
+Restart=always
+RestartSec=10
+User=pi
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

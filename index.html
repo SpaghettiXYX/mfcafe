@@ -1062,6 +1062,51 @@
         </div>
       </div>
 
+      <!-- POSTER SCREEN (CS80 800x1280, driven by the Raspberry Pi over USB) -->
+      <div data-admin-section="posters" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="font-black text-slate-800 text-lg">
+              <i class="fa-solid fa-images text-amber-500 mr-2"></i> Poster Screen
+            </h3>
+            <p class="text-[11px] text-slate-400 mt-1">CS80 800×1280 screen driven by the Raspberry Pi over USB. Posters loop in the order below; the Pi picks up changes within about 15 seconds.</p>
+          </div>
+          <button onclick="loadPosters()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-1.5 flex-shrink-0">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Rotation interval (seconds)</label>
+            <input type="number" min="1" max="600" step="1" id="posterIntervalInput"
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 mb-1">Brightness <span id="posterBrightnessLabel" class="text-slate-400">80%</span></label>
+            <input type="range" min="0" max="100" step="5" id="posterBrightnessInput"
+              oninput="document.getElementById('posterBrightnessLabel').textContent=this.value+'%'"
+              class="w-full accent-amber-500 mt-3">
+          </div>
+          <div class="flex items-end">
+            <button onclick="savePosterSettingsSubmit()" class="w-full bg-amber-400 hover:bg-amber-300 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-extrabold transition">
+              <i class="fa-solid fa-floppy-disk mr-1"></i> Save settings
+            </button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+          <label class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer inline-flex items-center gap-2">
+            <i class="fa-solid fa-upload"></i> Upload posters
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="uploadPosterFiles(this.files); this.value='';">
+          </label>
+          <span id="posterUploadStatus" class="text-[11px] font-bold text-slate-400"></span>
+        </div>
+
+        <div id="posterGrid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+        <p class="text-[10px] text-slate-400">Images are centre-cropped to 800×1280 JPEG before upload. Order here is the playback order.</p>
+      </div>
+
       <!-- Configurable Remark Hotkeys Manager -->
       <div data-admin-section="operation" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
         <h3 class="font-black text-slate-800 text-lg border-b border-slate-100 pb-3">
@@ -4816,6 +4861,7 @@
       { key: "promotions",   label: "Promotions",         icon: "fa-percent" },
       { key: "kdsstatus",    label: "KDS Status",         icon: "fa-signal" },
       { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
+      { key: "posters",      label: "Poster Screen",      icon: "fa-images" },
       { key: "categories",   label: "Categories",          icon: "fa-tags" },
       { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
       { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
@@ -4862,6 +4908,180 @@
       if (key === "manual") renderManualEditor();
       if (key === "promotions") renderPromotionsEditor();
       if (key === "staffcards") renderAdminStaffCards();
+      if (key === "posters") loadPosters();
+    }
+
+    // ==================== ADMIN: POSTER SCREEN ====================
+    // The CS80 panel is driven by a Raspberry Pi over USB; this section only
+    // owns the content set (Drive file + manifest) that the Pi polls.
+    let posterState = { items: [], interval_ms: 8000, brightness: 80, version: "0" };
+
+    async function loadPosters() {
+      const grid = document.getElementById("posterGrid");
+      if (grid && !posterState.items.length) {
+        grid.innerHTML = '<p class="text-xs text-slate-400 col-span-full">Loading…</p>';
+      }
+      try {
+        const res = await apiPost({ action: "getPosters" });
+        if (!res || !res.success) throw new Error((res && res.error) || "Could not load posters");
+        posterState = res;
+        const intervalSec = Math.max(1, Math.round((res.interval_ms || 8000) / 1000));
+        document.getElementById("posterIntervalInput").value = intervalSec;
+        document.getElementById("posterBrightnessInput").value = res.brightness;
+        document.getElementById("posterBrightnessLabel").textContent = res.brightness + "%";
+        renderPosterGrid();
+      } catch (e) {
+        if (grid) grid.innerHTML = '<p class="text-xs text-rose-500 col-span-full">' + escapeHtml(e.message) + "</p>";
+      }
+    }
+
+    function renderPosterGrid() {
+      const grid = document.getElementById("posterGrid");
+      if (!grid) return;
+      if (!posterState.items.length) {
+        grid.innerHTML = '<p class="text-xs text-slate-400 col-span-full">No posters yet. Upload 800×1280 images above.</p>';
+        return;
+      }
+      grid.innerHTML = posterState.items.map((p, i) => `
+        <div class="border ${p.active ? "border-slate-200" : "border-dashed border-slate-200 opacity-60"} rounded-2xl overflow-hidden bg-slate-50">
+          <div class="aspect-[5/8] bg-slate-200 relative">
+            ${p.thumb ? `<img src="${p.thumb}" alt="" class="w-full h-full object-cover">` : ""}
+            <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-black px-2 py-0.5 rounded-md">#${i + 1}</span>
+          </div>
+          <div class="p-2 space-y-1.5">
+            <p class="text-[10px] font-bold text-slate-700 truncate" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</p>
+            <div class="flex items-center justify-between gap-1">
+              <label class="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                <input type="checkbox" ${p.active ? "checked" : ""} onchange="togglePosterActive('${p.id}', this.checked)"> On
+              </label>
+              <div class="flex items-center gap-1">
+                <button onclick="movePoster(${i}, -1)" class="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 text-[10px]" title="Move up"><i class="fa-solid fa-arrow-up"></i></button>
+                <button onclick="movePoster(${i}, 1)" class="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 text-[10px]" title="Move down"><i class="fa-solid fa-arrow-down"></i></button>
+                <button onclick="deletePosterById('${p.id}')" class="w-6 h-6 rounded-lg bg-rose-50 text-rose-600 text-[10px]" title="Delete"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function uploadPosterFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return;
+      const status = document.getElementById("posterUploadStatus");
+      const payload = [];
+      try {
+        for (let i = 0; i < files.length; i++) {
+          status.textContent = `Preparing ${i + 1}/${files.length}…`;
+          const data = await fileToPosterBase64(files[i]);
+          payload.push({ name: files[i].name.replace(/\.[^.]+$/, "") + ".jpg", data: data });
+        }
+        status.textContent = "Uploading…";
+        const res = await apiPost({ action: "uploadPosters", posters: payload });
+        if (!res.success) throw new Error(res.error || "Upload failed");
+        posterState = res;
+        renderPosterGrid();
+        status.textContent = `Uploaded ${files.length} poster${files.length > 1 ? "s" : ""}. The Pi will push them shortly.`;
+        showToast("Posters uploaded", "success");
+      } catch (e) {
+        status.textContent = "";
+        showToast("Poster upload failed: " + e.message, "error");
+      }
+    }
+
+    // Centre-crop to exactly 800x1280 and re-encode as JPEG so the panel never
+    // receives an off-size image.
+    function fileToPosterBase64(file) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const W = 800, H = 1280;
+            const canvas = document.createElement("canvas");
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext("2d");
+            const scale = Math.max(W / img.width, H / img.height);
+            const w = img.width * scale, h = img.height * scale;
+            ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+            resolve(canvas.toDataURL("image/jpeg", 0.88).split(",")[1]);
+          } catch (e) { reject(e); }
+          finally { URL.revokeObjectURL(url); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Unsupported image")); };
+        img.src = url;
+      });
+    }
+
+    async function savePosterSettingsSubmit() {
+      const intervalSec = Math.max(1, Math.min(600, parseInt(document.getElementById("posterIntervalInput").value, 10) || 8));
+      const brightness = parseInt(document.getElementById("posterBrightnessInput").value, 10) || 0;
+      try {
+        const res = await apiPost({
+          action: "savePosterSettings",
+          settings: {
+            interval_ms: intervalSec * 1000,
+            brightness: brightness,
+            items: posterState.items.map(p => ({ id: p.id, active: p.active }))
+          }
+        });
+        if (!res.success) throw new Error(res.error || "Save failed");
+        posterState = res;
+        renderPosterGrid();
+        showToast("Poster settings saved", "success");
+      } catch (e) {
+        showToast("Save failed: " + e.message, "error");
+      }
+    }
+
+    async function togglePosterActive(id, active) {
+      const item = posterState.items.find(p => p.id === id);
+      if (!item) return;
+      item.active = !!active;
+      try {
+        const res = await apiPost({
+          action: "savePosterSettings",
+          settings: { items: posterState.items.map(p => ({ id: p.id, active: p.active })) }
+        });
+        if (!res.success) throw new Error(res.error || "Failed");
+        posterState = res;
+        renderPosterGrid();
+      } catch (e) {
+        showToast("Update failed: " + e.message, "error");
+        loadPosters();
+      }
+    }
+
+    async function movePoster(index, delta) {
+      const target = index + delta;
+      if (target < 0 || target >= posterState.items.length) return;
+      const items = posterState.items.slice();
+      const tmp = items[index];
+      items[index] = items[target];
+      items[target] = tmp;
+      try {
+        const res = await apiPost({ action: "reorderPosters", ids: items.map(p => p.id) });
+        if (!res.success) throw new Error(res.error || "Reorder failed");
+        posterState = res;
+        renderPosterGrid();
+      } catch (e) {
+        showToast("Reorder failed: " + e.message, "error");
+      }
+    }
+
+    async function deletePosterById(id) {
+      const found = posterState.items.find(p => p.id === id);
+      if (!confirm(`Delete poster "${found ? found.name : id}"?`)) return;
+      try {
+        const res = await apiPost({ action: "deletePoster", id: id });
+        if (!res.success) throw new Error(res.error || "Delete failed");
+        posterState = res;
+        renderPosterGrid();
+        showToast("Poster deleted", "success");
+      } catch (e) {
+        showToast("Delete failed: " + e.message, "error");
+      }
     }
 
     // ==================== ADMIN: STAFF CARD LOGIN ====================

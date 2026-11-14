@@ -1997,6 +1997,10 @@ function doGet(e) {
   if (action === "checkUpdate") {
     return jsonResponse({ version: getVersion(), timestamp: Date.now() });
   }
+  // Public, no login: the Raspberry Pi polls this to know what to push.
+  if (action === "posters") {
+    return jsonResponse(getPostersPublic());
+  }
   if (action === "getOrderHistory") {
     const limit = parseInt(e.parameter.limit, 10) || 200;
     return jsonResponse(getOrderHistory(limit));
@@ -2266,7 +2270,174 @@ function doPost(e) {
     if (action === "getHub")         return jsonResponse(getHubInfo());
     if (action === "saveReceiptLayout") return jsonResponse(saveReceiptLayout(data.layout));
 
+    // ----- Poster screen (admin panel writes, Pi pulls) -----
+    if (action === "getPosters") return jsonResponse(getPostersAdmin());
+    if (action === "uploadPosters") return jsonResponse(uploadPosters(data.posters));
+    if (action === "deletePoster") return jsonResponse(deletePoster(data.id));
+    if (action === "reorderPosters") return jsonResponse(reorderPosters(data.ids));
+    if (action === "savePosterSettings") return jsonResponse(savePosterSettings(data.settings || data));
+
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
   }
+}
+
+// ==================== POSTER SCREEN (CS80 / ESP32-P4) ====================
+// The admin panel stores JPEGs in a Drive folder and a small JSON manifest in
+// script properties. The Raspberry Pi polls ?action=posters, and whenever the
+// version string changes it downloads the set and re-pushes it over USB.
+// Files are shared "anyone with the link" so the Pi needs no OAuth token.
+const POSTER_SET_KEY = "POSTER_SET";
+const POSTER_FOLDER_NAME = "MFCAFE Posters";
+const POSTER_DEFAULT_INTERVAL = 8000;
+const POSTER_DEFAULT_BRIGHTNESS = 80;
+const POSTER_MAX_BYTES = 6 * 1024 * 1024;
+
+function getPosterSet_() {
+  const raw = PropertiesService.getScriptProperties().getProperty(POSTER_SET_KEY);
+  let cfg = null;
+  if (raw) {
+    try { cfg = JSON.parse(raw); } catch (e) { cfg = null; }
+  }
+  if (!cfg) {
+    cfg = { version: "0", interval_ms: POSTER_DEFAULT_INTERVAL, brightness: POSTER_DEFAULT_BRIGHTNESS, items: [] };
+  }
+  cfg.items = Array.isArray(cfg.items) ? cfg.items : [];
+  cfg.interval_ms = Number(cfg.interval_ms) || POSTER_DEFAULT_INTERVAL;
+  cfg.brightness = Number(cfg.brightness);
+  if (!isFinite(cfg.brightness)) cfg.brightness = POSTER_DEFAULT_BRIGHTNESS;
+  cfg.version = String(cfg.version || "0");
+  return cfg;
+}
+
+function savePosterSet_(cfg) {
+  cfg.version = String(Date.now());
+  PropertiesService.getScriptProperties().setProperty(POSTER_SET_KEY, JSON.stringify(cfg));
+  return cfg;
+}
+
+function posterFolder_() {
+  const it = DriveApp.getFoldersByName(POSTER_FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(POSTER_FOLDER_NAME);
+}
+
+function posterDownloadUrl_(driveId) {
+  return "https://drive.google.com/uc?export=download&id=" + encodeURIComponent(driveId);
+}
+
+function posterThumbUrl_(driveId) {
+  return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(driveId) + "&sz=w400";
+}
+
+function getPostersPublic() {
+  const cfg = getPosterSet_();
+  const items = cfg.items.filter(function (it) { return it.active !== false && it.driveId; });
+  return {
+    success: true,
+    version: cfg.version,
+    interval_ms: cfg.interval_ms,
+    brightness: cfg.brightness,
+    posters: items.map(function (it) {
+      return { name: it.name || "poster.jpg", size: Number(it.size) || 0, url: posterDownloadUrl_(it.driveId) };
+    })
+  };
+}
+
+function getPostersAdmin() {
+  const cfg = getPosterSet_();
+  return {
+    success: true,
+    version: cfg.version,
+    interval_ms: cfg.interval_ms,
+    brightness: cfg.brightness,
+    posters: cfg.items.map(function (it) {
+      return {
+        id: it.id,
+        name: it.name,
+        size: Number(it.size) || 0,
+        active: it.active !== false,
+        thumb: it.driveId ? posterThumbUrl_(it.driveId) : "",
+        url: it.driveId ? posterDownloadUrl_(it.driveId) : ""
+      };
+    })
+  };
+}
+
+// posters: [{ name, data(base64 JPEG, already 800x1280) }]
+function uploadPosters(posters) {
+  if (!posters || !posters.length) throw new Error("no posters supplied");
+  const folder = posterFolder_();
+  const cfg = getPosterSet_();
+  posters.forEach(function (p) {
+    const bytes = Utilities.base64Decode(p.data);
+    if (!bytes.length) throw new Error("empty file");
+    if (bytes.length > POSTER_MAX_BYTES) throw new Error("file too large (max 6 MB)");
+    const name = String(p.name || "poster.jpg").replace(/[\r\n]/g, " ").slice(0, 80);
+    const file = folder.createFile(Utilities.newBlob(bytes, "image/jpeg", name));
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      // Domain policy may forbid link sharing; the Pi download will then fail.
+    }
+    cfg.items.push({
+      id: Utilities.getUuid(),
+      driveId: file.getId(),
+      name: name,
+      size: bytes.length,
+      active: true,
+      uploadedAt: Date.now()
+    });
+  });
+  savePosterSet_(cfg);
+  return getPostersAdmin();
+}
+
+function deletePoster(id) {
+  const cfg = getPosterSet_();
+  const keep = [];
+  cfg.items.forEach(function (it) {
+    if (it.id === id) {
+      try { DriveApp.getFileById(it.driveId).setTrashed(true); } catch (e) { /* already gone */ }
+    } else {
+      keep.push(it);
+    }
+  });
+  cfg.items = keep;
+  savePosterSet_(cfg);
+  return getPostersAdmin();
+}
+
+function reorderPosters(ids) {
+  const cfg = getPosterSet_();
+  const byId = {};
+  cfg.items.forEach(function (it) { byId[it.id] = it; });
+  const ordered = [];
+  (ids || []).forEach(function (id) {
+    if (byId[id]) { ordered.push(byId[id]); delete byId[id]; }
+  });
+  cfg.items.forEach(function (it) { if (byId[it.id]) ordered.push(it); });
+  cfg.items = ordered;
+  savePosterSet_(cfg);
+  return getPostersAdmin();
+}
+
+function savePosterSettings(settings) {
+  const cfg = getPosterSet_();
+  if (settings.interval_ms !== undefined) {
+    const v = Number(settings.interval_ms);
+    if (isFinite(v)) cfg.interval_ms = Math.min(600000, Math.max(1000, Math.round(v)));
+  }
+  if (settings.brightness !== undefined) {
+    const b = Number(settings.brightness);
+    if (isFinite(b)) cfg.brightness = Math.min(100, Math.max(0, Math.round(b)));
+  }
+  if (Array.isArray(settings.items)) {
+    const flags = {};
+    settings.items.forEach(function (x) { flags[x.id] = !!x.active; });
+    cfg.items.forEach(function (it) {
+      if (Object.prototype.hasOwnProperty.call(flags, it.id)) it.active = flags[it.id];
+    });
+  }
+  savePosterSet_(cfg);
+  return getPostersAdmin();
 }
