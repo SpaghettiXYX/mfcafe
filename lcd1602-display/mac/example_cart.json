@@ -1,0 +1,8 @@
+{
+  "items": [
+    { "name": "Americano", "qty": 2, "price": 12.00 },
+    { "name": "Cheesecake", "qty": 1, "price": 18.00 },
+    { "name": "Orange juice", "qty": 1, "price": 8.00 }
+  ],
+  "total": 50.00
+}
