@@ -27,14 +27,25 @@
     :root {
       /* Four background layers, ~2–3% luminance apart — borders are a light
          film, never a black frame. */
-      --bg: #f3f6fa; --surface: #ffffff; --surface-2: #f7f9fc; --surface-3: #eef2f7;
-      --border: rgba(15,23,42,0.08); --border-2: rgba(15,23,42,0.14);
-      --text: #0f172a; --text-2: #334155; --text-3: #64748b; --text-4: #94a3b8;
+      --bg: #f4f4f0; --surface: #ffffff; --surface-2: #f9f9f6; --surface-3: #eff1ec;
+      --border: #e3e6df; --border-2: #d4dad1;
+      --text: #202925; --text-2: #445149; --text-3: #748078; --text-4: #9aa39c;
+      --ink: var(--text); --muted: var(--text-3); --line: var(--border);
+      --green: #235f4e; --green-2: #2f7662; --green-soft: #e7f0eb;
+      --coffee: #b87545; --coffee-soft: #f4ebe2; --amber: #b77928; --amber-soft: #fbf1dc;
+      --red: #b64e4e; --red-soft: #faeaea; --blue: #47728a; --blue-soft: #eaf1f5;
+      --shadow: 0 1px 2px rgba(28,42,35,.03), 0 8px 28px rgba(28,42,35,.035);
+      --radius: 18px;
     }
     [data-theme="dark"] {
       --bg: #10151f; --surface: #161c28; --surface-2: #1c2331; --surface-3: #232b3b;
-      --border: rgba(226,232,240,0.07); --border-2: rgba(226,232,240,0.12);
+      --border: rgba(226,232,240,0.09); --border-2: rgba(226,232,240,0.15);
       --text: #eef2f8; --text-2: #d6dde8; --text-3: #aab5c6; --text-4: #7f8a9d;
+      --ink: var(--text); --muted: var(--text-3); --line: var(--border);
+      --green: #8fc7ad; --green-2: #a5d6bd; --green-soft: #203b32;
+      --coffee: #e3aa7a; --coffee-soft: #3b2d24; --amber: #e2b873; --amber-soft: #3a301f;
+      --red: #f0a3a3; --red-soft: #412528; --blue: #9bc4d8; --blue-soft: #233641;
+      --shadow: 0 8px 28px rgba(0,0,0,.18);
     }
     body { background-color: var(--bg); color: var(--text); }
     /* Boot logo is transparent ink: invert it on dark surfaces */
@@ -319,6 +330,288 @@
       /* POS unpaid queue */
       #unpaidOrdersContainer { gap: 0.5rem !important; }
     }
+
+    /* ===== MFCAFE WORKSPACE — production implementation of ui-demo ===== */
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-size: 14px; -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .app-shell { display: grid; grid-template-columns: 232px minmax(0,1fr); min-height: 100vh; }
+    .app-sidebar { position: sticky; top: 0; height: 100vh; padding: 22px 14px 16px; background: #1d2925; color: #dce5df; display: flex; flex-direction: column; z-index: 40; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 24px; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 12px; background: #e8b27d; color: #20332c; display: grid; place-items: center; font-size: 19px; flex: none; }
+    .brand-name { font-size: 17px; font-weight: 800; letter-spacing: .09em; color: #fff; }
+    .brand-sub { font-size: 10px; color: #90a199; margin-top: 3px; letter-spacing: .08em; text-transform: uppercase; }
+    .nav-label { padding: 13px 12px 7px; color: #71857b; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .side-nav { display: flex; flex-direction: column; gap: 3px; }
+    .nav-item { position: relative; border: 0; background: transparent; color: #a9b8b0; display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; border-radius: 11px; text-align: left; font-size: 13px; font-weight: 600; transition: .18s ease; }
+    .nav-item > i { width: 18px; text-align: center; font-size: 15px; flex: none; }
+    .nav-item:hover { background: #273832; color: #fff; }
+    .nav-item.active { background: #f0f3ed; color: #203b31; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+    .nav-item .nav-count { margin-left: auto; background: #43534c; color: #e2ebe5; border-radius: 20px; padding: 2px 7px; font-size: 10px; line-height: 1.35; min-width: 21px; text-align: center; }
+    .nav-item.active .nav-count { background: #d6e4da; color: #235f4e; }
+    #tab-kds .nav-count:not(.hidden) { background: #d98e56; color: #fff; }
+    .side-bottom { margin-top: auto; padding-top: 18px; }
+    .station-card { padding: 13px; border: 1px solid #35453e; background: #24332d; border-radius: 14px; }
+    .station-row { display: flex; align-items: center; gap: 9px; }
+    .status-dot { width: 7px; height: 7px; background: #75bd96; border-radius: 50%; box-shadow: 0 0 0 4px rgba(117,189,150,.1); }
+    .station-name { font-size: 12px; font-weight: 700; color: #eef4f0; }
+    .station-meta { font-size: 10px; color: #8fa198; margin-top: 5px; }
+    .workspace { min-width: 0; }
+    .topbar { height: 72px; position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(16px); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; gap: 20px; }
+    .crumb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .crumb strong { color: var(--text); font-weight: 700; }
+    .top-actions { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .sync-pill { display: flex; align-items: center; gap: 6px; background: var(--green-soft); color: var(--green); font-size: 10px; font-weight: 700; padding: 7px 10px; border-radius: 99px; margin: 0; white-space: nowrap; }
+    .sync-pill #syncStatusDot { width: 6px; height: 6px; margin: 0; flex: none; }
+    .sync-pill #syncLastTime { color: var(--muted); font-weight: 500; }
+    .top-clock { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-2); padding: 0 7px; white-space: nowrap; }
+    .top-clock i { color: var(--coffee); margin-right: 5px; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); display: inline-grid; place-items: center; flex: none; padding: 0; }
+    .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+    .top-user { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #e7d7c7; color: #6f4930; font-size: 11px; font-weight: 800; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line); flex: none; }
+    .top-user-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    #lblUsername { font-size: 11px; line-height: 1.1; font-weight: 750; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #lblRole { width: fit-content; font-size: 8px !important; line-height: 1.2; padding: 2px 5px !important; }
+    .logout-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--red); border-radius: 10px; min-height: 36px; padding: 0 10px; font-size: 11px; font-weight: 700; }
+    .logout-btn:hover { background: var(--red-soft); }
+    main.content { width: 100%; max-width: 1640px; margin: 0 auto; padding: 26px 28px 42px; }
+    .content > section { min-width: 0; }
+    .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 22px; }
+    .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: .13em; color: var(--coffee); font-weight: 800; margin-bottom: 6px; }
+    .page-title { font-size: 25px; line-height: 1.2; letter-spacing: -.025em; margin: 0; font-weight: 780; color: var(--text); }
+    .page-desc { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .head-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .content .bg-white { background-color: var(--surface); }
+    .content .bg-slate-50 { background-color: var(--surface-2); }
+    .content .bg-slate-100 { background-color: var(--surface-3); }
+    .content .border-slate-100, .content .border-slate-200, .content .border-slate-300 { border-color: var(--line); }
+    .content .text-slate-800, .content .text-slate-900 { color: var(--text); }
+    .content .text-slate-700 { color: var(--text-2); }
+    .content .text-slate-500, .content .text-slate-600 { color: var(--text-2); }
+    .content .text-slate-400 { color: var(--muted); }
+    .content .rounded-3xl { border-radius: var(--radius); }
+    .content .rounded-2xl { border-radius: 14px; }
+    .content .shadow-sm { box-shadow: var(--shadow); }
+    .content .text-amber-500, .content .text-amber-600 { color: var(--coffee); }
+    .content .text-emerald-600, .content .text-emerald-700 { color: var(--green); }
+    .content .bg-emerald-600 { background-color: #235f4e; }
+    .content .bg-emerald-600:hover { background-color: #1c5243; }
+    .content .bg-amber-500 { background-color: var(--coffee); }
+    .content .bg-amber-500:hover { background-color: #a6673b; }
+    .content .bg-amber-500.text-slate-950 { color: #fff; }
+    .content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    .content select, .content textarea,
+    .login-form input, body > .fixed input:not([type="checkbox"]):not([type="radio"]) { border-color: var(--line); color: var(--text); font-size: 12px; }
+    .content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    .content select, .content textarea { border-radius: 11px; }
+    input:focus, textarea:focus, select:focus { border-color: var(--green-2) !important; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px rgba(47,118,98,.2) !important; }
+    .content table th { background: var(--surface-2); color: var(--muted); font-size: 9px; letter-spacing: .07em; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .content table td { padding-top: 13px; padding-bottom: 13px; border-bottom-color: var(--line); }
+    .content tbody tr:hover { background: color-mix(in srgb, var(--surface-2) 75%, transparent); }
+
+    /* Login */
+    .login-overlay { background: rgba(20,32,27,.84); backdrop-filter: blur(14px); overflow-y: auto; }
+    .login-shell { width: min(960px,100%); margin: auto; display: grid; grid-template-columns: 1fr 1fr; min-height: 590px; overflow: hidden; border-radius: 26px; box-shadow: 0 25px 70px rgba(15,28,22,.25); }
+    .login-brand { background: #1e352c; color: #fff; padding: 48px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+    .login-brand:after { content: ""; position: absolute; width: 340px; height: 340px; border: 1px solid rgba(255,255,255,.08); border-radius: 50%; right: -180px; bottom: -100px; box-shadow: 0 0 0 55px rgba(255,255,255,.025), 0 0 0 110px rgba(255,255,255,.018); }
+    .login-brand .brand { padding: 0; }
+    .login-quote { margin: auto 0; position: relative; z-index: 1; padding: 45px 0; }
+    .login-quote .eyebrow { color: #dfaa76; }
+    .login-quote h2 { font-size: 34px; line-height: 1.13; letter-spacing: -.04em; margin: 12px 0 18px; }
+    .login-quote p { color: #a9bdb3; line-height: 1.8; font-size: 12px; max-width: 290px; }
+    .login-foot { font-size: 10px; color: #7f998c; position: relative; z-index: 1; letter-spacing: .08em; }
+    .login-form { background: var(--surface); color: var(--text); padding: 44px 48px; display: flex; flex-direction: column; justify-content: center; }
+    .login-form h3 { font-size: 24px; letter-spacing: -.03em; margin: 0 0 8px; }
+    .login-form > p { font-size: 12px; color: var(--muted); margin: 0 0 24px; }
+    .login-form .field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+    .login-form .field label { font-size: 11px; color: var(--text-2); font-weight: 700; }
+    .login-form input { width: 100%; min-height: 42px; border: 1px solid var(--line); background: var(--surface); border-radius: 11px; padding: 10px 12px; }
+    .login-input-icon { position: relative; }
+    .login-input-icon > i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .login-input-icon input { padding-left: 38px; }
+    .field-hint { font-size: 9px; color: var(--muted); }
+    .login-divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; margin: 4px 0 15px; }
+    .login-divider span { flex: 1; height: 1px; background: var(--line); }
+    .login-submit { margin-top: 7px; min-height: 45px; width: 100%; border: 1px solid #235f4e; border-radius: 11px; background: #235f4e; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 12px; font-weight: 750; }
+    .login-submit:hover { background: #1c5243; }
+    .login-submit:disabled { opacity: .6; cursor: wait; }
+    .login-error { color: var(--red) !important; font-size: 11px !important; font-weight: 700; text-align: center; margin: 0 0 8px !important; }
+    .login-security { text-align: center; font-size: 9px; color: var(--muted); margin-top: 17px; }
+    .account-chooser { background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px; margin-bottom: 14px; font-size: 10px; }
+    .account-chooser > p { color: var(--text-2); font-weight: 700; margin: 0 0 8px; }
+    .account-chooser > button { border: 0; background: transparent; color: var(--muted); padding: 6px 0 0; font-size: 10px; }
+    .google-login { margin-top: 12px; }
+
+    /* Shared operational components */
+    .soft-badge, .content span[id$="Count"], .content #menuAvailableBadge { border-radius: 99px; }
+    #menuAvailableBadge, #kdsPendingCount { background: var(--green-soft); color: var(--green); border: 0; padding: 6px 10px; font-size: 10px; }
+    .content .card-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+
+    /* POS */
+    .queue-panel { background: var(--coffee-soft) !important; border: 1px solid color-mix(in srgb,var(--coffee) 25%,var(--line)) !important; border-radius: 16px !important; padding: 15px 17px !important; }
+    .queue-panel h3 { color: var(--text); font-size: 12px; }
+    #unpaidOrdersContainer > div { border-color: color-mix(in srgb,var(--coffee) 25%,var(--line)); border-radius: 12px; box-shadow: none; }
+    .pos-layout { display: grid; grid-template-columns: minmax(0,1fr) 370px; gap: 20px; align-items: start; }
+    .menu-panel { padding: 19px !important; }
+    .pos-ticket { position: sticky; top: 92px; }
+    #categoryTabs { flex-wrap: nowrap !important; overflow-x: auto; gap: 5px !important; padding-bottom: 3px; }
+    .cat-btn { border: 1px solid transparent; background: transparent; color: var(--muted); padding: 8px 13px; border-radius: 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .cat-btn:hover { background: var(--surface-3); }
+    .cat-btn.active { background: var(--text); color: var(--surface); }
+    #posMenuGrid { grid-template-columns: repeat(auto-fill,minmax(145px,1fr)) !important; gap: 12px !important; }
+    .product { position: relative; display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 15px; padding: 0; overflow: hidden; transition: .18s; }
+    .product:hover { border-color: #b7c8bd; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30,50,40,.07); }
+    .product.selected { border-color: var(--green-2); box-shadow: 0 0 0 2px color-mix(in srgb,var(--green) 18%,transparent); }
+    .product-art { height: 76px; display: grid; place-items: center; position: relative; background: linear-gradient(145deg,#f3e8db,#e8d5c1); color: #8a5d3c; }
+    .product:nth-child(3n+2) .product-art { background: linear-gradient(145deg,#e7eee8,#d4e2d8); color: #4e715e; }
+    .product:nth-child(3n) .product-art { background: linear-gradient(145deg,#f2eee5,#e6dfcf); color: #8a7851; }
+    .product-art > i { font-size: 29px; }
+    .product-tag { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; background: rgba(255,255,255,.82); backdrop-filter: blur(5px); padding: 4px 6px; border-radius: 6px; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+    .product-add { position: absolute; right: 8px; bottom: 8px; width: 25px; height: 25px; border-radius: 8px; background: rgba(255,255,255,.9); display: grid; place-items: center; font-size: 11px; }
+    .product-info { display: block; padding: 11px 12px 12px; }
+    .product-name { display: block; color: var(--text); font-size: 12px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .product-meta { display: flex; justify-content: space-between; align-items: center; gap: 7px; margin-top: 6px; }
+    .product-price { font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .product-type { color: var(--muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #posSelectionDetails { background: var(--coffee-soft); border-color: color-mix(in srgb,var(--coffee) 25%,var(--line)); }
+    #posTempBtnContainer button, #posBtnCupStore, #posBtnCupTake { border-radius: 9px; }
+    #posSubmitPos, #btnSubmitPos { min-height: 46px; border-radius: 11px; background: #235f4e; }
+    #posTotalDisplay { font-size: 18px; }
+
+    /* KDS */
+    #kdsStatusStrip, #kdsMarqueeWrap { background: #1d3029; border-color: #34483f; border-radius: 14px; }
+    #kdsGrid { grid-template-columns: repeat(auto-fill,minmax(270px,1fr)) !important; gap: 15px !important; }
+    #kdsGrid > div { border-width: 1px !important; border-left-width: 4px !important; border-radius: 14px; box-shadow: var(--shadow); }
+    #kdsGrid .kds-unassigned { --kds-card-radius: 14px; }
+    #kdsGrid .kds-timer { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+    #kdsGrid h3 { letter-spacing: -.03em; }
+
+    /* Pickup display */
+    #view-pickup { background: #18231f; border: 7px solid #2b3531; border-radius: 24px; overflow: hidden; box-shadow: 0 22px 50px rgba(25,35,30,.15); }
+    #view-pickup .display-top { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 30px 19px; color: #fff; background: #18231f; border: 0; border-bottom: 1px solid rgba(255,255,255,.1); border-radius: 0; box-shadow: none; text-align: left; }
+    .display-brand { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 800; letter-spacing: .1em; }
+    .display-heading { text-align: center; flex: 1; }
+    .display-heading h2 { color: #fff; font-size: 25px; letter-spacing: -.02em; margin: 0; }
+    .display-heading p { color: #a9bdb4; font-size: 11px; margin: 6px 0 0; }
+    .display-counter { color: #dfaa76; font-size: 9px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+    #pickupQuickClear { margin: 16px 24px 0; background: rgba(255,255,255,.96); border: 0; border-radius: 13px; padding: 12px 15px; box-shadow: none; }
+    #view-pickup .pickup-body { padding: 27px 30px 34px; background: radial-gradient(circle at 85% 10%,rgba(232,178,125,.09),transparent 30%),#1c3029; min-height: 440px; }
+    #view-pickup .pickup-body > div { background: transparent; border: 0; box-shadow: none; padding: 0; }
+    .pickup-col-title { color: #dfaa76 !important; border-bottom: 0 !important; text-align: center; font-size: 11px !important; letter-spacing: .2em !important; margin-bottom: 22px !important; padding: 0 !important; }
+    #pickupReadyList { grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); max-width: 1050px; margin: 0 auto; gap: 15px !important; }
+    #pickupReadyList > div { background: #f7f4eb !important; color: #1d382e !important; border: 0 !important; border-radius: 17px; padding: 23px 12px !important; box-shadow: 0 7px 0 #d6d6c9; animation: pulse-soft 2s infinite; }
+    #pickupReadyList .pickup-number { font-size: 38px; }
+    #pickupReadyList .pickup-sub { color: #526c60; }
+    @keyframes pulse-soft { 50% { transform: translateY(-3px); } }
+    body.display-mode { display: block; }
+    body.display-mode .app-sidebar { display: none !important; }
+    body.display-mode main.content { max-width: none !important; padding: .75rem !important; }
+    body.display-mode #view-pickup > .pickup-body { flex: 1; }
+
+    /* Clearing */
+    .clearing-head { padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; }
+    .scan-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #helperGrid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)) !important; gap: 14px !important; }
+    #helperGrid > .helper-swipe { border-color: color-mix(in srgb,var(--green) 35%,var(--line)); border-radius: 15px; box-shadow: var(--shadow); }
+
+    /* Money */
+    .money-layout { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(300px,.85fr); gap: 20px; align-items: start; }
+    #moneyNotes > div, #moneyCoins > div { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    #moneyNotes > div:last-child, #moneyCoins > div:last-child { border-bottom: 0; }
+    .money-total-card { background: #1e352c !important; border: 1px solid #304b40 !important; border-radius: 18px !important; box-shadow: var(--shadow) !important; }
+    .money-total-card #moneyTotal { letter-spacing: -.04em; }
+
+    /* Admin */
+    .admin-layout { display: grid; grid-template-columns: 215px minmax(0,1fr); gap: 20px; align-items: start; }
+    #adminSidebar { border-radius: 16px; border-color: var(--line); box-shadow: var(--shadow); top: 92px !important; padding: 12px !important; }
+    #adminSidebar > p { color: var(--coffee); letter-spacing: .13em; padding: 5px 9px 11px; }
+    #adminSidebarLinks { gap: 3px; }
+    .admin-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: transparent; color: var(--text-2); text-align: left; padding: 9px 10px; border-radius: 9px; font-size: 11px; font-weight: 650; transition: .15s; }
+    .admin-nav-item i { width: 15px; text-align: center; color: var(--muted); }
+    .admin-nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .admin-nav-item.active { background: var(--green-soft); color: var(--green); }
+    .admin-nav-item.active i { color: var(--green); }
+    #adminContentArea { min-width: 0; }
+    #adminContentArea > [data-admin-section]:not(.hidden) { animation: workspace-enter .2s ease; }
+    #adminContentArea > [data-admin-section]:not([data-admin-section="dashboard"]) { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+    [data-admin-section="dashboard"] { gap: 14px !important; }
+    [data-admin-section="dashboard"] > div { border-radius: 16px; border-color: var(--line); box-shadow: var(--shadow); padding: 20px !important; }
+    [data-admin-section="dashboard"] > div > p:first-child { color: var(--muted); font-size: 10px; letter-spacing: .07em; }
+    [data-admin-section="dashboard"] > div > p:last-child { margin-top: 12px; letter-spacing: -.035em; }
+    #adminContentArea h3 { letter-spacing: -.015em; }
+    #adminPortalTabs, #manualAudienceTabs { background: var(--surface-3); }
+    #qrTilesGrid > * { border-radius: 11px; }
+    #posterGrid { align-items: start; }
+    #adminFinancialLog > * { border-radius: 11px; }
+    @keyframes workspace-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+    /* Dialogs and floating hardware card */
+    body > .fixed > .bg-white, #printerBar { background: var(--surface); color: var(--text); border-color: var(--line); border-radius: 18px; }
+    #toastContainer > div { border-radius: 12px; box-shadow: 0 12px 35px rgba(20,32,27,.18); }
+
+    @media (max-width: 1250px) {
+      .app-shell { grid-template-columns: 78px minmax(0,1fr); }
+      .app-sidebar { padding: 20px 10px; }
+      .app-sidebar .brand { padding: 0 9px 22px; }
+      .app-sidebar .brand > div:last-child, .app-sidebar .nav-label, .app-sidebar .nav-item > span, .station-card { display: none; }
+      .app-sidebar .nav-item { justify-content: center; padding: 11px; }
+      .app-sidebar .nav-item .nav-count { position: absolute; margin: 0; transform: translate(15px,-13px); font-size: 8px; padding: 2px 5px; }
+      .pos-layout { grid-template-columns: minmax(0,1fr) 340px; }
+      #syncLastTime { display: none; }
+      .top-user-copy { display: none; }
+    }
+    @media (max-width: 980px) {
+      .pos-layout, .money-layout, .admin-layout { grid-template-columns: 1fr; }
+      .pos-ticket { position: static; }
+      #adminSidebar { position: static !important; }
+      #adminSidebarLinks { flex-direction: row; overflow-x: auto; padding-bottom: 3px; }
+      .admin-nav-item { width: auto; flex: none; white-space: nowrap; }
+      .login-shell { grid-template-columns: 1fr; max-width: 520px; min-height: 0; }
+      .login-brand { display: none; }
+      .topbar { padding: 0 20px; }
+      main.content { padding: 22px 20px; }
+      .display-heading { display: none; }
+    }
+    @media (max-width: 650px) {
+      .app-shell { display: block; }
+      .app-sidebar { position: relative; width: 100%; height: auto; padding: 10px 12px; display: block; }
+      .app-sidebar .brand { padding: 0 0 10px; }
+      .app-sidebar .brand > div:last-child { display: block; }
+      .app-sidebar .brand-mark { width: 32px; height: 32px; }
+      .app-sidebar .side-nav { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+      .app-sidebar .nav-item { width: auto; flex: none; justify-content: flex-start; padding: 9px 11px; }
+      .app-sidebar .nav-item > span { display: inline; }
+      .app-sidebar .nav-item .nav-count, .app-sidebar .nav-label, .side-bottom { display: none; }
+      .topbar { height: 58px; padding: 0 14px; }
+      .crumb > span, .sync-pill, .top-clock { display: none; }
+      .top-actions { gap: 6px; }
+      .logout-btn span { display: none; }
+      .logout-btn { width: 36px; padding: 0; justify-content: center; }
+      main.content { padding: 18px 13px 30px; }
+      .page-title { font-size: 22px; }
+      .page-head { flex-direction: column; margin-bottom: 17px; gap: 12px; }
+      .head-actions { width: 100%; }
+      .pos-layout { display: block; }
+      .pos-ticket { margin-top: 16px; }
+      #posMenuGrid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+      #view-pickup { border-width: 4px; border-radius: 18px; }
+      #view-pickup .display-top { padding: 17px; }
+      #view-pickup .pickup-body { padding: 24px 15px; }
+      #pickupQuickClear { margin: 12px 12px 0; }
+      #pickupReadyList { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      #pickupReadyList .pickup-number { font-size: 30px; }
+      .login-form { padding: 32px 25px; }
+      .scan-actions { width: 100%; }
+      .scan-actions input { flex: 1; min-width: 150px; }
+      #moneyNotes > div, #moneyCoins > div { gap: 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #pickupReadyList > div, #adminContentArea > [data-admin-section]:not(.hidden) { animation: none; }
+    }
   </style>
 
   <!-- Apply the saved theme before first paint so the boot screen never
@@ -332,7 +625,7 @@
     } catch (e) {}
   </script>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="app-shell">
 
   <!-- BOOT / LOADING SCREEN — covers everything until initial data has landed -->
   <div id="bootScreen"
@@ -355,147 +648,152 @@
   </div>
 
   <!-- LOGIN MODAL / OVERLAY -->
-  <div id="loginOverlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 text-center space-y-6">
-      <div class="w-16 h-16 bg-amber-500 text-slate-950 rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-amber-500/30">
-        <i class="fa-solid fa-lock"></i>
+  <div id="loginOverlay" class="login-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="login-shell">
+      <div class="login-brand">
+        <div class="brand">
+          <div class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></div>
+          <div><div class="brand-name">MFCAFE</div><div class="brand-sub">Cafe workspace</div></div>
+        </div>
+        <div class="login-quote">
+          <div class="eyebrow">One space for your whole café</div>
+          <h2>Less admin.<br>More time for<br>great coffee.</h2>
+          <p>Orders, bar production, pickup and daily operations — connected in one calm workspace.</p>
+        </div>
+        <div class="login-foot">MFCAFE E-PORTAL · STAFF ACCESS ONLY</div>
       </div>
-      <div>
-        <h2 class="text-2xl font-black text-slate-800">MFCAFE Portal Login</h2>
-        <p class="text-xs text-slate-400 font-semibold mt-1">Please log in with your authorized staff credentials</p>
-      </div>
-
-      <div class="space-y-4 text-left">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Staff Card</label>
-          <div class="relative">
-            <i class="fa-solid fa-id-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300 text-sm"></i>
-            <input type="text" id="loginStaffCode" autocomplete="off" placeholder="Scan card or type staff ID"
-              class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+      <div class="login-form">
+        <h3>Welcome back</h3>
+        <p>Sign in to your café workspace.</p>
+        <div class="field">
+          <label for="loginStaffCode">Staff Card</label>
+          <div class="login-input-icon">
+            <i class="fa-solid fa-id-card"></i>
+            <input type="text" id="loginStaffCode" autocomplete="off" placeholder="Scan card or type staff ID">
           </div>
-          <p class="text-[10px] text-slate-400 font-semibold mt-1">Scan your card — one card can be linked to several accounts.</p>
+          <span class="field-hint">One card can be linked to several accounts.</span>
         </div>
-        <div id="loginAccountChooser" class="hidden bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-          <p class="text-[11px] font-bold text-slate-500">This card is linked to several accounts — choose one:</p>
+        <div id="loginAccountChooser" class="hidden account-chooser">
+          <p>This card is linked to several accounts — choose one:</p>
           <div id="loginAccountList" class="space-y-1.5"></div>
-          <button type="button" onclick="cancelStaffLogin()" class="text-[11px] font-bold text-slate-400 hover:text-slate-600">Cancel</button>
+          <button type="button" onclick="cancelStaffLogin()">Cancel</button>
         </div>
-        <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          <span class="flex-1 h-px bg-slate-200"></span>or use credentials<span class="flex-1 h-px bg-slate-200"></span>
+        <div class="login-divider"><span></span>or use credentials<span></span></div>
+        <div class="field">
+          <label for="loginUsername">Username</label>
+          <input type="text" id="loginUsername" placeholder="e.g. spaghetti">
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Username</label>
-          <input type="text" id="loginUsername" placeholder="e.g. spaghetti" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••">
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Password</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-amber-500">
+        <p id="loginError" class="login-error hidden"></p>
+        <button onclick="attemptLogin()" id="btnLogin" class="login-submit">Log In to Portal <i class="fa-solid fa-arrow-right"></i></button>
+        <div id="googleLoginSection" class="hidden google-login">
+          <div class="login-divider"><span></span>or<span></span></div>
+          <div id="googleBtn" class="flex justify-center"></div>
         </div>
-        <p id="loginError" class="text-xs font-bold text-rose-500 hidden text-center"></p>
-      </div>
-
-      <button onclick="attemptLogin()" id="btnLogin" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold py-3.5 rounded-2xl text-sm shadow-md transition">
-        Log In to Portal
-      </button>
-
-      <div id="googleLoginSection" class="hidden">
-        <div class="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-          <span class="flex-1 h-px bg-slate-200"></span>or<span class="flex-1 h-px bg-slate-200"></span>
-        </div>
-        <div id="googleBtn" class="flex justify-center"></div>
+        <div class="login-security"><i class="fa-solid fa-shield-halved"></i> Authorised staff access only</div>
       </div>
     </div>
   </div>
 
-  <!-- Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
-      <div class="flex items-center space-x-3">
-        <div class="bg-amber-500 text-slate-950 font-extrabold px-3 py-1.5 rounded-xl text-sm shadow-sm flex items-center space-x-2">
-          <i class="fa-solid fa-store"></i>
-          <span>MFCafe Portal</span>
-        </div>
-        <div>
-          <h1 class="font-extrabold text-lg text-slate-800 leading-tight">MFCafe E-Portal</h1>
-          <p id="syncStatusText" class="text-[11px] text-emerald-600 font-semibold flex items-center">
-            <span id="syncStatusDot" class="w-2 h-2 bg-emerald-500 rounded-full inline-block mr-1.5 animate-pulse"></span>
-            <span id="syncStatusLabel">Real-time Sync Active</span>
-            <span id="syncLastTime" class="ml-2 text-slate-400"></span>
-          </p>
-        </div>
-      </div>
-
-      <!-- Navigation Tabs & User Profile -->
-      <div class="flex items-center space-x-3">
-        <nav class="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs font-bold">
-          <button onclick="switchView('cashier')" id="tab-cashier" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
-            <i class="fa-solid fa-cash-register mr-1"></i> Cashier POS
-          </button>
-          <button onclick="switchView('kds')" id="tab-kds" class="px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative">
-            <i class="fa-solid fa-mug-saucer mr-1"></i> Bar KDS
-            <span id="badge-kds" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
-          </button>
-          <button onclick="switchView('pickup')" id="tab-pickup" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
-            <i class="fa-solid fa-tv mr-1"></i> Pickup Screen
-            <span id="badge-ready" class="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
-          </button>
-          <button onclick="switchView('helper')" id="tab-helper" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative">
-            <i class="fa-solid fa-square-check mr-1"></i> Clearing
-            <span id="badge-helper" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 text-[9px] font-black rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 hidden">0</span>
-          </button>
-          <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-            <i class="fa-solid fa-chart-pie mr-1"></i> Admin Panel
-          </button>
-          <button onclick="switchView('money')" id="tab-money" class="px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition">
-            <i class="fa-solid fa-money-bill-count mr-1"></i> Count Money
-          </button>
-        </nav>
-
-        <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
-          <span id="clockBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 hidden sm:block">
-            <i class="fa-regular fa-clock text-amber-500 mr-1"></i>
-            <span id="clockDisplay">--:--</span>
-          </span>
-          <button onclick="toggleSound()" id="soundToggle" title="Toggle notification sound" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
-            <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-600"></i>
-          </button>
-          <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" class="text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200 transition">
-            <i id="themeIcon" class="fa-solid fa-moon text-slate-600"></i>
-          </button>
-          <span id="userBadge" class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 flex items-center gap-2">
-            <span class="flex items-center">
-              <i class="fa-solid fa-user-circle text-amber-500 mr-1.5 text-sm"></i>
-              <span id="lblUsername">Staff</span>
-            </span>
-            <span id="lblRole" class="text-[10px] uppercase px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-600">Staff</span>
-          </span>
-          <button onclick="logout()" class="text-xs font-bold text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-xl border border-rose-200 transition">
-            Logout
-          </button>
-        </div>
+  <!-- PRIMARY WORKSPACE NAVIGATION -->
+  <aside class="app-sidebar">
+    <div class="brand">
+      <div class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></div>
+      <div><div class="brand-name">MFCAFE</div><div class="brand-sub">Cafe workspace</div></div>
+    </div>
+    <div class="nav-label">Workspace</div>
+    <nav class="side-nav" aria-label="Primary navigation">
+      <button onclick="switchView('cashier')" id="tab-cashier" class="nav-item" title="Cashier POS">
+        <i class="fa-solid fa-cash-register"></i><span>Cashier POS</span>
+      </button>
+      <button onclick="switchView('kds')" id="tab-kds" class="nav-item active" title="Bar KDS">
+        <i class="fa-solid fa-mug-saucer"></i><span>Bar KDS</span>
+        <b id="badge-kds" class="nav-count hidden">0</b>
+      </button>
+      <button onclick="switchView('pickup')" id="tab-pickup" class="nav-item" title="Pickup Screen">
+        <i class="fa-solid fa-tv"></i><span>Pickup Screen</span>
+        <b id="badge-ready" class="nav-count hidden">0</b>
+      </button>
+      <button onclick="switchView('helper')" id="tab-helper" class="nav-item" title="Clearing">
+        <i class="fa-solid fa-square-check"></i><span>Clearing</span>
+        <b id="badge-helper" class="nav-count hidden">0</b>
+      </button>
+      <button onclick="switchView('money')" id="tab-money" class="nav-item" title="Count Money">
+        <i class="fa-solid fa-money-bill-count"></i><span>Count Money</span>
+      </button>
+    </nav>
+    <div class="nav-label">Management</div>
+    <nav class="side-nav" aria-label="Management navigation">
+      <button onclick="switchView('admin')" id="tab-admin" class="nav-item" title="Admin Panel">
+        <i class="fa-solid fa-chart-pie"></i><span>Admin Panel</span>
+      </button>
+    </nav>
+    <div class="side-bottom">
+      <div class="station-card">
+        <div class="station-row"><i class="status-dot"></i><div class="station-name">MFCAFE E-Portal</div></div>
+        <div class="station-meta">Staff workspace · Front counter</div>
       </div>
     </div>
-  </header>
+  </aside>
 
-  <!-- MAIN CONTAINER -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+  <div class="workspace">
+    <!-- TOP STATUS BAR -->
+    <header class="topbar">
+      <div class="crumb"><span>MFCAFE</span><span>/</span><strong id="crumbCurrent">Bar KDS</strong></div>
+      <div class="top-actions">
+        <p id="syncStatusText" class="sync-pill">
+          <span id="syncStatusDot" class="w-2 h-2 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
+          <span id="syncStatusLabel">Real-time Sync Active</span>
+          <span id="syncLastTime"></span>
+        </p>
+        <span id="clockBadge" class="top-clock"><i class="fa-regular fa-clock"></i><span id="clockDisplay">--:--</span></span>
+        <button onclick="toggleSound()" id="soundToggle" title="Toggle notification sound" class="icon-btn">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-600"></i>
+        </button>
+        <button onclick="toggleTheme()" id="themeToggle" title="Toggle light/dark theme" class="icon-btn">
+          <i id="themeIcon" class="fa-solid fa-moon text-slate-600"></i>
+        </button>
+        <span id="userBadge" class="top-user">
+          <span class="avatar"><i class="fa-solid fa-user"></i></span>
+          <span class="top-user-copy"><span id="lblUsername">Staff</span><span id="lblRole">Staff</span></span>
+        </span>
+        <button onclick="logout()" class="logout-btn" title="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="content">
 
     <!-- VIEW 1: CASHIER POS -->
-    <section id="view-cashier" class="hidden space-y-4">
-      
+    <section id="view-cashier" class="hidden">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Front counter</div>
+          <h2 class="page-title">Cashier POS</h2>
+          <p class="page-desc">Take counter orders, settle mobile orders and keep service moving.</p>
+        </div>
+        <span id="menuAvailableBadge" class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full text-xs">0 items available</span>
+      </div>
+
       <!-- Unpaid / Reserved Mobile Queue -->
-      <div class="bg-amber-500/10 p-4 rounded-3xl border border-amber-300/60">
-        <div class="flex justify-between items-center mb-3">
+      <div class="queue-panel mb-5">
+        <div class="flex flex-wrap justify-between items-center gap-3 mb-3">
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping"></span>
-            <h3 class="font-extrabold text-amber-900 text-sm">Self-Order & Pre-Order Queue</h3>
+            <div>
+              <h3 class="font-extrabold text-amber-900 text-sm">Self-Order & Pre-Order Queue</h3>
+              <p class="text-[10px] text-slate-500 mt-0.5">Settle payment before sending orders to the bar.</p>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="scan-actions">
             <input type="text" id="payScanInput" placeholder="Scan order #"
-              class="w-32 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+              class="w-36 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
               onkeydown="payScanKeydown(event)">
-            <button onclick="startQRScanner()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
-              <i class="fa-solid fa-camera text-amber-400"></i>
+            <button onclick="startQRScanner()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs px-4 py-2 rounded-xl shadow-sm transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-camera text-amber-500"></i>
               <span>Camera</span>
             </button>
           </div>
@@ -503,17 +801,16 @@
         <div id="unpaidOrdersContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+      <div class="pos-layout">
+
         <!-- Left: Select Drink Grid -->
-        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex justify-between items-center">
-            <h2 class="font-black text-slate-800 text-lg flex items-center">
-              <i class="fa-solid fa-utensils text-amber-500 mr-2"></i> Select Drink
-            </h2>
-            <span id="menuAvailableBadge" class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-full text-xs">
-              0 items available
-            </span>
+        <div class="menu-panel bg-white rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+            <div>
+              <h2 class="font-black text-slate-800 text-base">Menu</h2>
+              <p class="text-[10px] text-slate-400 mt-1">Choose an item to customise the order.</p>
+            </div>
+            <i class="fa-solid fa-utensils text-amber-500"></i>
           </div>
 
           <div id="categoryTabs" class="flex flex-wrap gap-1.5"></div>
@@ -522,7 +819,7 @@
         </div>
 
         <!-- Right: Single-Item Order Builder Panel -->
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+        <div class="pos-ticket bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
           <div class="space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 class="font-black text-slate-800 text-lg">Current Order</h3>
@@ -643,14 +940,13 @@
 
     <!-- VIEW 2: BAR KDS SCREEN -->
     <section id="view-kds" class="space-y-6">
-      <div class="flex justify-between items-start">
+      <div class="page-head">
         <div>
-          <h2 class="font-black text-slate-900 text-2xl tracking-tight">Bar KDS</h2>
-          <p class="text-xs font-semibold text-slate-400 mt-0.5">Live incoming beverage & pre-orders</p>
+          <div class="eyebrow">Live production</div>
+          <h2 class="page-title">Bar KDS</h2>
+          <p class="page-desc">Track incoming drinks, assign tickets and call orders ready.</p>
         </div>
-        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">
-          0 Active Orders
-        </span>
+        <span id="kdsPendingCount" class="bg-amber-100 text-amber-800 font-extrabold px-3 py-1 rounded-full text-xs border border-amber-200">0 Active Orders</span>
       </div>
 
       <!-- Unassigned order marquee -->
@@ -687,12 +983,18 @@
         title="Exit fullscreen display">
         <i class="fa-solid fa-compress"></i>
       </button>
-      <div class="text-center py-6 bg-white rounded-3xl border border-slate-200 shadow-sm relative pickup-hide">
-        <button onclick="toggleFullscreen()" class="absolute top-3 right-3 bg-slate-100 hover:bg-slate-200 text-slate-600 w-9 h-9 rounded-xl text-sm font-bold transition" title="Fullscreen display — hides the header and enlarges the numbers">
-          <i class="fa-solid fa-expand"></i>
-        </button>
-        <h2 class="text-3xl font-black text-amber-500 tracking-wide">ORDER STATUS DISPLAY</h2>
-        <p class="text-xs text-slate-400 mt-1">Please proceed to the counter when your number is under "READY FOR PICKUP"</p>
+      <div class="display-top">
+        <div class="display-brand"><span class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></span>MFCAFE</div>
+        <div class="display-heading">
+          <h2>Ready for pickup</h2>
+          <p>Please proceed to the counter when your number appears below.</p>
+        </div>
+        <div class="head-actions">
+          <span class="display-counter">Collection counter</span>
+          <button onclick="toggleFullscreen()" class="icon-btn" title="Fullscreen display — hides the workspace navigation and enlarges the numbers">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+        </div>
       </div>
 
       <!-- Clearing Box on Pickup Screen -->
@@ -718,10 +1020,10 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-6">
-        <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
+      <div class="pickup-body grid grid-cols-1 gap-6">
+        <div>
           <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
-            <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
+            <i class="fa-solid fa-bell mr-2"></i> Ready For Pickup
           </h3>
           <div id="pickupReadyList" class="grid grid-cols-2 gap-3 text-center"></div>
         </div>
@@ -729,32 +1031,41 @@
     </section>
 
     <!-- VIEW 4: HELPER / CLEAR VIEW -->
-    <section id="view-helper" class="hidden space-y-4">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <h2 class="font-black text-slate-800 text-lg flex items-center">
-          <i class="fa-solid fa-square-check text-emerald-600 mr-2"></i> Clearing Pickup Screen
-        </h2>
-        <div class="flex items-center gap-2">
+    <section id="view-helper" class="hidden">
+      <div class="page-head clearing-head">
+        <div>
+          <div class="eyebrow">Collection desk</div>
+          <h2 class="page-title">Clearing</h2>
+          <p class="page-desc">Scan a QR tile or clear a collected order. Swipe a card to claim the whole tray.</p>
+        </div>
+        <div class="scan-actions">
           <input type="text" id="helperScanInput" placeholder="Scan QR tile or type order #"
-            class="w-48 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"
+            class="w-56 bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800"
             onkeydown="helperScanKeydown(event)">
           <button onclick="document.getElementById('helperScanInput').focus(); document.getElementById('helperScanInput').select();"
-            class="bg-slate-100 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-200 transition" title="Focus scanner input">
+            class="icon-btn" title="Focus scanner input">
             <i class="fa-solid fa-keyboard"></i>
           </button>
-          <button onclick="scanQRToClear()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-2 transition">
+          <button onclick="scanQRToClear()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center space-x-2 transition shadow-sm">
             <i class="fa-solid fa-camera"></i>
             <span>Camera Scan</span>
           </button>
         </div>
       </div>
-      <p class="text-xs text-slate-400 text-center">Just scan a QR tile to clear its order — no need to click anything.</p>
       <div id="helperGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
     <!-- VIEW 5: ADMIN PANEL -->
     <section id="view-admin" class="hidden">
-      <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Management</div>
+          <h2 class="page-title">Admin Panel</h2>
+          <p class="page-desc">Manage service operations, menu content, hardware and staff access.</p>
+        </div>
+        <span class="bg-emerald-100 text-emerald-700 font-extrabold px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider"><i class="fa-solid fa-lock mr-1"></i> Admin access</span>
+      </div>
+      <div class="admin-layout">
 
         <!-- ADMIN SIDEBAR (left nav) -->
         <aside id="adminSidebar" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 lg:sticky lg:top-4 h-fit">
@@ -1413,7 +1724,51 @@
       </div>
     </section>
 
+    <!-- VIEW 6: MONEY COUNTING -->
+    <section id="view-money" class="hidden">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">Daily operations</div>
+          <h2 class="page-title">Money Counter</h2>
+          <p class="page-desc">Count the drawer by denomination. Totals update as you type.</p>
+        </div>
+        <button onclick="resetMoneyCounter()" class="bg-white border border-slate-200 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Reset All
+        </button>
+      </div>
+      <div class="money-layout">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-2">
+            <div>
+              <h3 class="font-extrabold text-slate-800 text-sm">Banknotes</h3>
+              <p class="text-[10px] text-slate-400 mt-1">Hong Kong dollar notes</p>
+            </div>
+            <i class="fa-solid fa-money-bill-wave text-emerald-600 text-xl"></i>
+          </div>
+          <div id="moneyNotes"></div>
+        </div>
+        <div class="space-y-5">
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-2">
+              <div>
+                <h3 class="font-extrabold text-slate-800 text-sm">Coins</h3>
+                <p class="text-[10px] text-slate-400 mt-1">Hong Kong dollar coins</p>
+              </div>
+              <i class="fa-solid fa-coins text-amber-500 text-xl"></i>
+            </div>
+            <div id="moneyCoins"></div>
+          </div>
+          <div class="money-total-card p-6 flex flex-col items-center justify-center space-y-2">
+            <p class="text-emerald-100 text-[10px] font-bold uppercase tracking-[.16em]">Total Amount</p>
+            <p id="moneyTotal" class="text-5xl font-black text-white tracking-tight">HK$0.00</p>
+            <p class="text-emerald-100/70 text-[10px]">Counted cash on hand</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </main>
+  </div><!-- /.workspace -->
 
   <!-- POST-SUBMIT ORDER SUCCESS MODAL -->
   <div id="orderSuccessModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -1590,35 +1945,6 @@
       </div>
     </div>
   </div>
-
-    <!-- VIEW 6: MONEY COUNTING -->
-    <section id="view-money" class="hidden space-y-6">
-      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <h2 class="font-black text-slate-800 text-2xl tracking-tight flex items-center">
-          <i class="fa-solid fa-money-bill-count text-emerald-600 mr-2"></i> Money Counter
-        </h2>
-        <p class="text-xs font-semibold text-slate-400 mt-1">HKD denominations — enter counts, total updates automatically</p>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Banknotes</h3>
-          <div id="moneyNotes" class="space-y-3"></div>
-        </div>
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-          <h3 class="font-extrabold text-slate-700 text-sm border-b border-slate-100 pb-2">Coins</h3>
-          <div id="moneyCoins" class="space-y-3"></div>
-        </div>
-      </div>
-
-      <div class="bg-emerald-600 p-6 rounded-3xl border border-emerald-500 shadow-lg flex flex-col items-center justify-center space-y-2">
-        <p class="text-emerald-100 text-xs font-bold uppercase tracking-wider">Total Amount</p>
-        <p id="moneyTotal" class="text-5xl font-black text-white tracking-tight">HK$0.00</p>
-        <button onclick="resetMoneyCounter()" class="mt-2 bg-white/20 hover:bg-white/30 text-white font-bold px-5 py-2 rounded-xl text-xs transition">
-          <i class="fa-solid fa-rotate-left mr-1"></i> Reset All
-        </button>
-      </div>
-    </section>
 
   <!-- CAMERA QR SCANNER MODAL -->
   <div id="qrScannerModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
@@ -2213,21 +2539,31 @@
         toggleFullscreen();
       }
 
+      const viewLabels = {
+        cashier: 'Cashier POS', kds: 'Bar KDS', pickup: 'Pickup Screen',
+        helper: 'Clearing', admin: 'Admin Panel', money: 'Count Money'
+      };
       ['cashier', 'kds', 'pickup', 'helper', 'admin', 'money'].forEach(v => {
         const viewEl = document.getElementById(`view-${v}`);
         if (viewEl) viewEl.classList.add('hidden');
-        
+
         const tab = document.getElementById(`tab-${v}`);
-        // Keep `relative` — the unread badges are absolutely positioned inside
-        // these buttons; dropping it made them anchor to the page corner.
-        if (tab) tab.className = "px-3.5 py-2 rounded-xl text-slate-600 hover:text-slate-900 transition relative";
+        if (tab) {
+          tab.classList.remove('active');
+          tab.removeAttribute('aria-current');
+        }
       });
 
       const activeView = document.getElementById(`view-${viewName}`);
       if (activeView) activeView.classList.remove('hidden');
 
       const activeTab = document.getElementById(`tab-${viewName}`);
-      if (activeTab) activeTab.className = "px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-sm transition relative";
+      if (activeTab) {
+        activeTab.classList.add('active');
+        activeTab.setAttribute('aria-current', 'page');
+      }
+      const crumb = document.getElementById('crumbCurrent');
+      if (crumb) crumb.textContent = viewLabels[viewName] || 'Workspace';
       
       if (viewName === 'money') initMoneyCounter();
       if (viewName === 'admin') fetchOrderHistory();
@@ -2537,7 +2873,7 @@
         let html = "";
         cats.forEach(cat => {
           const active = state.selectedCategory === cat;
-          html += `<button onclick="selectCategory('${escapeHtml(cat)}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition ${active ? 'bg-amber-500 text-slate-950' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}">${escapeHtml(cat)}</button>`;
+          html += `<button onclick="selectCategory('${escapeHtml(cat)}')" class="cat-btn ${active ? 'active' : ''}">${escapeHtml(cat)}</button>`;
         });
         tabs.innerHTML = html;
       }
@@ -2548,19 +2884,23 @@
         const isSelected = state.selectedPosItem?.name === item.name;
         const catColor = state.categoryColors[item.category || "Other"] || "#64748b";
         const btn = document.createElement('button');
-        btn.className = `p-4 rounded-2xl border-l-4 border text-left transition shadow-sm ${isSelected ? 'ring-2 ring-offset-2' : 'border-slate-200 bg-white hover:border-slate-300'}`;
-        if (isSelected) {
-          btn.style.borderColor = catColor;
-          btn.style.backgroundColor = catColor + "18"; // 9% opacity tint
-          btn.style.boxShadow = `0 0 0 2px #fff, 0 0 0 4px ${catColor}50`; // ring-offset + ring
-        } else {
-          btn.style.borderLeftColor = catColor;
-        }
+        btn.type = 'button';
+        btn.className = `product${isSelected ? ' selected' : ''}`;
+        if (isSelected) btn.style.borderColor = catColor;
         btn.onclick = () => selectPosMenuItem(item);
         btn.innerHTML = `
-          <p class="font-extrabold text-xs text-slate-800">${escapeHtml(item.name)}</p>
-          <p class="text-[10px] font-semibold text-slate-400 mt-0.5">${escapeHtml(item.tempOptions)}</p>
-          <p class="font-black text-sm mt-2" style="color: ${catColor};">${fmtPrice(item.price)}</p>
+          <span class="product-art">
+            <span class="product-tag">${escapeHtml(item.category || 'Other')}</span>
+            <i class="fa-solid ${item.isSnack ? 'fa-cookie-bite' : 'fa-mug-saucer'}"></i>
+            <span class="product-add"><i class="fa-solid fa-plus"></i></span>
+          </span>
+          <span class="product-info">
+            <span class="product-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+            <span class="product-meta">
+              <span class="product-price" style="color:${catColor}">${fmtPrice(item.price)}</span>
+              <span class="product-type">${escapeHtml(item.tempOptions || (item.isSnack ? 'Snack' : ''))}</span>
+            </span>
+          </span>
         `;
         grid.appendChild(btn);
       });
@@ -4895,8 +5235,8 @@
       nav.innerHTML = ADMIN_SECTIONS.map(s => `
         <button type="button" onclick="switchAdminSection('${s.key}')"
           data-admin-link="${s.key}"
-          class="flex items-center gap-2 w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition">
-          <i class="fa-solid ${s.icon} w-3.5 text-center"></i>
+          class="admin-nav-item">
+          <i class="fa-solid ${s.icon}"></i>
           <span>${s.label}</span>
         </button>
       `).join("");
@@ -4908,9 +5248,9 @@
       // Update link highlight
       document.querySelectorAll("[data-admin-link]").forEach(link => {
         const isActive = link.dataset.adminLink === key;
-        link.className = `flex items-center gap-2 w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition ${
-          isActive ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:bg-slate-100"
-        }`;
+        link.classList.toggle("active", isActive);
+        if (isActive) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
       });
       // Filter sections
       document.querySelectorAll("[data-admin-section]").forEach(sec => {
