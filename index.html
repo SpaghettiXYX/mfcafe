@@ -576,7 +576,7 @@
                 <input type="text" id="posNotes" placeholder="Custom note..." class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800">
               </div>
 
-              <div>
+              <div id="posQRTileBlock">
                 <label class="block text-[11px] font-bold text-slate-400 mb-1">
                   QR Tile <span class="text-amber-500">(required — scan or type tile #)</span>
                 </label>
@@ -2761,10 +2761,19 @@
       showToast("Discount approved by " + account.username, "success");
     }
 
+    function setPosTileOptional(optional) {
+      const block = document.getElementById('posQRTileBlock');
+      if (!block) return;
+      // Snacks are accounting-only and handed out by the cashier, so they
+      // never need a physical QR tile.
+      block.classList.toggle('hidden', !!optional);
+    }
+
     function selectPosMenuItem(item) {
       state.selectedPosItem = item;
       state.selectedPosCupType = "";  // reset cup type — must re-choose for each drink
       setPosCupType("");  // clear visual state (shows both buttons idle)
+      setPosTileOptional(!!item.isSnack);  // snacks need no QR tile
 
       // Apply category color theming to the selection details panel
       const catColor = state.categoryColors[item.category || "Other"] || "#64748b";
@@ -2901,24 +2910,28 @@
       const notes = notesInput ? notesInput.value : "";
       const qrTile = qrTileInput ? qrTileInput.value.trim() : "";
       const cupType = state.selectedPosCupType;
+      const isSnack = !!state.selectedPosItem.isSnack;
 
-      // Every order must be tied to a QR tile now — no more anonymous
-      // order-number-only pickups.
-      if (!qrTile) {
-        showToast("QR Tile is required — scan or type the tile number before submitting.", "warning", 5000);
-        setPosTileError("QR Tile is required. Scan the tile, or type its number, then submit again.");
-        return;
-      }
-      const matchedTile = state.qrTiles.find(t => String(t.code) === qrTile);
-      if (!matchedTile) {
-        showToast(`Tile #${qrTile} does not exist. Check the QR Tiles list or add it in Admin.`, "error", 5000);
-        setPosTileError(`Tile #${qrTile} is not registered in the QR Tiles sheet. Contact admin.`);
-        return;
-      }
-      if (String(matchedTile.status || "").toLowerCase() !== "available") {
-        showToast(`Tile #${qrTile} is still bound to order #${matchedTile.boundOrder}. Clear that order first.`, "error", 4500);
-        setPosTileError(`Tile #${qrTile} is already bound to order #${matchedTile.boundOrder}. Clear it before using this tile.`);
-        return;
+      // Drinks must be tied to a QR tile — no anonymous order-number-only
+      // pickups. Snacks are accounting-only (cashier hands them over), so
+      // they skip the tile entirely.
+      if (!isSnack) {
+        if (!qrTile) {
+          showToast("QR Tile is required — scan or type the tile number before submitting.", "warning", 5000);
+          setPosTileError("QR Tile is required. Scan the tile, or type its number, then submit again.");
+          return;
+        }
+        const matchedTile = state.qrTiles.find(t => String(t.code) === qrTile);
+        if (!matchedTile) {
+          showToast(`Tile #${qrTile} does not exist. Check the QR Tiles list or add it in Admin.`, "error", 5000);
+          setPosTileError(`Tile #${qrTile} is not registered in the QR Tiles sheet. Contact admin.`);
+          return;
+        }
+        if (String(matchedTile.status || "").toLowerCase() !== "available") {
+          showToast(`Tile #${qrTile} is still bound to order #${matchedTile.boundOrder}. Clear that order first.`, "error", 4500);
+          setPosTileError(`Tile #${qrTile} is already bound to order #${matchedTile.boundOrder}. Clear it before using this tile.`);
+          return;
+        }
       }
 
       const btnSubmit = document.getElementById('btnSubmitPos');
@@ -2939,7 +2952,7 @@
         promoCode: state.posPromo ? state.posPromo.code : "",
         discountBy: state.posManualDiscount ? state.posManualDiscount.approvedBy : "",
         status: "PENDING",
-        qrTile: qrTile,
+        qrTile: isSnack ? "" : qrTile,
         cupType: cupType
       };
 
@@ -2963,6 +2976,7 @@
           if (notesInput) notesInput.value = "";
           if (qrTileInput) qrTileInput.value = "";
           clearPosTileError();
+          setPosTileOptional(false);  // restore tile field for the next drink
           state.posPromo = null;
           state.posManualDiscount = null;
           const discTypeEl = document.getElementById('posManualDiscountType');
