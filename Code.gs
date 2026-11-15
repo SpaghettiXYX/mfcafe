@@ -18,7 +18,15 @@ function getVersion() {
 function bumpVersion() {
   const ver = String(Date.now());
   PropertiesService.getScriptProperties().setProperty("STATE_VERSION", ver);
-  try { CacheService.getScriptCache().remove(INIT_CACHE_KEY); } catch (e) {}
+  try {
+    const c = CacheService.getScriptCache();
+    c.remove(INIT_CACHE_KEY);
+    // Invalidate cached sheet data too, since admin edits change sheets.
+    c.remove("sheet_Users");
+    c.remove("sheet_Financial & Menu Summary");
+    c.remove("sheet_QR Tiles");
+    c.remove("sheet_Promo Codes");
+  } catch (e) {}
   return ver;
 }
 
@@ -1010,12 +1018,45 @@ function setKdsStatusStrip(cfg) {
 }
 
 // ==================== SMART DATA FETCH ====================
+// Performance helpers: batch property reads + cache rarely-changing sheets.
+
+// Safe JSON parse with fallback.
+function parseJson_(raw, fallback) {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw); } catch (e) { return fallback; }
+}
+
+// Read a sheet's values via CacheService. Menu/Users/PromoCodes only change
+// through admin actions (which call bumpVersion → invalidateInitCache), so a
+// 60s cache is safe and saves a Sheets round-trip on every getInitialData().
+function getCachedSheetValues_(sheetName, ttlSeconds) {
+  ttlSeconds = ttlSeconds || 60;
+  var cache = CacheService.getScriptCache();
+  var key = "sheet_" + sheetName;
+  try {
+    var cached = cache.get(key);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return [];
+  var values = sheet.getDataRange().getValues();
+  try {
+    // Sheet data can exceed 100 KB for large menus; if so, skip caching.
+    cache.put(key, JSON.stringify(values), ttlSeconds);
+  } catch (e) {}
+  return values;
+}
+
 // getInitialData returns ACTIVE orders only (not CLEARED) for fast sync
 function getInitialData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const usersSheet = ensureUsersSheet(ss);
-  const usersData = usersSheet.getDataRange().getValues();
+  // Batch ALL script properties into a single service call.
+  // A naive getInitialData() made ~25 getProperty() calls; this cuts it to 1.
+  const _allProps = PropertiesService.getScriptProperties().getAllProperties();
+  const prop = function (k) { return _allProps[k] != null ? _allProps[k] : null; };
+
+  const usersData = getCachedSheetValues_("Users", 60);
   let users = [];
   for (let i = 1; i < usersData.length; i++) {
     if (usersData[i][0]) {
@@ -1023,36 +1064,59 @@ function getInitialData() {
     }
   }
 
-  const props = PropertiesService.getScriptProperties();
-  let hotkeys = props.getProperty("REMARK_HOTKEYS") || "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot";
+  let hotkeys = prop("REMARK_HOTKEYS") || "+ Less Ice, + No Sugar, + Oat Milk, + Extra Hot";
 
-  // One-time migration: the old single reservation switch becomes both new switches
-  const legacyReservation = props.getProperty("RESERVATION_OPEN");
+  // One-time migration: the old single reservation switch becomes both new switches.
+  // Uses the real PropertiesService only for the (rare) write path.
+  const legacyReservation = prop("RESERVATION_OPEN");
   if (legacyReservation !== null) {
-    if (props.getProperty("TEACHER_RESERVATION_OPEN") === null) {
-      props.setProperty("TEACHER_RESERVATION_OPEN", legacyReservation);
+    const realProps = PropertiesService.getScriptProperties();
+    if (prop("TEACHER_RESERVATION_OPEN") === null) {
+      realProps.setProperty("TEACHER_RESERVATION_OPEN", legacyReservation);
     }
-    if (props.getProperty("OPENDAY_RESERVATION_OPEN") === null) {
-      props.setProperty("OPENDAY_RESERVATION_OPEN", legacyReservation);
+    if (prop("OPENDAY_RESERVATION_OPEN") === null) {
+      realProps.setProperty("OPENDAY_RESERVATION_OPEN", legacyReservation);
     }
   }
 
-  const coldExtra = getColdExtra();
-  const coldPausedGlobal = getColdPaused();
-  const teacherReservationOpen = getTeacherReservationOpen();
-  const openDayReservationOpen = getOpenDayReservationOpen();
-  const bulkyReservationOpen = getBulkyReservationOpen();
-  const teacherPauseReason = getPauseReason("teacher");
-  const openDayPauseReason = getPauseReason("openday");
-  const bulkyPauseReason = getPauseReason("bulky");
-  const pushMessage = getPushMessage();
+  const coldExtraRaw = prop("COLD_EXTRA");
+  const coldExtra = coldExtraRaw ? Number(coldExtraRaw) : 2;
+  const coldPausedGlobal = prop("COLD_PAUSED") === "true";
+  const _resOpen = function (key) { const v = prop(key); return v === null ? true : v === "true"; };
+  const teacherReservationOpen = _resOpen("TEACHER_RESERVATION_OPEN");
+  const openDayReservationOpen = _resOpen("OPENDAY_RESERVATION_OPEN");
+  const bulkyReservationOpen = _resOpen("BULKY_RESERVATION_OPEN");
+  const _pauseDef = {
+    teacher: "Online pre-order is temporarily paused. Please order at the counter.",
+    openday: "Open Day pre-order is temporarily paused. Please order at the counter.",
+    bulky: "Bulky (multi-cup) orders are temporarily paused. Please place smaller orders at the counter."
+  };
+  const teacherPauseReason = prop("PAUSE_REASON_TEACHER") || _pauseDef.teacher;
+  const openDayPauseReason = prop("PAUSE_REASON_OPENDAY") || _pauseDef.openday;
+  const bulkyPauseReason = prop("PAUSE_REASON_BULKY") || _pauseDef.bulky;
+  // Push message (with 48h auto-expire, same logic as getPushMessage)
+  const _pushRaw = prop("PUSH_MESSAGE");
+  let pushMessage = { active: false, text: "", sender: "", timestamp: 0 };
+  if (_pushRaw) {
+    try {
+      const parsed = JSON.parse(_pushRaw);
+      const ts = Number(parsed.timestamp) || 0;
+      const age = Date.now() - ts;
+      pushMessage = {
+        active: parsed.active === true && !!parsed.text && age < PUSH_MESSAGE_TTL_MS,
+        text: String(parsed.text || ""),
+        sender: String(parsed.sender || ""),
+        timestamp: ts
+      };
+    } catch (e) {}
+  }
 
-  // Menu with category and cold pause
+  // Menu with category and cold pause (cached 60s — only changes via admin)
   const summarySheet = ss.getSheetByName("Financial & Menu Summary");
+  if (summarySheet) ensureMenuSheetColumns(summarySheet);
+  const menuData = getCachedSheetValues_("Financial & Menu Summary", 60);
   let menu = [];
-  if (summarySheet) {
-    ensureMenuSheetColumns(summarySheet);
-    const menuData = summarySheet.getDataRange().getValues();
+  if (menuData.length > 1) {
     for (let i = 1; i < menuData.length; i++) {
       const row = menuData[i];
       if (row[0]) {
@@ -1150,11 +1214,10 @@ function getInitialData() {
     }
   }
 
-  // QR Tiles
+  // QR Tiles (cached 60s — rarely changes)
   let tiles = [];
   try {
-    const tilesSheet = ensureQRTilesSheet(ss);
-    const tilesData = tilesSheet.getDataRange().getValues();
+    const tilesData = getCachedSheetValues_("QR Tiles", 60);
     for (let i = 1; i < tilesData.length; i++) {
       if (tilesData[i][0]) {
         tiles.push({ code: String(tilesData[i][0]).trim(), status: String(tilesData[i][1] || "Available").trim(), boundOrder: tilesData[i][2] ? String(tilesData[i][2]).trim() : "" });
@@ -1162,14 +1225,87 @@ function getInitialData() {
     }
   } catch (e) {}
 
+  // ---- Pre-compute all JSON settings from the batched props (no more getProperty calls) ----
+  const _catsRaw = prop("MENU_CATEGORIES");
+  const categories = (_catsRaw || "Hot Drinks,Cold Drinks,Snacks,Other").split(",").map(s => s.trim()).filter(Boolean);
+
+  // STATE_VERSION: lazy-init if missing (write once to real props)
+  let version = prop("STATE_VERSION");
+  if (!version) { version = String(Date.now()); PropertiesService.getScriptProperties().setProperty("STATE_VERSION", version); }
+
+  const categoryColors = parseJson_(prop("MENU_CATEGORY_COLORS"), {});
+  const upsellEnabled = prop("UPSELL_ENABLED") === "true";
+
+  // KDS status strip
+  const _ssRaw = prop("KDS_STATUS_STRIP");
+  const statusStrip = _ssRaw ? (function () {
+    try {
+      const p = JSON.parse(_ssRaw);
+      const pick = (k) => String(p[k] || "").trim() || DEFAULT_KDS_STATUS_STRIP[k];
+      return { show: p.show !== false, label: pick("label"), noOrders: pick("noOrders"), steady: pick("steady"), busy: pick("busy"), behind: pick("behind") };
+    } catch (e) { return DEFAULT_KDS_STATUS_STRIP; }
+  })() : DEFAULT_KDS_STATUS_STRIP;
+
+  // Opening hours
+  const openingHours = (function () {
+    const raw = prop("OPENING_HOURS");
+    if (!raw) return Object.assign({}, DEFAULT_OPENING_HOURS);
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        enabled: parsed.enabled !== false,
+        start: normalizeHhMm_(parsed.start, DEFAULT_OPENING_HOURS.start),
+        end: normalizeHhMm_(parsed.end, DEFAULT_OPENING_HOURS.end),
+        slots: normalizePickupSlots_(parsed.slots),
+        specificTimes: normalizeSpecificTimes_(parsed.specificTimes),
+        slotsPerHour: clampInt_(parsed.slotsPerHour, 0, 12, 0),
+        minLead: clampInt_(parsed.minLead, 0, 240, 0)
+      };
+    } catch (e) { return Object.assign({}, DEFAULT_OPENING_HOURS); }
+  })();
+
+  // Promo popup
+  const promoPopup = (function () {
+    const raw = prop("PROMO_POPUP");
+    if (!raw) return { active: false, title: "", body: "", imageUrl: "", timestamp: 0 };
+    try {
+      const parsed = JSON.parse(raw);
+      return { active: parsed.active === true, title: String(parsed.title || "").trim(), body: String(parsed.body || "").trim(), imageUrl: String(parsed.imageUrl || "").trim(), timestamp: Number(parsed.timestamp) || 0 };
+    } catch (e) { return { active: false, title: "", body: "", imageUrl: "", timestamp: 0 }; }
+  })();
+
+  // Receipt layout
+  const receiptLayout = (function () {
+    const raw = prop(RECEIPT_LAYOUT_KEY);
+    if (!raw) return defaultReceiptLayout();
+    try { const parsed = JSON.parse(raw); return Array.isArray(parsed) && parsed.length ? parsed : defaultReceiptLayout(); }
+    catch (e) { return defaultReceiptLayout(); }
+  })();
+
+  // Self-order instructions (3 audiences)
+  const _instructions = function (audience) {
+    const key = instructionsKey_(audience);
+    let raw = prop(key);
+    if (!raw && audience !== "openday" && audience !== "bulky") raw = prop("SELF_ORDER_INSTRUCTIONS");
+    if (!raw) return DEFAULT_SELF_ORDER_INSTRUCTIONS;
+    try {
+      const parsed = JSON.parse(raw);
+      const steps = (Array.isArray(parsed.steps) ? parsed.steps : []).map(s => typeof s === "string" ? { title: "", text: String(s).trim() } : { title: String((s && s.title) || "").trim(), text: String((s && s.text) || "").trim() }).filter(s => s.title || s.text);
+      return { title: String(parsed.title || "").trim() || DEFAULT_SELF_ORDER_INSTRUCTIONS.title, heading: String(parsed.heading || "").trim(), steps: steps.length ? steps : DEFAULT_SELF_ORDER_INSTRUCTIONS.steps, note: String(parsed.note || "").trim() };
+    } catch (e) { return DEFAULT_SELF_ORDER_INSTRUCTIONS; }
+  };
+
+  // Promo codes (sheet — kept as direct read, rarely changes; could be cached too)
+  const promoCodes = getPromoCodes();
+
   return {
     menu: menu,
     orders: orders,
     users: users,
     remarkHotkeys: hotkeys,
-    categories: getCategories(),
+    categories: categories,
     qrTiles: tiles,
-    version: getVersion(),
+    version: version,
     coldExtra: coldExtra,
     coldPaused: coldPausedGlobal,
     teacherReservationOpen: teacherReservationOpen,
@@ -1179,35 +1315,44 @@ function getInitialData() {
     openDayPauseReason: openDayPauseReason,
     bulkyPauseReason: bulkyPauseReason,
     pushMessage: pushMessage,
-    statusStrip: getKdsStatusStrip(),
-    openingHours: getOpeningHours(),
-    promoPopup: getPromoPopup(),
-    upsellEnabled: getUpsellEnabled(),
-    promoCodes: getPromoCodes(),
-    instructions: getSelfOrderInstructions("teacher"),
-    instructionsTeacher: getSelfOrderInstructions("teacher"),
-    instructionsOpenDay: getSelfOrderInstructions("openday"),
-    instructionsBulky: getSelfOrderInstructions("bulky"),
-    categoryColors: getCategoryColors(),
-    receiptLayout: getReceiptLayout()
+    statusStrip: statusStrip,
+    openingHours: openingHours,
+    promoPopup: promoPopup,
+    upsellEnabled: upsellEnabled,
+    promoCodes: promoCodes,
+    instructions: _instructions("teacher"),
+    instructionsTeacher: _instructions("teacher"),
+    instructionsOpenDay: _instructions("openday"),
+    instructionsBulky: _instructions("bulky"),
+    categoryColors: categoryColors,
+    receiptLayout: receiptLayout
   };
 }
 
 // Admin financial log - returns recent N orders (including CLEARED)
-function getOrderHistory(limit) {
+function getOrderHistory(limit, scanRows) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const ordersSheet = ss.getSheetByName("Orders Log");
   if (!ordersSheet) return { orders: [], totalRevenue: 0, totalCount: 0 };
 
-  const data = ordersSheet.getDataRange().getValues();
+  // Scan from the bottom up, capped. A 2000-row window covers months of
+  // orders for a cafe and avoids the full-table scan that caused timeouts.
+  const maxScan = scanRows || 2000;
+  const lastRow = ordersSheet.getLastRow();
+  const lastCol = ordersSheet.getLastColumn();
+  if (lastRow <= 1 || lastCol <= 0) return { orders: [], totalRevenue: 0, totalCount: 0 };
+  const startRow = Math.max(2, lastRow - maxScan + 1);
+  const numRows = lastRow - startRow + 1;
+  const data = ordersSheet.getRange(startRow, 1, numRows, lastCol).getValues();
+
   const max = limit || 200;
   const allowedStatuses = ["UNPAID", "PENDING", "ASSIGNED", "READY", "CLEARED", "RESERVED"];
   let orders = [];
   let revenue = 0;
   let servedCount = 0;
-  // Scan the entire log so dashboard totals are not truncated at the page
-  // size; only the returned order list is capped at `max` rows.
-  for (let i = data.length - 1; i >= 1; i--) {
+  // Scan from newest to oldest; collect up to `max` orders for the list,
+  // accumulate revenue from all rows in the scan window.
+  for (let i = data.length - 1; i >= 0; i--) {
     const row = data[i];
     const status = String(row[9] || "").trim().toUpperCase();
     if (allowedStatuses.includes(status)) {
@@ -2015,7 +2160,8 @@ function doGet(e) {
     }
     if (action === "getOrderHistory") {
       const limit = parseInt(e.parameter.limit, 10) || 200;
-      return jsonResponse(getOrderHistorySafe(limit));
+      const scanRows = parseInt(e.parameter.scanRows, 10) || 0;
+      return jsonResponse(getOrderHistorySafe(limit, scanRows));
     }
     if (action === "getCategories") {
       return jsonResponse({ categories: getCategories(), categoryColors: getCategoryColors() });
@@ -2068,8 +2214,8 @@ function getPostersPublicSafe() {
   catch (e) { return { success: false, error: e.toString(), version: 0, posters: [], interval_ms: 8000, brightness: 60 }; }
 }
 
-function getOrderHistorySafe(limit) {
-  try { return getOrderHistory(limit); }
+function getOrderHistorySafe(limit, scanRows) {
+  try { return getOrderHistory(limit, scanRows); }
   catch (e) { return { success: false, error: e.toString(), orders: [], totalRevenue: 0, totalCount: 0 }; }
 }
 
