@@ -1053,7 +1053,22 @@ function getInitialData() {
 
   // Batch ALL script properties into a single service call.
   // A naive getInitialData() made ~25 getProperty() calls; this cuts it to 1.
-  const _allProps = PropertiesService.getScriptProperties().getAllProperties();
+  // Some deployments expose a Properties object without getAllProperties(),
+  // so fall back to getKeys()/getProperty() instead of failing the whole sync.
+  const _propsObj = PropertiesService.getScriptProperties();
+  let _allProps = {};
+  try {
+    if (typeof _propsObj.getAllProperties === "function") {
+      _allProps = _propsObj.getAllProperties() || {};
+    } else {
+      const _keys = _propsObj.getKeys() || [];
+      for (let _i = 0; _i < _keys.length; _i++) {
+        _allProps[_keys[_i]] = _propsObj.getProperty(_keys[_i]);
+      }
+    }
+  } catch (e) {
+    _allProps = {};
+  }
   const prop = function (k) { return _allProps[k] != null ? _allProps[k] : null; };
 
   const usersData = getCachedSheetValues_("Users", 60);
