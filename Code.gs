@@ -18,6 +18,7 @@ function getVersion() {
 function bumpVersion() {
   const ver = String(Date.now());
   PropertiesService.getScriptProperties().setProperty("STATE_VERSION", ver);
+  try { CacheService.getScriptCache().remove(INIT_CACHE_KEY); } catch (e) {}
   return ver;
 }
 
@@ -1089,10 +1090,19 @@ function getInitialData() {
   const ordersSheet = ss.getSheetByName("Orders Log");
   let orders = [];
   if (ordersSheet) {
-    const ordersData = ordersSheet.getDataRange().getValues();
-    const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
-    for (let i = 1; i < ordersData.length; i++) {
-      const row = ordersData[i];
+    // Only scan the most recent rows. Active orders are always recent, and the
+    // sheet grows forever — a full-table scan on every getInitialData() call
+    // is what causes timeouts / Sheets rate-limit errors under load.
+    const lastRow = ordersSheet.getLastRow();
+    const lastCol = ordersSheet.getLastColumn();
+    if (lastRow > 1 && lastCol > 0) {
+      const SCAN_ROWS = 600;
+      const startRow = Math.max(2, lastRow - SCAN_ROWS + 1);
+      const numRows = lastRow - startRow + 1;
+      const ordersData = ordersSheet.getRange(startRow, 1, numRows, lastCol).getValues();
+      const ACTIVE_STATUSES = ["UNPAID", "PENDING", "ASSIGNED", "READY", "RESERVED"];
+      for (let i = 0; i < ordersData.length; i++) {
+        const row = ordersData[i];
       const status = String(row[9] || "").trim().toUpperCase();
       const paymentStatus = String(row[11] || "").trim().toUpperCase() || "PAID";
       // Served-but-unpaid orders must stay visible at the cashier until money
@@ -1136,6 +1146,7 @@ function getInitialData() {
         extras: String(row[16] || "").trim(),
         extrasTotal: Number(row[17]) || 0
       });
+      }
     }
   }
 
@@ -1992,27 +2003,74 @@ function lookupOrder(rawCode) {
 
 // ==================== HTTP ROUTING ====================
 function doGet(e) {
-  const action = e ? e.parameter.action : null;
+  try {
+    const action = e ? e.parameter.action : null;
 
-  if (action === "checkUpdate") {
-    return jsonResponse({ version: getVersion(), timestamp: Date.now() });
-  }
-  // Public, no login: the Raspberry Pi polls this to know what to push.
-  if (action === "posters") {
-    return jsonResponse(getPostersPublic());
-  }
-  if (action === "getOrderHistory") {
-    const limit = parseInt(e.parameter.limit, 10) || 200;
-    return jsonResponse(getOrderHistory(limit));
-  }
-  if (action === "getCategories") {
-    return jsonResponse({ categories: getCategories(), categoryColors: getCategoryColors() });
-  }
-  if (action === "lookupOrder") {
-    return jsonResponse(lookupOrder(e.parameter.code));
-  }
+    if (action === "checkUpdate") {
+      return jsonResponse({ version: getVersion(), timestamp: Date.now() });
+    }
+    // Public, no login: the Raspberry Pi polls this to know what to push.
+    if (action === "posters") {
+      return jsonResponse(getPostersPublicSafe());
+    }
+    if (action === "getOrderHistory") {
+      const limit = parseInt(e.parameter.limit, 10) || 200;
+      return jsonResponse(getOrderHistorySafe(limit));
+    }
+    if (action === "getCategories") {
+      return jsonResponse({ categories: getCategories(), categoryColors: getCategoryColors() });
+    }
+    if (action === "lookupOrder") {
+      return jsonResponse(lookupOrder(e.parameter.code));
+    }
 
-  return jsonResponse(getInitialData());
+    return jsonResponse(getInitialDataCached());
+  } catch (err) {
+    // Any internal error must return JSON so the frontend can parse it
+    // instead of getting an HTML 500 page that breaks JSON.parse.
+    return jsonResponse({ success: false, error: err.toString(), _crash: true });
+  }
+}
+
+// ==================== CACHING / SAFETY WRAPPERS ====================
+// Apps Script has no built-in caching for sheet reads. Without it, every
+// getInitialData() call does a full-table scan, and when many dashboards
+// refetch simultaneously (on every version bump), we hit Sheets read-rate
+// limits and 6-min timeouts. A short CacheService window absorbs bursts.
+
+var INIT_CACHE_KEY = "init_data_v1";
+var INIT_CACHE_TTL = 5; // seconds — short enough to stay fresh, long enough to flatten bursts
+
+function getInitialDataCached() {
+  var cache = CacheService.getScriptCache();
+  try {
+    var cached = cache.get(INIT_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch (e) { /* cache miss / disabled — fall through */ }
+  var data = getInitialData();
+  try {
+    // CacheService value limit is 100 KB; if payload is bigger, put() throws
+    // and we just skip caching (still returns fresh data).
+    cache.put(INIT_CACHE_KEY, JSON.stringify(data), INIT_CACHE_TTL);
+  } catch (e) {}
+  return data;
+}
+
+// Bump this whenever state changes so the 5s cache doesn't serve stale data.
+// getVersion() already increments STATE_VERSION; we just evict the cache too.
+function invalidateInitCache() {
+  try { CacheService.getScriptCache().remove(INIT_CACHE_KEY); } catch (e) {}
+}
+
+// Drive calls can be slow/flaky; wrap so the Pi never gets an HTML 500.
+function getPostersPublicSafe() {
+  try { return getPostersPublic(); }
+  catch (e) { return { success: false, error: e.toString(), version: 0, posters: [], interval_ms: 8000, brightness: 60 }; }
+}
+
+function getOrderHistorySafe(limit) {
+  try { return getOrderHistory(limit); }
+  catch (e) { return { success: false, error: e.toString(), orders: [], totalRevenue: 0, totalCount: 0 }; }
 }
 
 // ==================== REMOTE PRINT HUB ====================

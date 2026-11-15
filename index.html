@@ -1961,6 +1961,10 @@
         dot.className = "w-2 h-2 bg-rose-500 rounded-full inline-block mr-1.5";
         label.innerText = "Connection Lost — Reconnecting...";
         label.className = "text-rose-600";
+      } else if (status === "error") {
+        dot.className = "w-2 h-2 bg-rose-500 rounded-full inline-block mr-1.5";
+        label.innerText = "Server Error — Retrying...";
+        label.className = "text-rose-600";
       } else {
         dot.className = "w-2 h-2 bg-amber-500 rounded-full inline-block mr-1.5 animate-pulse";
         label.innerText = "Syncing...";
@@ -2334,6 +2338,11 @@
       fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(info => {
+          if (info && info.success === false) {
+            setSyncStatus("error");
+            console.log("Check server error:", info.error);
+            return;
+          }
           setSyncStatus("online");
           if (info.version && info.version !== state.serverVersion) {
             state.serverVersion = info.version;
@@ -2421,6 +2430,13 @@
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
+          if (data && data.success === false) {
+            // Server responded but hit an internal error (doGet try/catch).
+            setSyncStatus("error");
+            console.log("Server error:", data.error);
+            if (fromBoot) bootFail("Server error: " + (data.error || "unknown"));
+            return;
+          }
           setSyncStatus("online");
           if (data.version) state.serverVersion = data.version;
           if (Array.isArray(data.menu)) state.menu = data.menu;
