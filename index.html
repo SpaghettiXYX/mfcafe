@@ -244,7 +244,6 @@
     body.display-mode .pickup-col-title { font-size: 1rem !important; margin-bottom: 0.5rem !important; padding-bottom: 0.35rem !important; }
     body.display-mode .pickup-number { font-size: clamp(2.75rem, 11vw, 8rem) !important; }
     body.display-mode .pickup-sub { font-size: 0.95rem !important; }
-    body.display-mode #pickupPreparingList > div,
     body.display-mode #pickupReadyList > div { padding: 1rem 0.5rem !important; }
     body.display-mode #pickupQuickClear { padding: 0.5rem 0.75rem !important; border-radius: 1rem !important; }
     body.display-mode #pickupQuickClear .pickup-clear-text { display: none; }
@@ -296,8 +295,8 @@
       main > section > .bg-white,
       main > section > div > .bg-white { padding: 1rem !important; border-radius: 0.875rem !important; }
 
-      /* Pickup lists stack (was hard-coded grid-cols-2) */
-      #pickupPreparingList, #pickupReadyList { grid-template-columns: 1fr !important; gap: 0.5rem !important; }
+      /* Pickup list stack */
+      #pickupReadyList { grid-template-columns: 1fr !important; gap: 0.5rem !important; }
 
       /* QR tile grid: tighten */
       #qrTilesGrid { grid-template-columns: repeat(4, 1fr) !important; }
@@ -719,14 +718,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <h3 class="pickup-col-title font-black text-slate-500 text-lg uppercase tracking-wider mb-4 border-b pb-2">
-            <i class="fa-solid fa-spinner animate-spin text-amber-500 mr-2"></i> Preparing
-          </h3>
-          <div id="pickupPreparingList" class="grid grid-cols-2 gap-3 text-center"></div>
-        </div>
-
+      <div class="grid grid-cols-1 gap-6">
         <div class="bg-emerald-50 p-6 rounded-3xl border border-emerald-200 shadow-sm">
           <h3 class="pickup-col-title font-black text-emerald-700 text-lg uppercase tracking-wider mb-4 border-b border-emerald-200 pb-2">
             <i class="fa-solid fa-bell text-emerald-600 mr-2 animate-bounce"></i> Ready For Pickup
@@ -3684,15 +3676,8 @@
     }
 
     function renderPickup() {
-      const prepList = document.getElementById('pickupPreparingList');
       const readyList = document.getElementById('pickupReadyList');
-      if (!prepList || !readyList) return;
-
-      let prepHtml = "";
-      state.orders.filter(o => ["PENDING", "RESERVED"].includes((o.status || "").toUpperCase())).forEach(o => {
-        prepHtml += pickupNumberCard(o, false);
-      });
-      prepList.innerHTML = prepHtml;
+      if (!readyList) return;
 
       let readyHtml = "";
       state.orders.filter(o => (o.status || "").toUpperCase() === "READY").forEach(o => {
