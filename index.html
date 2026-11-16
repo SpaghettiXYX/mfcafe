@@ -527,29 +527,131 @@
     .money-total-card { background: #1e352c !important; border: 1px solid #304b40 !important; border-radius: 18px !important; box-shadow: var(--shadow) !important; }
     .money-total-card #moneyTotal { letter-spacing: -.04em; }
 
-    /* Admin */
-    .admin-layout { display: grid; grid-template-columns: 215px minmax(0,1fr); gap: 20px; align-items: start; }
-    #adminSidebar { border-radius: 16px; border-color: var(--line); box-shadow: var(--shadow); top: 92px !important; padding: 12px !important; }
-    #adminSidebar > p { color: var(--coffee); letter-spacing: .13em; padding: 5px 9px 11px; }
-    #adminSidebarLinks { gap: 3px; }
-    .admin-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: transparent; color: var(--text-2); text-align: left; padding: 9px 10px; border-radius: 9px; font-size: 11px; font-weight: 650; transition: .15s; }
-    .admin-nav-item i { width: 15px; text-align: center; color: var(--muted); }
+    /* Admin — task-led navigation, data dashboard and drawer editing */
+    .admin-layout { display: grid; grid-template-columns: 224px minmax(0,1fr); gap: 20px; align-items: start; }
+    #adminSidebar { display: flex; flex-direction: column; min-width: 0; max-height: calc(100vh - 112px); border-radius: 16px; border-color: var(--line); box-shadow: var(--shadow); top: 92px !important; padding: 12px !important; overflow: hidden; }
+    .admin-side-title { color: var(--coffee); letter-spacing: .13em; padding: 4px 8px 10px; }
+    .admin-side-search { position: relative; margin: 0 0 9px; }
+    .admin-side-search i { position: absolute; left: 11px; top: 10px; color: var(--text-4); font-size: 11px; }
+    .admin-side-search input { width: 100%; min-height: 34px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 8px 9px 8px 30px; font-size: 10px; }
+    #adminSidebarLinks { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; padding: 0 1px 2px; }
+    .admin-nav-group { margin: 3px 0 8px; }
+    .admin-nav-group-title { width: 100%; border: 0; background: transparent; color: var(--text-4); display: flex; align-items: center; gap: 7px; padding: 5px 9px; text-transform: uppercase; letter-spacing: .12em; font-size: 8px; font-weight: 800; text-align: left; }
+    .admin-nav-group-title i { font-size: 7px; transition: transform .18s ease; }
+    .admin-nav-group.closed .admin-nav-group-title i { transform: rotate(-90deg); }
+    .admin-nav-group.closed .admin-nav-items { display: none; }
+    .admin-nav-items { display: grid; gap: 3px; }
+    .admin-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; background: transparent; color: var(--text-2); text-align: left; padding: 8px 10px; border-radius: 9px; font-size: 10px; font-weight: 650; transition: background .15s, color .15s; }
+    .admin-nav-item > i { width: 15px; text-align: center; color: var(--muted); }
     .admin-nav-item:hover { background: var(--surface-2); color: var(--text); }
     .admin-nav-item.active { background: var(--green-soft); color: var(--green); }
-    .admin-nav-item.active i { color: var(--green); }
+    .admin-nav-item.active > i { color: var(--green); }
+    .admin-nav-count { margin-left: auto; min-width: 20px; padding: 1px 6px; border-radius: 20px; background: var(--surface-3); color: var(--text-3); text-align: center; font-size: 8px; }
+    .admin-nav-item.active .admin-nav-count { background: var(--surface); color: var(--green); }
     #adminContentArea { min-width: 0; }
     #adminContentArea > [data-admin-section]:not(.hidden) { animation: workspace-enter .2s ease; }
     #adminContentArea > [data-admin-section]:not([data-admin-section="dashboard"]) { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
-    [data-admin-section="dashboard"] { gap: 14px !important; }
-    [data-admin-section="dashboard"] > div { border-radius: 16px; border-color: var(--line); box-shadow: var(--shadow); padding: 20px !important; }
-    [data-admin-section="dashboard"] > div > p:first-child { color: var(--muted); font-size: 10px; letter-spacing: .07em; }
-    [data-admin-section="dashboard"] > div > p:last-child { margin-top: 12px; letter-spacing: -.035em; }
     #adminContentArea h3 { letter-spacing: -.015em; }
     #adminPortalTabs, #manualAudienceTabs { background: var(--surface-3); }
     #qrTilesGrid > * { border-radius: 11px; }
     #posterGrid { align-items: start; }
     #adminFinancialLog > * { border-radius: 11px; }
+    .admin-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text-2); font-size: 10px; font-weight: 750; transition: .15s; }
+    .admin-btn:hover { background: var(--surface-2); color: var(--text); }
+    .admin-btn.primary { background: var(--green); border-color: var(--green); color: #fff; }
+    .admin-btn.small { min-height: 29px; padding: 5px 9px; border-radius: 8px; font-size: 9px; }
+    .admin-dashboard { display: grid; gap: 14px; }
+    .admin-kpi-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; }
+    .admin-card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+    .admin-kpi { padding: 17px 18px; }
+    .admin-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; font-weight: 700; }
+    .admin-kpi-icon { width: 30px; height: 30px; border-radius: 9px; background: var(--green-soft); color: var(--green); display: grid; place-items: center; flex: none; }
+    .admin-kpi-value { margin-top: 11px; color: var(--text); font-size: 25px; line-height: 1.15; font-weight: 800; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+    .admin-kpi-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-height: 15px; margin-top: 6px; color: var(--muted); font-size: 9px; }
+    .admin-trend-up { color: var(--green); font-weight: 750; }
+    .admin-trend-down { color: var(--red); font-weight: 750; }
+    .admin-dashboard-main { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(275px,1fr); gap: 14px; }
+    .admin-dashboard-bottom { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(280px,1fr); gap: 14px; }
+    .admin-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); }
+    .admin-card-title { margin: 0; color: var(--text); font-size: 12px; font-weight: 800; }
+    .admin-card-sub { margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .admin-segmented { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--surface-3); }
+    .admin-segmented button { border: 0; border-radius: 7px; background: transparent; color: var(--muted); padding: 5px 8px; font-size: 9px; font-weight: 700; }
+    .admin-segmented button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(20,35,28,.1); }
+    .admin-chart-wrap { padding: 12px 14px 5px; }
+    .admin-chart { display: block; width: 100%; height: 210px; }
+    .admin-chart text { fill: var(--muted); font-family: inherit; font-size: 9px; }
+    .admin-chart-legend { display: flex; justify-content: space-between; gap: 10px; padding: 0 18px 13px; color: var(--muted); font-size: 9px; }
+    .admin-legend-key { display: inline-flex; align-items: center; gap: 5px; }
+    .admin-legend-key i { width: 7px; height: 7px; border-radius: 2px; background: var(--green); }
+    .admin-alert-list { padding: 5px 17px 10px; }
+    .admin-alert { display: flex; align-items: flex-start; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+    .admin-alert:last-child { border-bottom: 0; }
+    .admin-alert-icon { display: grid; place-items: center; flex: none; width: 29px; height: 29px; border-radius: 9px; background: var(--amber-soft); color: var(--amber); font-size: 11px; }
+    .admin-alert.red .admin-alert-icon { background: var(--red-soft); color: var(--red); }
+    .admin-alert.green .admin-alert-icon { background: var(--green-soft); color: var(--green); }
+    .admin-alert strong { display: block; color: var(--text); font-size: 10px; }
+    .admin-alert p { margin: 3px 0 0; color: var(--muted); font-size: 9px; }
+    .admin-alert button { align-self: center; margin-left: auto; border: 0; background: transparent; color: var(--green); font-size: 9px; font-weight: 750; white-space: nowrap; }
+    .admin-queue-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 13px 17px 16px; }
+    .admin-queue-box { padding: 10px; border-radius: 11px; background: var(--surface-2); }
+    .admin-queue-box span { display: block; color: var(--muted); font-size: 9px; }
+    .admin-queue-box strong { display: block; margin-top: 2px; font-size: 20px; letter-spacing: -.03em; }
+    .admin-table-wrap { width: 100%; overflow-x: auto; }
+    .admin-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .admin-table th { padding: 10px 13px; border-bottom: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+    .admin-table td { padding: 11px 13px; border-bottom: 1px solid var(--line); color: var(--text-2); font-size: 10px; vertical-align: middle; }
+    .admin-table tbody tr:last-child td { border-bottom: 0; }
+    .admin-table tbody tr:hover { background: var(--surface-2); }
+    .admin-order-no { color: var(--text); font-weight: 800; }
+    .admin-cell-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; }
+    .admin-money { color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .admin-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 99px; background: var(--surface-3); color: var(--text-2); font-size: 8px; line-height: 1.2; font-weight: 750; white-space: nowrap; }
+    .admin-badge.green { background: var(--green-soft); color: var(--green); }
+    .admin-badge.amber { background: var(--amber-soft); color: var(--amber); }
+    .admin-badge.red { background: var(--red-soft); color: var(--red); }
+    .admin-badge.blue { background: var(--blue-soft); color: var(--blue); }
+    .admin-badge.coffee { background: var(--coffee-soft); color: var(--coffee); }
+    .admin-rank-list { padding: 6px 17px 14px; }
+    .admin-rank { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 9px 0; }
+    .admin-rank-num { color: var(--muted); font-size: 9px; font-weight: 700; }
+    .admin-rank-name { display: flex; justify-content: space-between; gap: 8px; color: var(--text); font-size: 10px; font-weight: 700; }
+    .admin-rank-name span:last-child { color: var(--muted); font-weight: 500; white-space: nowrap; }
+    .admin-rank-bar { height: 5px; margin-top: 6px; border-radius: 9px; background: var(--surface-3); overflow: hidden; }
+    .admin-rank-bar i { display: block; height: 100%; border-radius: 9px; background: var(--green); }
+    .admin-rank-total { color: var(--text-2); font-size: 9px; font-weight: 700; }
+    .admin-empty { padding: 28px 18px; color: var(--muted); text-align: center; font-size: 10px; }
+    .admin-menu-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 12px 0 15px; }
+    .admin-search { position: relative; flex: 1; min-width: 190px; max-width: 340px; }
+    .admin-search i { position: absolute; left: 11px; top: 11px; color: var(--muted); font-size: 10px; }
+    .admin-input, .admin-select { min-height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); padding: 8px 10px; font-size: 10px; font-weight: 600; }
+    .admin-search .admin-input { width: 100%; padding-left: 30px; }
+    .admin-select { min-width: 125px; }
+    .admin-product-cell { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+    .admin-product-cell strong { display: block; color: var(--text); font-size: 10px; }
+    .admin-thumb { position: relative; display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 10px; background: var(--coffee-soft); color: var(--coffee); overflow: hidden; }
+    .admin-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .admin-thumb > i { display: grid; place-items: center; width: 100%; height: 100%; }
+    .admin-switch { position: relative; flex: none; width: 35px; height: 20px; padding: 0; border: 0; border-radius: 99px; background: var(--border-2); transition: background .18s; }
+    .admin-switch:after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); transition: transform .18s; }
+    .admin-switch.on { background: var(--green); }
+    .admin-switch.on:after { transform: translateX(15px); }
+    .admin-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+    #menuModal { align-items: stretch !important; justify-content: flex-end !important; padding: 0 !important; background: rgba(20,32,25,.48) !important; }
+    #menuModal > .admin-menu-drawer { display: flex; flex-direction: column; width: min(470px,100%); max-width: none !important; height: 100dvh; max-height: none !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: var(--bg); overflow: hidden; animation: admin-drawer-enter .24s ease; }
+    .admin-drawer-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .admin-drawer-head > div { flex: 1; }
+    .admin-drawer-head h3 { margin: 0; font-size: 16px; }
+    .admin-drawer-head p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+    .admin-drawer-close { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text-3); }
+    .admin-drawer-body { flex: 1; min-height: 0; padding: 19px 20px; overflow-y: auto; }
+    .admin-drawer-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 20px; border-top: 1px solid var(--line); background: var(--surface); }
     @keyframes workspace-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @keyframes admin-drawer-enter { from { opacity: .5; transform: translateX(30px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 1150px) {
+      .admin-kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .admin-dashboard-main, .admin-dashboard-bottom { grid-template-columns: 1fr; }
+    }
 
     /* Dialogs and floating hardware card */
     body > .fixed > .bg-white, #printerBar { background: var(--surface); color: var(--text); border-color: var(--line); border-radius: 18px; }
@@ -567,11 +669,16 @@
       .top-user-copy { display: none; }
     }
     @media (max-width: 980px) {
-      .pos-layout, .money-layout, .admin-layout { grid-template-columns: 1fr; }
+      .pos-layout, .money-layout { grid-template-columns: 1fr; }
+      .admin-layout { grid-template-columns: minmax(0,1fr); }
       .pos-ticket { position: static; }
-      #adminSidebar { position: static !important; }
-      #adminSidebarLinks { flex-direction: row; overflow-x: auto; padding-bottom: 3px; }
+      #adminSidebar { position: static !important; max-height: none; overflow: visible; }
+      #adminSidebarLinks { display: flex; overflow-x: auto; overflow-y: hidden; padding-bottom: 5px; gap: 10px; }
+      .admin-nav-group { flex: none; margin: 0; }
+      .admin-nav-group-title { display: none; }
+      .admin-nav-group.closed .admin-nav-items, .admin-nav-items { display: flex; gap: 4px; }
       .admin-nav-item { width: auto; flex: none; white-space: nowrap; }
+      .admin-side-search { max-width: 340px; }
       .login-shell { grid-template-columns: 1fr; max-width: 520px; min-height: 0; }
       .login-brand { display: none; }
       .topbar { padding: 0 20px; }
@@ -610,9 +717,21 @@
       .scan-actions { width: 100%; }
       .scan-actions input { flex: 1; min-width: 150px; }
       #moneyNotes > div, #moneyCoins > div { gap: 7px; }
+      #adminContentArea > [data-admin-section]:not([data-admin-section="dashboard"]) { padding: 16px; }
+      .admin-kpi-grid { grid-template-columns: 1fr; }
+      .admin-kpi { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+      .admin-kpi-top { grid-column: span 2; }
+      .admin-kpi-value { font-size: 22px; }
+      .admin-kpi-foot { justify-content: flex-end; text-align: right; }
+      .admin-menu-toolbar .admin-search { max-width: none; min-width: 100%; }
+      .admin-menu-toolbar .admin-select { flex: 1; min-width: 110px; }
+      .admin-card-head { padding: 13px; }
+      .admin-chart { height: 180px; }
+      .admin-chart-legend span:last-child { display: none; }
+      .admin-drawer-body { padding: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      #pickupReadyList > div, #adminContentArea > [data-admin-section]:not(.hidden) { animation: none; }
+      #pickupReadyList > div, #adminContentArea > [data-admin-section]:not(.hidden), #menuModal > .admin-menu-drawer { animation: none; }
     }
   </style>
 
@@ -1061,38 +1180,92 @@
     <section id="view-admin" class="hidden">
       <div class="page-head">
         <div>
-          <div class="eyebrow">Management</div>
-          <h2 class="page-title">Admin Panel</h2>
-          <p class="page-desc">Manage service operations, menu content, hardware and staff access.</p>
+          <div id="adminPageEyebrow" class="eyebrow">Overview</div>
+          <h2 id="adminPageTitle" class="page-title">Dashboard</h2>
+          <p id="adminPageDesc" class="page-desc">Today’s service, sales and exceptions at a glance.</p>
         </div>
-        <span class="bg-emerald-100 text-emerald-700 font-extrabold px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider"><i class="fa-solid fa-lock mr-1"></i> Admin access</span>
+        <div class="head-actions">
+          <button id="adminDashboardRefresh" onclick="fetchOrderHistory()" class="admin-btn"><i class="fa-solid fa-rotate"></i>Refresh</button>
+          <span class="bg-emerald-100 text-emerald-700 font-extrabold px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider"><i class="fa-solid fa-lock mr-1"></i> Admin access</span>
+        </div>
       </div>
       <div class="admin-layout">
 
-        <!-- ADMIN SIDEBAR (left nav) -->
+        <!-- ADMIN SIDEBAR: grouped, searchable and collapsible -->
         <aside id="adminSidebar" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 lg:sticky lg:top-4 h-fit">
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 pt-1 pb-2">Admin Console</p>
-          <nav class="flex flex-col gap-1" id="adminSidebarLinks"></nav>
+          <p class="admin-side-title text-[10px] font-black uppercase">Admin Console</p>
+          <div class="admin-side-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="adminNavSearch" type="search" placeholder="Find a setting…" aria-label="Find an admin setting" oninput="renderAdminSidebar()">
+          </div>
+          <nav id="adminSidebarLinks" aria-label="Admin sections"></nav>
         </aside>
 
         <!-- ADMIN CONTENT AREA (sections filtered by sidebar) -->
-        <div id="adminContentArea" class="space-y-6">
+        <div id="adminContentArea" class="space-y-5">
 
-          <!-- DASHBOARD: stats row -->
-          <div data-admin-section="dashboard" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-400 font-bold uppercase">Total Revenue</p>
-          <p id="adminRevenue" class="text-3xl font-black text-emerald-600 mt-1">HK$0.00</p>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-400 font-bold uppercase">Total Orders Served</p>
-          <p id="adminTotalOrders" class="text-3xl font-black text-amber-500 mt-1">0</p>
-        </div>
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <p class="text-xs text-slate-400 font-bold uppercase">Active Menu Items</p>
-          <p id="adminMenuItemsCount" class="text-3xl font-black text-sky-600 mt-1">0</p>
-        </div>
-      </div>
+          <!-- DASHBOARD: every figure is calculated from live or fetched orders -->
+          <div data-admin-section="dashboard" class="admin-dashboard">
+            <div class="admin-kpi-grid">
+              <div class="admin-card admin-kpi">
+                <div class="admin-kpi-top"><span>Today’s revenue</span><span class="admin-kpi-icon"><i class="fa-solid fa-dollar-sign"></i></span></div>
+                <div id="adminTodayRevenue" class="admin-kpi-value">HK$0.00</div>
+                <div class="admin-kpi-foot"><span id="adminRevenueTrend">Waiting for order history</span><span>· Recorded <strong id="adminRevenue">—</strong></span></div>
+              </div>
+              <div class="admin-card admin-kpi">
+                <div class="admin-kpi-top"><span>Paid orders today</span><span class="admin-kpi-icon"><i class="fa-solid fa-receipt"></i></span></div>
+                <div id="adminTodayOrders" class="admin-kpi-value">0</div>
+                <div class="admin-kpi-foot"><span>Across all channels</span><span>· Recorded <strong id="adminTotalOrders">—</strong></span></div>
+              </div>
+              <div class="admin-card admin-kpi">
+                <div class="admin-kpi-top"><span>Average ticket</span><span class="admin-kpi-icon"><i class="fa-solid fa-basket-shopping"></i></span></div>
+                <div id="adminAverageTicket" class="admin-kpi-value">HK$0.00</div>
+                <div id="adminTodayDiscount" class="admin-kpi-foot">No discounts recorded today</div>
+              </div>
+              <div class="admin-card admin-kpi">
+                <div class="admin-kpi-top"><span>Live queue</span><span class="admin-kpi-icon" style="background:var(--amber-soft);color:var(--amber)"><i class="fa-solid fa-fire-burner"></i></span></div>
+                <div id="adminLiveQueue" class="admin-kpi-value">0</div>
+                <div id="adminQueueFoot" class="admin-kpi-foot">No active preparation orders</div>
+              </div>
+            </div>
+
+            <div class="admin-dashboard-main">
+              <div class="admin-card">
+                <div class="admin-card-head">
+                  <div><h3 class="admin-card-title">Revenue &amp; orders</h3><div id="adminChartScope" class="admin-card-sub">Paid net revenue from recent order history</div></div>
+                  <div class="admin-segmented" aria-label="Chart range">
+                    <button type="button" class="active" data-admin-chart-range="7" onclick="setAdminChartRange(7)">7 days</button>
+                    <button type="button" data-admin-chart-range="14" onclick="setAdminChartRange(14)">14 days</button>
+                    <button type="button" data-admin-chart-range="30" onclick="setAdminChartRange(30)">30 days</button>
+                  </div>
+                </div>
+                <div class="admin-chart-wrap"><svg id="adminRevenueChart" class="admin-chart" viewBox="0 0 680 210" preserveAspectRatio="none" role="img" aria-label="Daily paid net revenue chart"></svg></div>
+                <div class="admin-chart-legend"><span class="admin-legend-key"><i></i>Daily net revenue</span><span id="adminChartTotal">HK$0.00 in this period</span></div>
+              </div>
+
+              <div class="admin-card">
+                <div class="admin-card-head"><div><h3 class="admin-card-title">Needs attention</h3><div class="admin-card-sub">Live operational issues worth checking</div></div><span id="adminAttentionCount" class="admin-badge green">Clear</span></div>
+                <div id="adminAttentionList" class="admin-alert-list"></div>
+                <div class="admin-card-head" style="border-top:1px solid var(--line);border-bottom:0"><h3 class="admin-card-title">Right now</h3><span class="admin-badge green">Live</span></div>
+                <div class="admin-queue-row" style="padding-top:4px">
+                  <div class="admin-queue-box"><span>Preparing</span><strong id="adminPreparingCount">0</strong></div>
+                  <div class="admin-queue-box"><span>Ready</span><strong id="adminReadyCount">0</strong></div>
+                  <div class="admin-queue-box"><span>Unpaid</span><strong id="adminUnpaidCount">0</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="admin-dashboard-bottom">
+              <div class="admin-card">
+                <div class="admin-card-head"><div><h3 class="admin-card-title">Recent orders</h3><div class="admin-card-sub">Latest activity across POS and self-order</div></div><button class="admin-btn small" onclick="switchAdminSection('financial')">View all<i class="fa-solid fa-arrow-right"></i></button></div>
+                <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Order</th><th>Item</th><th>Channel</th><th>Status</th><th style="text-align:right">Net</th></tr></thead><tbody id="adminRecentOrders"></tbody></table></div>
+              </div>
+              <div class="admin-card">
+                <div class="admin-card-head"><div><h3 class="admin-card-title">Best sellers</h3><div class="admin-card-sub">By paid cups sold today</div></div><button class="admin-btn small" onclick="switchAdminSection('menu')">Menu</button></div>
+                <div id="adminBestSellers" class="admin-rank-list"></div>
+              </div>
+            </div>
+          </div>
 
       <!-- Global Operation Settings -->
       <div data-admin-section="operation" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
@@ -1576,31 +1749,34 @@
         <p class="text-[10px] font-semibold text-slate-400">Test a card by signing out and scanning it on the login screen.</p>
       </div>
 
-      <!-- Menu Management Table -->
-      <div data-admin-section="menu" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+      <!-- Menu Management Table: filters call the same live save/toggle APIs -->
+      <div data-admin-section="menu" class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h3 class="font-black text-slate-800 text-lg">Menu Management</h3>
-            <p class="text-xs text-slate-400">Pause items, edit prices, or update availability</p>
+            <div class="flex items-center gap-2"><h3 class="font-black text-slate-800 text-lg">Menu Management</h3><span class="admin-badge green"><strong id="adminMenuItemsCount">0</strong> active</span></div>
+            <p class="text-xs text-slate-400 mt-1">Search, filter, pause or edit products without losing your place.</p>
           </div>
-          <button onclick="openAddMenuModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-sm transition">
-            <i class="fa-solid fa-plus mr-1"></i> Add New Item
+          <button onclick="openAddMenuModal()" class="admin-btn primary">
+            <i class="fa-solid fa-plus"></i> Add New Item
           </button>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[760px] text-left text-xs border-collapse">
-            <thead>
-              <tr class="border-b border-slate-200 text-slate-400 uppercase font-extrabold">
-                <th class="py-2.5 px-3">Item Name</th>
-                <th class="py-2.5 px-3">Category</th>
-                <th class="py-2.5 px-3">Temp Options</th>
-                <th class="py-2.5 px-3">Price</th>
-                <th class="py-2.5 px-3">Status</th>
-                <th class="py-2.5 px-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="adminMenuTableBody" class="divide-y divide-slate-100"></tbody>
+        <div class="admin-menu-toolbar">
+          <div class="admin-search"><i class="fa-solid fa-magnifying-glass"></i><input id="adminMenuSearch" type="search" class="admin-input" placeholder="Search name or category…" oninput="renderAdminMenu()"></div>
+          <select id="adminMenuCategoryFilter" class="admin-select" aria-label="Filter menu by category" onchange="renderAdminMenu()"><option value="all">All categories</option></select>
+          <select id="adminMenuStatusFilter" class="admin-select" aria-label="Filter menu by availability" onchange="renderAdminMenu()">
+            <option value="all">Any availability</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="soldout">Sold out</option>
+          </select>
+          <span id="adminMenuCount" class="admin-badge">0 items</span>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table min-w-[900px]">
+            <thead><tr><th>Product</th><th>Category</th><th>Temp Options</th><th>Price</th><th>Availability</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody id="adminMenuTableBody"></tbody>
           </table>
         </div>
       </div>
@@ -1866,84 +2042,92 @@
     </div>
   </div>
 
-  <!-- EDIT / ADD MENU ITEM MODAL -->
-  <div id="menuModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-    <div class="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-slate-100 space-y-4">
-      <div class="flex justify-between items-center border-b pb-3">
-        <h3 id="modalTitle" class="font-black text-slate-800 text-base">Edit Menu Item</h3>
-        <button onclick="closeMenuModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <!-- EDIT / ADD MENU ITEM DRAWER -->
+  <div id="menuModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="admin-menu-drawer shadow-2xl">
+      <div class="admin-drawer-head">
+        <div>
+          <h3 id="modalTitle" class="font-black text-slate-800">Edit Menu Item</h3>
+          <p>Update availability, pricing and customer ordering options.</p>
+        </div>
+        <button type="button" onclick="closeMenuModal()" class="admin-drawer-close" aria-label="Close menu editor"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
-      <input type="hidden" id="editOriginalName">
+      <div class="admin-drawer-body">
+        <input type="hidden" id="editOriginalName">
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="sm:col-span-2">
+              <label for="editItemName" class="block text-xs font-bold text-slate-500 mb-1">Item Name</label>
+              <input type="text" id="editItemName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            </div>
+            <div>
+              <label for="editItemPrice" class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
+              <input type="number" step="0.5" id="editItemPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            </div>
+            <div>
+              <label for="editItemOfferPrice" class="block text-xs font-bold text-slate-500 mb-1">Original Price <span class="font-normal text-slate-400">(optional)</span></label>
+              <input type="number" step="0.1" min="0" id="editItemOfferPrice" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            </div>
+            <div>
+              <label for="editItemTemp" class="block text-xs font-bold text-slate-500 mb-1">Temperature Options</label>
+              <select id="editItemTemp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                <option value="Hot & Cold">Hot & Cold</option>
+                <option value="Hot">Hot Only</option>
+                <option value="Cold">Cold Only</option>
+              </select>
+            </div>
+            <div>
+              <label for="editItemStatus" class="block text-xs font-bold text-slate-500 mb-1">Status</label>
+              <select id="editItemStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+                <option value="Active">Active</option>
+                <option value="Paused">Paused / Hidden</option>
+              </select>
+            </div>
+            <div class="sm:col-span-2">
+              <label for="editItemCategory" class="block text-xs font-bold text-slate-500 mb-1">Category</label>
+              <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
+            </div>
+          </div>
 
-      <div class="space-y-3">
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Item Name</label>
-          <input type="text" id="editItemName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+          <div>
+            <label for="editItemImageUrl" class="block text-xs font-bold text-slate-500 mb-1">Product Image URL <span class="font-normal text-slate-400">(optional)</span></label>
+            <input type="url" id="editItemImageUrl" placeholder="https://i.imgur.com/....jpg" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
+            <p class="text-[10px] text-slate-400 mt-1">Shown as a square thumbnail in POS, customer ordering and Admin.</p>
+          </div>
+
+          <div class="space-y-2 bg-white border border-slate-200 rounded-2xl p-4">
+            <label class="flex items-start gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+              <input type="checkbox" id="editItemSoldOut" class="w-4 h-4 mt-0.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+              <span>Sold out <span class="block text-[10px] font-normal text-slate-400 mt-0.5">Still shown on the menu, but cannot be ordered.</span></span>
+            </label>
+            <label class="flex items-start gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+              <input type="checkbox" id="editItemColdPaused" class="w-4 h-4 mt-0.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+              <span>Pause cold option <span class="block text-[10px] font-normal text-slate-400 mt-0.5">Hot remains available for this item.</span></span>
+            </label>
+            <label class="flex items-start gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+              <input type="checkbox" id="editItemAllowNotes" checked class="w-4 h-4 mt-0.5 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+              <span>Allow customer notes and special requests</span>
+            </label>
+          </div>
+
+          <div class="space-y-2 bg-white border border-slate-200 rounded-2xl p-4">
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-400">Snack &amp; upsell</p>
+            <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+              <input type="checkbox" id="editItemIsSnack" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+              Snack item (add-on sold with drinks)
+            </label>
+            <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
+              <input type="checkbox" id="editItemShowInUpsell" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
+              Offer in upsell popup
+            </label>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Price ($)</label>
-          <input type="number" step="0.5" id="editItemPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Temperature Options</label>
-          <select id="editItemTemp" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-            <option value="Hot & Cold">Hot & Cold</option>
-            <option value="Hot">Hot Only</option>
-            <option value="Cold">Cold Only</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Status</label>
-          <select id="editItemStatus" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-            <option value="Active">Active</option>
-            <option value="Paused">Paused / Hidden</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Category</label>
-          <select id="editItemCategory" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800"></select>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Original Price <span class="font-normal text-slate-400">(optional — struck through next to the price)</span></label>
-          <input type="number" step="0.1" min="0" id="editItemOfferPrice" placeholder="0.00"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-slate-500 mb-1">Product Image URL <span class="font-normal text-slate-400">(optional)</span></label>
-          <input type="url" id="editItemImageUrl" placeholder="https://i.imgur.com/....jpg"
-            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800">
-          <p class="text-[10px] text-slate-400 mt-1">Shown on the Customer and Open Day menus. The cashier POS stays text-only.</p>
-        </div>
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
-          <input type="checkbox" id="editItemSoldOut" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
-          Sold out (still shown on the menu, cannot be ordered)
-        </label>
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
-          <input type="checkbox" id="editItemIsSnack" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
-          Snack item (add-on sold with drinks)
-        </label>
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
-          <input type="checkbox" id="editItemShowInUpsell" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
-          Offer in upsell popup
-        </label>
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
-          <input type="checkbox" id="editItemAllowNotes" checked class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
-          Allow customer notes / special requests for this item
-        </label>
-        <label class="flex items-center gap-2 text-xs font-bold text-slate-500 cursor-pointer">
-          <input type="checkbox" id="editItemColdPaused" class="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500">
-          Pause cold option for this item (hot stays available)
-        </label>
       </div>
 
-      <div class="flex space-x-2 pt-2">
-        <button onclick="saveMenuItemSubmit()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow-sm">
-          Save Changes
-        </button>
-        <button onclick="closeMenuModal()" class="bg-slate-100 text-slate-600 font-bold px-4 py-2.5 rounded-xl text-xs">
-          Cancel
-        </button>
+      <div class="admin-drawer-foot">
+        <button type="button" onclick="closeMenuModal()" class="admin-btn">Cancel</button>
+        <button type="button" onclick="saveMenuItemSubmit()" class="admin-btn primary"><i class="fa-solid fa-check"></i>Save Changes</button>
       </div>
     </div>
   </div>
@@ -2597,10 +2781,7 @@
               revenue: Number(data.totalRevenue) || 0,
               count: Number(data.totalCount) || 0
             };
-            const revEl = document.getElementById('adminRevenue');
-            const cntEl = document.getElementById('adminTotalOrders');
-            if (revEl) revEl.innerText = fmtPrice(state.orderHistoryTotals.revenue);
-            if (cntEl) cntEl.innerText = state.orderHistoryTotals.count;
+            renderAdminDashboard();
             renderAdminFinancialLog();
           }
         })
@@ -5209,63 +5390,116 @@
     setInterval(syncPrinterBar, 1500);
 
     // ==================== ADMIN SIDEBAR NAV ====================
-    // Categorises all existing admin sections under a left-hand side nav.
-    // Clicking a link hides every section that doesn't match data-admin-section=<key>.
-    const ADMIN_SECTIONS = [
-      { key: "dashboard",    label: "Dashboard",          icon: "fa-gauge-high" },
-      { key: "operation",    label: "Operation",          icon: "fa-sliders" },
-      { key: "manual",       label: "Order Instructions", icon: "fa-book-open" },
-      { key: "promotions",   label: "Promotions",         icon: "fa-percent" },
-      { key: "kdsstatus",    label: "KDS Status",         icon: "fa-signal" },
-      { key: "announcement", label: "Announcement",       icon: "fa-bullhorn" },
-      { key: "posters",      label: "Poster Screen",      icon: "fa-images" },
-      { key: "categories",   label: "Categories",          icon: "fa-tags" },
-      { key: "qrtile",       label: "QR Tiles",            icon: "fa-qrcode" },
-      { key: "users",        label: "Users & Permissions", icon: "fa-users-gear" },
-      { key: "staffcards",   label: "Staff Cards",         icon: "fa-id-card" },
-      { key: "menu",         label: "Menu Items",          icon: "fa-utensils" },
-      { key: "printer",      label: "Printer Control",    icon: "fa-print" },
-      { key: "layout",       label: "Receipt Layout",     icon: "fa-receipt" },
-      { key: "financial",    label: "Financial Log",       icon: "fa-file-invoice-dollar" },
+    // Task-led groups wrap the existing sections; all operational forms and
+    // their save handlers remain bound to the original backend actions.
+    const ADMIN_NAV = [
+      { group: "Overview", items: [
+        { key: "dashboard", label: "Dashboard", icon: "fa-gauge-high", desc: "Today’s service, sales and exceptions at a glance." }
+      ]},
+      { group: "Operations", items: [
+        { key: "operation", label: "Store controls", icon: "fa-sliders", desc: "Ordering portals, pickup slots and global availability." },
+        { key: "kdsstatus", label: "KDS status strip", icon: "fa-signal", desc: "Control the service message shown across the KDS." },
+        { key: "qrtile", label: "QR tiles", icon: "fa-qrcode", desc: "Create, bind and print customer pickup tiles.", count: () => state.qrTiles.length },
+        { key: "manual", label: "Order instructions", icon: "fa-book-open", desc: "Edit self-order guidance for each customer portal." }
+      ]},
+      { group: "Catalog", items: [
+        { key: "menu", label: "Menu items", icon: "fa-utensils", desc: "Manage products, prices, images and availability.", count: () => state.menu.length },
+        { key: "categories", label: "Categories", icon: "fa-tags", desc: "Organise the menu and category colours." },
+        { key: "promotions", label: "Promotions", icon: "fa-percent", desc: "Manage offer codes and discount rules.", count: () => state.promoCodes.filter(p => p.active).length }
+      ]},
+      { group: "Communication", items: [
+        { key: "announcement", label: "Announcements", icon: "fa-bullhorn", desc: "Publish timely messages to staff and customers." },
+        { key: "posters", label: "Poster screen", icon: "fa-images", desc: "Schedule content for the customer poster display." }
+      ]},
+      { group: "Team & access", items: [
+        { key: "users", label: "Users & permissions", icon: "fa-users-gear", desc: "Manage staff accounts, roles and print access." },
+        { key: "staffcards", label: "Staff cards", icon: "fa-id-card", desc: "Link and manage fast staff sign-in cards." }
+      ]},
+      { group: "Hardware", items: [
+        { key: "printer", label: "Printer control", icon: "fa-print", desc: "Connect printers and test production channels." },
+        { key: "layout", label: "Receipt layout", icon: "fa-receipt", desc: "Adjust ticket content and print formatting." }
+      ]},
+      { group: "Finance", items: [
+        { key: "financial", label: "Financial log", icon: "fa-file-invoice-dollar", desc: "Review recent orders, payments and financial activity." }
+      ]}
     ];
-
+    const ADMIN_SECTIONS = ADMIN_NAV.flatMap(group => group.items.map(item => ({ ...item, group: group.group })));
+    const adminOpenGroups = new Set(["Overview"]);
     let activeAdminSection = "dashboard";
+
+    function toggleAdminGroup(groupIndex) {
+      const group = ADMIN_NAV[groupIndex];
+      if (!group) return;
+      if (adminOpenGroups.has(group.group)) adminOpenGroups.delete(group.group);
+      else adminOpenGroups.add(group.group);
+      renderAdminSidebar();
+    }
 
     function renderAdminSidebar() {
       const nav = document.getElementById("adminSidebarLinks");
       if (!nav) return;
-      nav.innerHTML = ADMIN_SECTIONS.map(s => `
-        <button type="button" onclick="switchAdminSection('${s.key}')"
-          data-admin-link="${s.key}"
-          class="admin-nav-item">
-          <i class="fa-solid ${s.icon}"></i>
-          <span>${s.label}</span>
-        </button>
-      `).join("");
+      const query = (document.getElementById("adminNavSearch")?.value || "").trim().toLowerCase();
+      let visibleItems = 0;
+      nav.innerHTML = ADMIN_NAV.map((group, groupIndex) => {
+        const items = group.items.filter(item => !query || `${group.group} ${item.label} ${item.desc}`.toLowerCase().includes(query));
+        if (!items.length) return "";
+        visibleItems += items.length;
+        const isClosed = !query && !adminOpenGroups.has(group.group);
+        return `<section class="admin-nav-group ${isClosed ? "closed" : ""}" data-admin-group="${groupIndex}">
+          <button type="button" class="admin-nav-group-title" onclick="toggleAdminGroup(${groupIndex})" aria-expanded="${!isClosed}" aria-controls="adminNavItems${groupIndex}">
+            <i class="fa-solid fa-chevron-down"></i><span>${escapeHtml(group.group)}</span>
+          </button>
+          <div id="adminNavItems${groupIndex}" class="admin-nav-items">
+            ${items.map(item => {
+              const count = item.count ? item.count() : null;
+              return `<button type="button" onclick="switchAdminSection('${item.key}')" data-admin-link="${item.key}" class="admin-nav-item">
+                <i class="fa-solid ${item.icon}"></i><span>${escapeHtml(item.label)}</span>
+                ${count !== null ? `<span class="admin-nav-count">${count}</span>` : ""}
+              </button>`;
+            }).join("")}
+          </div>
+        </section>`;
+      }).join("");
+      if (!visibleItems) nav.innerHTML = '<p class="admin-empty">No settings match your search.</p>';
       switchAdminSection(activeAdminSection);
     }
 
     function switchAdminSection(key) {
-      activeAdminSection = key;
-      // Update link highlight
+      const section = ADMIN_SECTIONS.find(item => item.key === key) || ADMIN_SECTIONS[0];
+      activeAdminSection = section.key;
+      const query = (document.getElementById("adminNavSearch")?.value || "").trim();
+      if (!query) adminOpenGroups.add(section.group);
+
       document.querySelectorAll("[data-admin-link]").forEach(link => {
-        const isActive = link.dataset.adminLink === key;
+        const isActive = link.dataset.adminLink === section.key;
         link.classList.toggle("active", isActive);
         if (isActive) link.setAttribute("aria-current", "page");
         else link.removeAttribute("aria-current");
       });
-      // Filter sections
-      document.querySelectorAll("[data-admin-section]").forEach(sec => {
-        const show = sec.dataset.adminSection === key;
-        sec.classList.toggle("hidden", !show);
+      document.querySelectorAll("[data-admin-group]").forEach(groupEl => {
+        const group = ADMIN_NAV[Number(groupEl.dataset.adminGroup)];
+        const closed = !query && group && !adminOpenGroups.has(group.group);
+        groupEl.classList.toggle("closed", !!closed);
+        groupEl.querySelector(".admin-nav-group-title")?.setAttribute("aria-expanded", String(!closed));
       });
-      if (key === "layout") renderLayoutEditor();
-      if (key === "kdsstatus") renderKdsStatusEditor();
-      if (key === "operation") renderOpeningHoursEditor();
-      if (key === "manual") renderManualEditor();
-      if (key === "promotions") renderPromotionsEditor();
-      if (key === "staffcards") renderAdminStaffCards();
-      if (key === "posters") loadPosters();
+      document.querySelectorAll("[data-admin-section]").forEach(sec => {
+        sec.classList.toggle("hidden", sec.dataset.adminSection !== section.key);
+      });
+
+      document.getElementById("adminPageEyebrow").textContent = section.group;
+      document.getElementById("adminPageTitle").textContent = section.label;
+      document.getElementById("adminPageDesc").textContent = section.desc;
+      document.getElementById("adminDashboardRefresh")?.classList.toggle("hidden", section.key !== "dashboard");
+
+      if (section.key === "layout") renderLayoutEditor();
+      if (section.key === "kdsstatus") renderKdsStatusEditor();
+      if (section.key === "operation") renderOpeningHoursEditor();
+      if (section.key === "manual") renderManualEditor();
+      if (section.key === "promotions") renderPromotionsEditor();
+      if (section.key === "staffcards") renderAdminStaffCards();
+      if (section.key === "posters") loadPosters();
+      if (section.key === "dashboard") renderAdminDashboard();
+      if (section.key === "menu") renderAdminMenu();
     }
 
     // ==================== ADMIN: POSTER SCREEN ====================
@@ -5938,28 +6172,282 @@
       }
     }
 
+    // ==================== ADMIN DASHBOARD & MENU DATA ====================
+    const ADMIN_HK_DAY_FORMAT = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Hong_Kong", year: "numeric", month: "2-digit", day: "2-digit"
+    });
+    let adminChartRange = 7;
+
+    function adminCalendarKey(date = new Date()) {
+      const parts = Object.fromEntries(ADMIN_HK_DAY_FORMAT.formatToParts(date).map(part => [part.type, part.value]));
+      return `${parts.year}-${parts.month}-${parts.day}`;
+    }
+
+    function adminOrderDayKey(order) {
+      const raw = order && typeof order === "object" ? order.orderTime : order;
+      // Apps Script writes a literal Z after a script-timezone wall time. Use
+      // its calendar fields directly instead of applying another UTC offset.
+      const wallClock = String(raw || "").match(/^(\d{4}-\d{2}-\d{2})/);
+      if (wallClock) return wallClock[1];
+      const date = raw instanceof Date ? raw : new Date(raw);
+      return Number.isNaN(date.getTime()) ? "" : adminCalendarKey(date);
+    }
+
+    function adminOrderTimeValue(raw) {
+      const match = String(raw || "").match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) return Date.UTC(+match[1], +match[2] - 1, +match[3], +match[4], +match[5], +(match[6] || 0));
+      const timestamp = new Date(raw).getTime();
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    }
+
+    function adminOrderTimeLabel(raw) {
+      const wallClock = String(raw || "").match(/[T ](\d{2}:\d{2})/);
+      if (wallClock) return wallClock[1];
+      const date = new Date(raw);
+      return Number.isNaN(date.getTime()) ? "—" : date.toLocaleTimeString("en-HK", {
+        timeZone: "Asia/Hong_Kong", hour: "2-digit", minute: "2-digit", hour12: false
+      });
+    }
+
+    function adminShiftDay(dayKey, offset) {
+      const [year, month, day] = dayKey.split("-").map(Number);
+      const shifted = new Date(Date.UTC(year, month - 1, day + offset, 12));
+      return shifted.toISOString().slice(0, 10);
+    }
+
+    function adminIsPaid(order) {
+      return String(order.status || "").toUpperCase() !== "UNPAID" &&
+        String(order.paymentStatus || "").toUpperCase() !== "UNPAID";
+    }
+
+    function adminNet(order) {
+      return Math.max(0, (Number(order.price) || 0) - (Number(order.discount) || 0));
+    }
+
+    function adminSetText(id, value) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    }
+
+    function setAdminChartRange(days) {
+      if (![7, 14, 30].includes(Number(days))) return;
+      adminChartRange = Number(days);
+      renderAdminDashboard();
+    }
+
+    function renderAdminRevenueChart(history) {
+      const svg = document.getElementById("adminRevenueChart");
+      if (!svg) return;
+      const today = adminCalendarKey();
+      const days = Array.from({ length: adminChartRange }, (_, index) => adminShiftDay(today, index - adminChartRange + 1));
+      const daily = new Map(days.map(day => [day, { revenue: 0, orders: 0 }]));
+      history.filter(adminIsPaid).forEach(order => {
+        const day = daily.get(adminOrderDayKey(order));
+        if (!day) return;
+        day.revenue += adminNet(order);
+        day.orders += 1;
+      });
+
+      const values = days.map(day => daily.get(day).revenue);
+      const periodRevenue = values.reduce((sum, value) => sum + value, 0);
+      const periodOrders = days.reduce((sum, day) => sum + daily.get(day).orders, 0);
+      const maxRevenue = Math.max(1, ...values);
+      const left = 44, right = 652, top = 16, bottom = 168;
+      const width = right - left, height = bottom - top;
+      const points = values.map((value, index) => ({
+        x: left + (index / Math.max(1, days.length - 1)) * width,
+        y: bottom - (value / maxRevenue) * height,
+        value,
+        day: days[index]
+      }));
+      const linePath = points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(" ");
+      const areaPath = `${linePath} L${right},${bottom} L${left},${bottom} Z`;
+      const grid = [0, 1, 2, 3].map(index => {
+        const ratio = index / 3;
+        const y = bottom - ratio * height;
+        return `<line x1="${left}" y1="${y}" x2="666" y2="${y}" stroke="var(--line)" stroke-width="1"/>
+          <text x="37" y="${y + 3}" text-anchor="end">$${Math.round(maxRevenue * ratio)}</text>`;
+      }).join("");
+      const labels = points.map((point, index) => {
+        const step = adminChartRange === 30 ? 5 : adminChartRange === 14 ? 2 : 1;
+        if (index % step !== 0 && index !== points.length - 1) return "";
+        const anchor = index === 0 ? "start" : index === points.length - 1 ? "end" : "middle";
+        const label = new Date(`${point.day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+        return `<text x="${point.x}" y="193" text-anchor="${anchor}">${label}</text>`;
+      }).join("");
+      const dots = points.map((point, index) => index % (adminChartRange === 30 ? 5 : adminChartRange === 14 ? 2 : 1) === 0 || index === points.length - 1
+        ? `<circle cx="${point.x}" cy="${point.y}" r="3.5" fill="var(--surface)" stroke="var(--green)" stroke-width="2"><title>${point.day}: ${fmtPrice(point.value)} · ${daily.get(point.day).orders} paid orders</title></circle>` : "").join("");
+
+      svg.innerHTML = `<defs><linearGradient id="adminRevenueGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--green)" stop-opacity=".24"/><stop offset="100%" stop-color="var(--green)" stop-opacity=".02"/>
+        </linearGradient></defs>${grid}<path d="${areaPath}" fill="url(#adminRevenueGradient)"/>
+        <path d="${linePath}" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+        ${dots}${labels}`;
+      adminSetText("adminChartScope", `Last ${adminChartRange} days · paid net revenue in loaded recent history`);
+      adminSetText("adminChartTotal", `${fmtPrice(periodRevenue)} · ${periodOrders} paid orders`);
+      document.querySelectorAll("[data-admin-chart-range]").forEach(button => {
+        button.classList.toggle("active", Number(button.dataset.adminChartRange) === adminChartRange);
+        button.setAttribute("aria-pressed", String(Number(button.dataset.adminChartRange) === adminChartRange));
+      });
+    }
+
+    function renderAdminDashboard() {
+      if (!document.querySelector('[data-admin-section="dashboard"]')) return;
+      const history = state.orderHistory.length ? state.orderHistory : state.orders;
+      const today = adminCalendarKey();
+      const yesterday = adminShiftDay(today, -1);
+      const paidHistory = history.filter(adminIsPaid);
+      const paidToday = paidHistory.filter(order => adminOrderDayKey(order) === today);
+      const paidYesterday = paidHistory.filter(order => adminOrderDayKey(order) === yesterday);
+      const todayRevenue = paidToday.reduce((sum, order) => sum + adminNet(order), 0);
+      const yesterdayRevenue = paidYesterday.reduce((sum, order) => sum + adminNet(order), 0);
+      const todayDiscount = paidToday.reduce((sum, order) => sum + Math.max(0, Number(order.discount) || 0), 0);
+
+      adminSetText("adminTodayRevenue", fmtPrice(todayRevenue));
+      adminSetText("adminTodayOrders", String(paidToday.length));
+      adminSetText("adminAverageTicket", fmtPrice(paidToday.length ? todayRevenue / paidToday.length : 0));
+      adminSetText("adminTodayDiscount", todayDiscount ? `${fmtPrice(todayDiscount)} discounts applied today` : "No discounts recorded today");
+      adminSetText("adminRevenue", state.orderHistoryTotals ? fmtPrice(state.orderHistoryTotals.revenue) : "—");
+      adminSetText("adminTotalOrders", state.orderHistoryTotals ? String(state.orderHistoryTotals.count) : "—");
+      const trend = document.getElementById("adminRevenueTrend");
+      if (trend) {
+        trend.classList.remove("admin-trend-up", "admin-trend-down");
+        if (!state.orderHistoryTotals && !state.orderHistory.length) {
+          trend.textContent = "Loading recent order history";
+        } else if (yesterdayRevenue > 0) {
+          const change = ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100;
+          trend.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(1)}% vs yesterday`;
+          trend.classList.add(change >= 0 ? "admin-trend-up" : "admin-trend-down");
+        } else {
+          trend.textContent = "No paid revenue recorded yesterday";
+        }
+      }
+
+      const livePreparing = state.orders.filter(order => ["PENDING", "ASSIGNED", "RESERVED"].includes(String(order.status || "").toUpperCase()));
+      const liveReady = state.orders.filter(order => String(order.status || "").toUpperCase() === "READY");
+      const liveUnpaid = state.orders.filter(order => !adminIsPaid(order));
+      adminSetText("adminLiveQueue", String(livePreparing.length));
+      adminSetText("adminPreparingCount", String(livePreparing.length));
+      adminSetText("adminReadyCount", String(liveReady.length));
+      adminSetText("adminUnpaidCount", String(liveUnpaid.length));
+      adminSetText("adminQueueFoot", livePreparing.length ? `${liveReady.length} ready for pickup · ${liveUnpaid.length} unpaid` : "No active preparation orders");
+
+      const alerts = [];
+      if (liveUnpaid.length) alerts.push({ tone: "red", icon: "fa-credit-card", title: `${liveUnpaid.length} unpaid order${liveUnpaid.length === 1 ? "" : "s"}`, text: "Check payment before preparation or collection.", action: "switchAdminSection('financial')", label: "Review" });
+      if (livePreparing.length >= 6) alerts.push({ tone: "amber", icon: "fa-fire-burner", title: `${livePreparing.length} orders in preparation`, text: "The live queue is building up; check Bar KDS capacity.", action: "switchView('kds')", label: "Open KDS" });
+      const soldOut = state.menu.filter(item => item.soldOut).length;
+      if (soldOut) alerts.push({ tone: "amber", icon: "fa-circle-exclamation", title: `${soldOut} product${soldOut === 1 ? "" : "s"} sold out`, text: "Sold-out products remain visible but cannot be ordered.", action: "switchAdminSection('menu')", label: "Manage" });
+      if (state.coldPaused) alerts.push({ tone: "red", icon: "fa-snowflake", title: "All cold drinks are paused", text: "Customers cannot select cold options while this is active.", action: "switchAdminSection('operation')", label: "Settings" });
+      adminSetText("adminAttentionCount", alerts.length ? `${alerts.length} to review` : "Clear");
+      const attentionCount = document.getElementById("adminAttentionCount");
+      if (attentionCount) attentionCount.className = `admin-badge ${alerts.length ? "amber" : "green"}`;
+      const attentionList = document.getElementById("adminAttentionList");
+      if (attentionList) {
+        attentionList.innerHTML = alerts.length ? alerts.map(alert => `<div class="admin-alert ${alert.tone}">
+          <span class="admin-alert-icon"><i class="fa-solid ${alert.icon}"></i></span>
+          <div><strong>${alert.title}</strong><p>${alert.text}</p></div>
+          <button type="button" onclick="${alert.action}">${alert.label}</button>
+        </div>`).join("") : `<div class="admin-alert green"><span class="admin-alert-icon"><i class="fa-solid fa-check"></i></span><div><strong>Service looks clear</strong><p>No payment, queue or availability exceptions right now.</p></div></div>`;
+      }
+
+      const recentBody = document.getElementById("adminRecentOrders");
+      if (recentBody) {
+        const recent = [...history].sort((a, b) => adminOrderTimeValue(b.orderTime) - adminOrderTimeValue(a.orderTime)).slice(0, 6);
+        recentBody.innerHTML = recent.length ? recent.map(order => {
+          const status = String(order.status || "UNKNOWN").toUpperCase();
+          const badgeClass = status === "CLEARED" ? "green" : status === "READY" ? "blue" : !adminIsPaid(order) ? "red" : "amber";
+          const cashier = String(order.cashier || "");
+          const isCounter = cashier && !/pre-order|self|open day|bulky|customer|guest/i.test(cashier);
+          const channel = isCounter ? "Counter" : cashier || "Self-order";
+          const channelSub = isCounter ? cashier : order.guestName || "Guest";
+          return `<tr><td><span class="admin-order-no">#${escapeHtml(order.orderNum || "—")}</span><span class="admin-cell-sub">${adminOrderTimeLabel(order.orderTime)}</span></td>
+            <td>${escapeHtml(order.productName || "Unnamed item")}<span class="admin-cell-sub">${escapeHtml([order.temp, order.extras].filter(Boolean).join(" · "))}</span></td>
+            <td>${escapeHtml(channel)}<span class="admin-cell-sub">${escapeHtml(channelSub)}</span></td>
+            <td><span class="admin-badge ${badgeClass}">${escapeHtml(status)}</span></td>
+            <td style="text-align:right"><span class="admin-money">${fmtPrice(adminNet(order))}</span></td></tr>`;
+        }).join("") : '<tr><td colspan="5" class="admin-empty">No recent orders in the loaded history.</td></tr>';
+      }
+
+      const sellerMap = new Map();
+      paidToday.forEach(order => {
+        const name = String(order.productName || "Unnamed item");
+        const seller = sellerMap.get(name) || { name, cups: 0, revenue: 0 };
+        seller.cups += 1;
+        seller.revenue += adminNet(order);
+        sellerMap.set(name, seller);
+      });
+      const sellers = [...sellerMap.values()].sort((a, b) => b.cups - a.cups || b.revenue - a.revenue).slice(0, 5);
+      const maxCups = Math.max(1, ...sellers.map(seller => seller.cups));
+      const bestSellers = document.getElementById("adminBestSellers");
+      if (bestSellers) {
+        bestSellers.innerHTML = sellers.length ? sellers.map((seller, index) => `<div class="admin-rank">
+          <span class="admin-rank-num">${String(index + 1).padStart(2, "0")}</span>
+          <div><div class="admin-rank-name"><span>${escapeHtml(seller.name)}</span><span>${fmtPrice(seller.revenue)}</span></div><div class="admin-rank-bar"><i style="width:${(seller.cups / maxCups) * 100}%"></i></div></div>
+          <span class="admin-rank-total">${seller.cups} cup${seller.cups === 1 ? "" : "s"}</span>
+        </div>`).join("") : '<div class="admin-empty">No paid sales today in the loaded history.</div>';
+      }
+
+      renderAdminRevenueChart(history);
+    }
+
+    function renderAdminMenu() {
+      const tbody = document.getElementById("adminMenuTableBody");
+      if (!tbody) return;
+      const search = (document.getElementById("adminMenuSearch")?.value || "").trim().toLowerCase();
+      const statusFilter = document.getElementById("adminMenuStatusFilter")?.value || "all";
+      const categoryFilter = document.getElementById("adminMenuCategoryFilter");
+      const categories = [...new Set([...state.categories, ...state.menu.map(item => item.category || "Other")])].filter(Boolean);
+      if (categoryFilter) {
+        const signature = JSON.stringify(categories);
+        if (categoryFilter.dataset.options !== signature) {
+          const selected = categoryFilter.value || "all";
+          categoryFilter.innerHTML = '<option value="all">All categories</option>' + categories.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join("");
+          categoryFilter.value = categories.includes(selected) ? selected : "all";
+          categoryFilter.dataset.options = signature;
+        }
+      }
+      const category = categoryFilter?.value || "all";
+      const filtered = state.menu.filter(item => {
+        const isPaused = String(item.status || "").toLowerCase() === "paused";
+        const matchesSearch = !search || `${item.name} ${item.category || "Other"}`.toLowerCase().includes(search);
+        const matchesCategory = category === "all" || (item.category || "Other") === category;
+        const matchesStatus = statusFilter === "all" ||
+          (statusFilter === "paused" && isPaused) ||
+          (statusFilter === "soldout" && !!item.soldOut) ||
+          (statusFilter === "active" && !isPaused && !item.soldOut);
+        return matchesSearch && matchesCategory && matchesStatus;
+      });
+      adminSetText("adminMenuCount", `${filtered.length} of ${state.menu.length} item${state.menu.length === 1 ? "" : "s"}`);
+      adminSetText("adminMenuItemsCount", String(state.menu.filter(item => String(item.status || "").toLowerCase() === "active").length));
+
+      tbody.innerHTML = filtered.length ? filtered.map(item => {
+        const index = state.menu.indexOf(item);
+        const isPaused = String(item.status || "").toLowerCase() === "paused";
+        const hasCold = String(item.tempOptions || "").includes("Cold");
+        const imageUrl = String(item.imageUrl || "").trim();
+        const availability = isPaused ? "Paused" : item.soldOut ? "Sold out" : "Active";
+        const availabilityClass = isPaused || item.soldOut ? "red" : "green";
+        return `<tr>
+          <td><div class="admin-product-cell"><span class="admin-thumb">
+            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.nextElementSibling.style.display='grid';this.remove()">` : ""}
+            <i class="fa-regular fa-image" style="display:${imageUrl ? "none" : "grid"}" aria-hidden="true"></i>
+          </span><div><strong>${escapeHtml(item.name)}</strong><span class="admin-cell-sub">${[item.isSnack ? "Snack" : "", item.showInUpsell ? "Upsell" : ""].filter(Boolean).join(" · ") || "Menu product"}</span></div></div></td>
+          <td><span class="admin-badge coffee">${escapeHtml(item.category || "Other")}</span></td>
+          <td>${escapeHtml(item.tempOptions || "—")}${hasCold ? `<div class="flex flex-wrap items-center gap-1 mt-1"><button type="button" class="admin-btn small" onclick="toggleItemColdPause(state.menu[${index}].name)" title="Toggle this product’s cold option"><i class="fa-regular fa-snowflake"></i>${item.coldPaused ? "Resume cold" : "Pause cold"}</button>${state.coldPaused && !item.coldPaused ? '<span class="admin-badge red">Global pause</span>' : ""}</div>` : ""}</td>
+          <td><span class="admin-money">${fmtPrice(item.price)}</span>${item.offerPrice ? `<span class="admin-cell-sub"><s>${fmtPrice(item.offerPrice)}</s> original</span>` : ""}</td>
+          <td><div class="flex items-center gap-2"><button type="button" class="admin-switch ${isPaused ? "" : "on"}" role="switch" aria-checked="${!isPaused}" aria-label="Toggle ${escapeHtml(item.name)} availability" onclick="togglePauseItem(state.menu[${index}].name, '${isPaused ? "Active" : "Paused"}')"></button><span class="admin-badge ${availabilityClass}">${availability}</span></div></td>
+          <td><div class="admin-row-actions"><button type="button" class="admin-btn small" onclick="openEditMenuModal(state.menu[${index}].name)" title="Edit ${escapeHtml(item.name)}"><i class="fa-solid fa-pen"></i>Edit</button><button type="button" class="admin-btn small" onclick="deleteMenuItem(state.menu[${index}].name)" title="Delete ${escapeHtml(item.name)}"><i class="fa-solid fa-trash"></i></button></div></td>
+        </tr>`;
+      }).join("") : '<tr><td colspan="6" class="admin-empty">No menu items match these filters.</td></tr>';
+    }
+
     function renderAdmin() {
       // Ensure sidebar + printer status pill exist and reflect current state
       renderAdminSidebar();
       renderAdminPrinterStatus();
       switchAdminPortal('teacher');
 
-      // Dashboard totals come from the server, which scans the whole Orders
-      // Log. state.orderHistory is capped at 200 rows, so summing it would
-      // under-report both revenue and the order count.
-      const totals = state.orderHistoryTotals;
-      if (totals) {
-        document.getElementById('adminRevenue').innerText = fmtPrice(totals.revenue);
-        document.getElementById('adminTotalOrders').innerText = totals.count;
-      } else {
-        // Before the history arrives, fall back to what is already loaded.
-        const ordersForStats = state.orderHistory.length > 0 ? state.orderHistory : state.orders;
-        const paidOrders = ordersForStats.filter(o => (o.status || "").toUpperCase() !== "UNPAID");
-        const rev = paidOrders.reduce((sum, o) => sum + (o.price || 0), 0);
-        document.getElementById('adminRevenue').innerText = fmtPrice(rev);
-        document.getElementById('adminTotalOrders').innerText = paidOrders.length;
-      }
-      document.getElementById('adminMenuItemsCount').innerText = state.menu.filter(i => i.status?.toLowerCase() === 'active').length;
+      renderAdminDashboard();
 
       document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
 
@@ -6095,44 +6583,7 @@
       }
       renderAdminStaffCards();
 
-      const tbody = document.getElementById('adminMenuTableBody');
-      if (tbody) {
-        let html = "";
-        state.menu.forEach(item => {
-          const isPaused = item.status?.toLowerCase() === "paused";
-          const coldPaused = item.coldPaused || (state.coldPaused && String(item.tempOptions).includes("Cold"));
-          html += `
-            <tr class="hover:bg-slate-50 transition">
-              <td class="py-3 px-3 font-extrabold text-slate-800 whitespace-nowrap">${escapeHtml(item.name)}</td>
-              <td class="py-3 px-3 whitespace-nowrap"><span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">${escapeHtml(item.category || "Other")}</span></td>
-              <td class="py-3 px-3 font-semibold text-slate-500 whitespace-nowrap">${escapeHtml(item.tempOptions)}</td>
-              <td class="py-3 px-3 font-black text-amber-600 whitespace-nowrap">${fmtPrice(item.price)}</td>
-              <td class="py-3 px-3">
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] ${isPaused ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
-                    ${isPaused ? 'Paused' : 'Active'}
-                  </span>
-                  ${String(item.tempOptions).includes("Cold") ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] ${coldPaused ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'}">${coldPaused ? 'Cold Paused' : 'Cold OK'}</span>` : ''}
-                  ${item.isSnack ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] bg-amber-100 text-amber-800">Snack</span>` : ''}
-                  ${item.showInUpsell ? `<span class="inline-flex items-center whitespace-nowrap leading-none font-bold px-2.5 py-1 rounded-full text-[10px] bg-slate-100 text-slate-500">Pop-up</span>` : ''}
-                </div>
-              </td>
-              <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
-                <button onclick="togglePauseItem('${escapeHtml(item.name)}', '${isPaused ? 'Active' : 'Paused'}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${isPaused ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'}">
-                  ${isPaused ? 'Unpause' : 'Pause'}
-                </button>
-                ${String(item.tempOptions).includes("Cold") ? `<button onclick="toggleItemColdPause('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold ${item.coldPaused ? 'bg-sky-50 text-sky-700 hover:bg-sky-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}">${item.coldPaused ? 'Unpause Cold' : 'Pause Cold'}</button>` : ''}
-                <button onclick="openEditMenuModal('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">
-                  Edit
-                </button>
-                <button onclick="deleteMenuItem('${escapeHtml(item.name)}')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 hover:bg-rose-100">
-                  Delete
-                </button>
-              </td>
-            </tr>`;
-        });
-        tbody.innerHTML = html;
-      }
+      renderAdminMenu();
 
       renderAdminFinancialLog();
     }
