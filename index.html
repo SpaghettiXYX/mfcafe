@@ -21,9 +21,8 @@
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    /* UI typeface: BiauKai / 標楷體 (Windows: DFKai-SB, macOS: BiauKai,
-       Simplified builds: KaiTi / STKaiti). Inter stays as a fallback. */
-    body { font-family: 'DFKai-SB', 'BiauKai', '標楷體', 'KaiTi', 'STKaiti', 'Kaiti SC', 'Inter', serif; }
+    /* UI typeface */
+    body { font-family: 'Inter', sans-serif; }
 
     /* ===== THEME VARIABLES ===== */
     :root {
@@ -340,10 +339,22 @@
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
     .hidden { display: none !important; }
-    .app-shell { display: grid; grid-template-columns: 232px minmax(0,1fr); min-height: 100vh; }
+    .app-shell { display: grid; grid-template-columns: 232px minmax(0,1fr); min-height: 100vh; transition: grid-template-columns .32s cubic-bezier(.22,.61,.36,1); }
+    /* Sidebar can be hidden from the topbar. The state lives on <html> so it
+       is applied before first paint (no flash) and restored from localStorage.
+       The rail slides out while the grid column closes, so the workspace grows
+       smoothly instead of snapping. */
+    .app-sidebar { min-width: 0; transition: opacity .2s ease .06s, transform .32s cubic-bezier(.22,.61,.36,1), visibility 0s; }
+    .sb-collapsed .app-shell { grid-template-columns: 0 minmax(0,1fr); }
+    .sb-collapsed .app-sidebar {
+      opacity: 0; transform: translateX(-18px); pointer-events: none; visibility: hidden;
+      transition: opacity .12s ease, transform .32s cubic-bezier(.22,.61,.36,1), visibility 0s .32s;
+    }
+    .top-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
     .app-sidebar { position: sticky; top: 0; height: 100vh; padding: 22px 14px 16px; background: #1d2925; color: #dce5df; display: flex; flex-direction: column; z-index: 40; }
     .brand { display: flex; align-items: center; gap: 11px; padding: 0 10px 24px; }
     .brand-mark { width: 38px; height: 38px; border-radius: 12px; background: #e8b27d; color: #20332c; display: grid; place-items: center; font-size: 19px; flex: none; }
+    .brand-mark img { width: 74%; height: 74%; object-fit: contain; display: block; }
     .brand-name { font-size: 17px; font-weight: 800; letter-spacing: .09em; color: #fff; }
     .brand-sub { font-size: 10px; color: #90a199; margin-top: 3px; letter-spacing: .08em; text-transform: uppercase; }
     .nav-label { padding: 13px 12px 7px; color: #71857b; font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
@@ -468,10 +479,17 @@
     .product { position: relative; display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 15px; padding: 0; overflow: hidden; transition: .18s; }
     .product:hover { border-color: #b7c8bd; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(30,50,40,.07); }
     .product.selected { border-color: var(--green-2); box-shadow: 0 0 0 2px color-mix(in srgb,var(--green) 18%,transparent); }
-    .product-art { height: 76px; display: grid; place-items: center; position: relative; background: linear-gradient(145deg,#f3e8db,#e8d5c1); color: #8a5d3c; }
+    .product-art { aspect-ratio: 1 / 1; display: grid; place-items: center; position: relative; background: linear-gradient(145deg,#f3e8db,#e8d5c1); color: #8a5d3c; }
     .product:nth-child(3n+2) .product-art { background: linear-gradient(145deg,#e7eee8,#d4e2d8); color: #4e715e; }
     .product:nth-child(3n) .product-art { background: linear-gradient(145deg,#f2eee5,#e6dfcf); color: #8a7851; }
-    .product-art > i { font-size: 29px; }
+    .product-art > i { font-size: 34px; }
+    /* Square (1:1) product photo fills the art area; the cup icon underneath
+       stays as the fallback whenever no image is set or it fails to load. */
+    .product-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; z-index: 0; }
+    /* A photo replaces the placeholder icon entirely; if the image fails the
+       onerror handler drops .has-photo so the icon comes back. */
+    .product-art.has-photo > i { display: none; }
+    .product-art > .product-tag, .product-art > .product-add { z-index: 2; }
     .product-tag { position: absolute; left: 8px; top: 8px; max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; background: rgba(255,255,255,.82); backdrop-filter: blur(5px); padding: 4px 6px; border-radius: 6px; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
     .product-add { position: absolute; right: 8px; bottom: 8px; width: 25px; height: 25px; border-radius: 8px; background: rgba(255,255,255,.9); display: grid; place-items: center; font-size: 11px; }
     .product-info { display: block; padding: 11px 12px 12px; }
@@ -687,7 +705,10 @@
     }
     @media (max-width: 650px) {
       .app-shell { display: block; }
-      .app-sidebar { position: relative; width: 100%; height: auto; padding: 10px 12px; display: block; }
+      /* On phones the rail turns into a top strip, so animate its height
+         instead of the (now unused) grid column. */
+      .app-sidebar { position: relative; width: 100%; height: auto; padding: 10px 12px; display: block; max-height: 340px; overflow: hidden; transition: opacity .2s ease, max-height .32s cubic-bezier(.22,.61,.36,1), padding .32s ease, transform .32s ease; }
+      .sb-collapsed .app-sidebar { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; transform: none; visibility: hidden; }
       .app-sidebar .brand { padding: 0 0 10px; }
       .app-sidebar .brand > div:last-child { display: block; }
       .app-sidebar .brand-mark { width: 32px; height: 32px; }
@@ -732,6 +753,7 @@
     }
     @media (prefers-reduced-motion: reduce) {
       #pickupReadyList > div, #adminContentArea > [data-admin-section]:not(.hidden), #menuModal > .admin-menu-drawer { animation: none; }
+      .app-shell, .app-sidebar { transition: none !important; }
     }
   </style>
 
@@ -742,6 +764,9 @@
       var t0 = localStorage.getItem("mfcafe_theme");
       if (t0 === "dark" || (!t0 && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
         document.documentElement.setAttribute("data-theme", "dark");
+      }
+      if (localStorage.getItem("mfcafe_sidebar") === "hidden") {
+        document.documentElement.classList.add("sb-collapsed");
       }
     } catch (e) {}
   </script>
@@ -773,7 +798,7 @@
     <div class="login-shell">
       <div class="login-brand">
         <div class="brand">
-          <div class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></div>
+          <div class="brand-mark"><img src="assets/mfcafe-logo.png" alt="MFCAFE" draggable="false"></div>
           <div><div class="brand-name">MFCAFE</div><div class="brand-sub">Cafe workspace</div></div>
         </div>
         <div class="login-quote">
@@ -820,9 +845,9 @@
   </div>
 
   <!-- PRIMARY WORKSPACE NAVIGATION -->
-  <aside class="app-sidebar">
+  <aside class="app-sidebar" id="appSidebar">
     <div class="brand">
-      <div class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></div>
+      <div class="brand-mark"><img src="assets/mfcafe-logo.png" alt="MFCAFE" draggable="false"></div>
       <div><div class="brand-name">MFCAFE</div><div class="brand-sub">Cafe workspace</div></div>
     </div>
     <div class="nav-label">Workspace</div>
@@ -863,7 +888,13 @@
   <div class="workspace">
     <!-- TOP STATUS BAR -->
     <header class="topbar">
-      <div class="crumb"><span>MFCAFE</span><span>/</span><strong id="crumbCurrent">Bar KDS</strong></div>
+      <div class="top-left">
+        <button onclick="toggleSidebar()" id="sidebarToggle" class="icon-btn" title="Hide sidebar"
+          aria-controls="appSidebar" aria-expanded="true">
+          <i id="sidebarToggleIcon" class="fa-solid fa-bars-staggered"></i>
+        </button>
+        <div class="crumb"><span>MFCAFE</span><span>/</span><strong id="crumbCurrent">Bar KDS</strong></div>
+      </div>
       <div class="top-actions">
         <p id="syncStatusText" class="sync-pill">
           <span id="syncStatusDot" class="w-2 h-2 bg-emerald-500 rounded-full inline-block animate-pulse"></span>
@@ -1105,7 +1136,7 @@
         <i class="fa-solid fa-compress"></i>
       </button>
       <div class="display-top">
-        <div class="display-brand"><span class="brand-mark"><i class="fa-solid fa-mug-saucer"></i></span>MFCAFE</div>
+        <div class="display-brand"><span class="brand-mark"><img src="assets/mfcafe-logo.png" alt="MFCAFE" draggable="false"></span>MFCAFE</div>
         <div class="display-heading">
           <h2>Ready for pickup</h2>
           <p>Please proceed to the counter when your number appears below.</p>
@@ -2235,7 +2266,7 @@
 
   <script>
     // ⚠️ REPLACE WITH YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzBs7EkQQSubWttvR53hzWfHrQc78CG5DBolJ7XtPyHRDcc7y4zaWPTd1awQHTEMxynAA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3b0E57zFYGCdHz3482AKOMTlIv28v0gQLRGw4AkigaR8NcBASmUfcKM-O9_5_g-IP0Q/exec";
 
     let state = {
       menu: [],
@@ -2408,6 +2439,26 @@
       applyTheme(next);
       showToast(`Theme: ${next === "dark" ? "Dark" : "Light"} mode`, "info");
     }
+
+    // ===== SIDEBAR SHOW/HIDE =====
+    function applySidebarState(collapsed) {
+      document.documentElement.classList.toggle("sb-collapsed", collapsed);
+      const btn = document.getElementById("sidebarToggle");
+      if (btn) {
+        btn.setAttribute("aria-expanded", String(!collapsed));
+        btn.title = collapsed ? "Show sidebar" : "Hide sidebar";
+      }
+      const icon = document.getElementById("sidebarToggleIcon");
+      if (icon) icon.className = collapsed ? "fa-solid fa-bars" : "fa-solid fa-bars-staggered";
+    }
+
+    function toggleSidebar() {
+      const collapsed = !document.documentElement.classList.contains("sb-collapsed");
+      applySidebarState(collapsed);
+      try { localStorage.setItem("mfcafe_sidebar", collapsed ? "hidden" : "shown"); } catch (e) {}
+    }
+
+    applySidebarState(document.documentElement.classList.contains("sb-collapsed"));
 
     // Enter/leave the pickup display mode: hides the header + nav tabs and enlarges the numbers
     function toggleFullscreen() {
@@ -3072,7 +3123,8 @@
         if (isSelected) btn.style.borderColor = catColor;
         btn.onclick = () => selectPosMenuItem(item);
         btn.innerHTML = `
-          <span class="product-art">
+          <span class="product-art${item.imageUrl ? ' has-photo' : ''}">
+            ${item.imageUrl ? `<img class="product-photo" src="${escapeHtml(item.imageUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.remove('has-photo');this.remove()">` : ''}
             <span class="product-tag">${escapeHtml(item.category || 'Other')}</span>
             <i class="fa-solid ${item.isSnack ? 'fa-cookie-bite' : 'fa-mug-saucer'}"></i>
             <span class="product-add"><i class="fa-solid fa-plus"></i></span>
@@ -6448,6 +6500,14 @@
       switchAdminPortal('teacher');
 
       renderAdminDashboard();
+
+      // Keep the money cards fresh while the dashboard stays open. The history
+      // call scans the sheet server-side, so throttle it to once every 2 min.
+      const nowMs = Date.now();
+      if (!renderAdmin._lastHistoryAt || nowMs - renderAdmin._lastHistoryAt > 120000) {
+        renderAdmin._lastHistoryAt = nowMs;
+        fetchOrderHistory();
+      }
 
       document.getElementById('adminHotkeysInput').value = state.remarkHotkeys;
 
