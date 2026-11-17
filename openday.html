@@ -717,6 +717,46 @@
       setTimeout(() => loader.remove(), 400);
     }
 
+    // ===== 404 WHEN THE BACKEND IS UNREACHABLE =====
+    let svcWatchTimer = null;
+    let svcFailStreak = 0;
+
+    function hideServiceUnavailable() {
+      if (svcWatchTimer) { clearInterval(svcWatchTimer); svcWatchTimer = null; }
+      document.getElementById('svcUnavailable')?.remove();
+    }
+
+    function noteBackendFailure(recover) {
+      svcFailStreak++;
+      if (svcFailStreak >= 2) showServiceUnavailable(recover);
+    }
+
+    function showServiceUnavailable(recover) {
+      if (document.getElementById('svcUnavailable')) return;
+      hideAppLoader();
+      const el = document.createElement('div');
+      el.id = 'svcUnavailable';
+      el.setAttribute('role', 'alert');
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#f7f2ea;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:Inter,system-ui,sans-serif';
+      el.innerHTML = `
+        <div style="max-width:320px">
+          <div style="font-size:64px;font-weight:900;letter-spacing:-.05em;color:#2E211A;line-height:1">404</div>
+          <h1 style="margin:12px 0 0;font-size:18px;font-weight:900;color:#2E211A">Self-order is unavailable</h1>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#6B4E3D">We can't reach the cafe server right now. Please order at the counter, or try again in a moment.</p>
+          <button onclick="location.reload()" style="margin-top:20px;border:0;border-radius:9999px;background:#2E211A;color:#fff;padding:12px 22px;font-size:12px;font-weight:800;letter-spacing:.06em;cursor:pointer">TRY AGAIN</button>
+          <p style="margin:14px 0 0;font-size:10.5px;color:#9A8574">Checking again automatically…</p>
+        </div>`;
+      document.body.appendChild(el);
+      if (!svcWatchTimer && typeof recover === 'function') {
+        svcWatchTimer = setInterval(() => {
+          fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: 'no-store' })
+            .then(r => { if (!r.ok) throw new Error('unreachable'); return r.json(); })
+            .then(() => { svcFailStreak = 0; hideServiceUnavailable(); recover(); })
+            .catch(() => {});
+        }, 20000);
+      }
+    }
+
     function escapeHtml(str) {
       return String(str || "")
         .replace(/&/g, "&amp;")
@@ -759,8 +799,10 @@
       applyInstructions();
 
       fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
-        .then(res => res.json())
+        .then(res => { if (!res.ok) throw new Error('unreachable'); return res.json(); })
         .then(data => {
+          svcFailStreak = 0;
+          hideServiceUnavailable();
           if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
           if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
           if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
@@ -780,7 +822,7 @@
           showPromoPopup();
           hideAppLoader();
         })
-        .catch(() => { hideAppLoader(); showToast("Failed to load menu. Please refresh.", "error"); });
+        .catch(() => { hideAppLoader(); showServiceUnavailable(init); });
 
       // Poll for menu updates every 15s (so paused items disappear)
       if (menuPollingStarted) return;
@@ -788,8 +830,10 @@
       setInterval(() => {
         if (document.getElementById("qrTicketView") && !document.getElementById("qrTicketView").classList.contains("hidden")) return;
         fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`)
-          .then(res => res.json())
+          .then(res => { if (!res.ok) throw new Error('unreachable'); return res.json(); })
           .then(data => {
+            svcFailStreak = 0;
+            hideServiceUnavailable();
             if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
             if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
             if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
@@ -806,7 +850,7 @@
             // a blind rebuild every 15s is what reset the scroll position.
             if (menuSignature() !== lastMenuSig) renderMenu();
           })
-          .catch(() => {});
+          .catch(() => { noteBackendFailure(init); });
       }, 15000);
     }
 
