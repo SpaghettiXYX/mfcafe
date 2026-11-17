@@ -165,11 +165,12 @@ function ensureOrdersSheet(ss) {
       "PromoCode", // promo code applied at checkout, if any
       "DiscountBy", // staff member who authorised a manual discount
       "Extras", // snack upsell lines, e.g. "Cookie x2"
-      "ExtrasTotal" // snack subtotal (already included in Price)
+      "ExtrasTotal", // snack subtotal (already included in Price)
+      "ClientOrderId" // idempotency key for offline queue replay
     ]);
   } else {
-    if (sheet.getMaxColumns() < 18) sheet.insertColumnsAfter(sheet.getMaxColumns(), 18 - sheet.getMaxColumns());
-    const headers = sheet.getRange(1, 1, 1, 18).getValues()[0];
+    if (sheet.getMaxColumns() < 19) sheet.insertColumnsAfter(sheet.getMaxColumns(), 19 - sheet.getMaxColumns());
+    const headers = sheet.getRange(1, 1, 1, 19).getValues()[0];
     if (!headers[11] || String(headers[11]).trim() === "") {
       sheet.getRange(1, 12).setValue("PaymentStatus");
       const data = sheet.getDataRange().getValues();
@@ -196,6 +197,11 @@ function ensureOrdersSheet(ss) {
     // its subtotal (already included in Price so totals stay consistent).
     if (!headers[16] || String(headers[16]).trim() === "") sheet.getRange(1, 17).setValue("Extras");
     if (!headers[17] || String(headers[17]).trim() === "") sheet.getRange(1, 18).setValue("ExtrasTotal");
+    // ClientOrderId (col 19) — idempotency key for offline replay. A queued
+    // order may be retried after a timeout even though the first attempt did
+    // reach the sheet, so the same key must never create a second row.
+    if (sheet.getMaxColumns() < 19) sheet.insertColumnsAfter(sheet.getMaxColumns(), 19 - sheet.getMaxColumns());
+    if (!headers[18] || String(headers[18]).trim() === "") sheet.getRange(1, 19).setValue("ClientOrderId");
   }
   // Force OrderNum column (A) to plain text so Sheets never silently
   // reinterprets values like "1035" or "1035-1" as dates and breaks KDS.
@@ -1450,6 +1456,40 @@ function createOrderLocked(orderOrOrders) {
     const sheet = ensureOrdersSheet(ss);
     const data = sheet.getDataRange().getValues();
 
+    // Idempotency for offline replay: a retried request may have already been
+    // written on an earlier attempt. Return the existing rows instead of
+    // appending duplicates.
+    const clientOrderId = String(orders[0].clientOrderId || "").trim();
+    if (clientOrderId) {
+      const existing = [];
+      for (let r = data.length - 1; r >= 1; r--) {
+        if (String(data[r][18] || "").trim() !== clientOrderId) continue;
+        existing.unshift({
+          orderNum: String(data[r][0]),
+          orderTime: data[r][1],
+          cashier: data[r][3],
+          guestName: data[r][4],
+          productName: data[r][5],
+          temp: data[r][6],
+          price: data[r][8],
+          status: data[r][9],
+          qrTile: data[r][10],
+          paymentStatus: data[r][11],
+          cupType: data[r][12]
+        });
+      }
+      if (existing.length) {
+        lock.releaseLock();
+        return {
+          success: true,
+          duplicate: true,
+          orderNum: existing[0].orderNum,
+          orders: existing,
+          order: existing[0]
+        };
+      }
+    }
+
     const first = orders[0];
     const userCode = getUserCodeForOrder(ss, first);
     // One shared counter for the whole order: 1001, then 1001-1 / 1001-2 …
@@ -1527,7 +1567,7 @@ function createOrderLocked(orderOrOrders) {
         createdOrder.cashier, createdOrder.guestName, createdOrder.productName,
         createdOrder.temp, rawNote, createdOrder.price, createdOrder.status, createdOrder.qrTile,
         createdOrder.paymentStatus, cupType, discount, promoCode, discountBy,
-        extrasText, extrasTotal
+        extrasText, extrasTotal, clientOrderId
       ]);
 
       // Bind QR tile if provided — reject unknown tiles so we never end up

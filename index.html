@@ -2378,6 +2378,162 @@
       } catch (e) { return null; }
     }
 
+    // ==================== OFFLINE OUTBOX ====================
+    // Writes that happen while the backend is unreachable are stored here and
+    // replayed in order once the connection returns. Every operation carries a
+    // client-generated opId which the backend uses as an idempotency key, so a
+    // retry can never create a duplicate order.
+    const OUTBOX_KEY = "mfcafe_outbox_v1";
+
+    function outboxRead() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+        return Array.isArray(raw) ? raw : [];
+      } catch (e) { return []; }
+    }
+
+    function outboxWrite(list) {
+      try { localStorage.setItem(OUTBOX_KEY, JSON.stringify((list || []).slice(-300))); } catch (e) {}
+      refreshOfflineBanner();
+    }
+
+    function outboxCount() { return outboxRead().length; }
+
+    function makeOpId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "op-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+    }
+
+    function deviceTag() {
+      let t = localStorage.getItem("mfcafe_device_tag");
+      if (!t) {
+        t = Math.random().toString(36).slice(2, 4).toUpperCase();
+        localStorage.setItem("mfcafe_device_tag", t);
+      }
+      return t;
+    }
+
+    // Temporary order number shown on screen until the real one comes back.
+    // "T" + device tag keeps it out of the numeric range the backend allocates.
+    function nextTempOrderNum() {
+      const n = Number(localStorage.getItem("mfcafe_offline_seq") || 0) + 1;
+      localStorage.setItem("mfcafe_offline_seq", String(n));
+      return "T" + deviceTag() + "-" + String(n).padStart(3, "0");
+    }
+
+    function queueOfflineOp(action, payload, opId, opts) {
+      const list = outboxRead();
+      list.push({
+        opId: opId || makeOpId(),
+        action: action,
+        payload: payload || {},
+        createdAt: Date.now(),
+        tries: 0
+      });
+      outboxWrite(list);
+      const op = list[list.length - 1];
+      // Mirror the operation to paired devices (offline LAN sync).
+      if (!opts || !opts.fromPeer) {
+        try { if (window.p2pBroadcastOp) window.p2pBroadcastOp(op); } catch (e) {}
+      }
+      return op;
+    }
+
+    // Status updates queued offline may reference a temporary order number.
+    // Resolve it to the real number assigned during the createOrder replay.
+    function resolveQueuedPayload(op) {
+      const payload = Object.assign({}, op.payload);
+      if (payload.orderRef) {
+        const local = state.orders.find(o => o._opId === payload.orderRef);
+        if (local) payload.orderNum = String(local.orderNum);
+      }
+      return payload;
+    }
+
+    let outboxFlushing = false;
+
+    async function flushOutbox() {
+      if (outboxFlushing) return;
+      if (!navigator.onLine) return;
+      if (!outboxRead().length) return;
+      outboxFlushing = true;
+      let syncedAny = false;
+      try {
+        while (true) {
+          const list = outboxRead();
+          if (!list.length) break;
+          const op = list[0];
+          const body = Object.assign(resolveQueuedPayload(op), {
+            action: op.action,
+            clientOpId: op.opId
+          });
+          let res;
+          try {
+            res = await backendFetch(APPS_SCRIPT_URL, {
+              method: "POST",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify(body)
+            }).then(r => r.json());
+          } catch (e) {
+            // Still offline — keep the queue intact and stop.
+            break;
+          }
+          if (!res || res.success === false) {
+            // A rejected operation (e.g. tile already taken) must not block the
+            // queue forever: retry a few times, then drop it and surface a toast.
+            list[0].tries = (list[0].tries || 0) + 1;
+            if (list[0].tries >= 3) {
+              list.shift();
+              outboxWrite(list);
+              showToast(`Queued ${op.action} could not sync: ${(res && res.error) || "rejected"}`, "error", 6000);
+              continue;
+            }
+            outboxWrite(list);
+            break;
+          }
+          // Success — patch the local order with the real number.
+          if (op.action === "createOrder" && res.order) {
+            const local = state.orders.find(o => o._opId === op.opId);
+            if (local) {
+              const realNum = String(res.order.orderNum || local.orderNum);
+              local.orderNum = realNum;
+              local.offline = false;
+              // Keep _opId so later queued status changes can still resolve
+              // this order to its real number during replay.
+              const tile = state.qrTiles.find(t => String(t.code) === String(local.qrTile));
+              if (tile) tile.boundOrder = realNum;
+              // Let paired devices swap the temporary number for the real one.
+              try { if (window.p2pBroadcastOrderNum) window.p2pBroadcastOrderNum(op.opId, realNum); } catch (e) {}
+            }
+          }
+          const remaining = outboxRead();
+          remaining.shift();
+          outboxWrite(remaining);
+          syncedAny = true;
+        }
+      } finally {
+        outboxFlushing = false;
+      }
+      if (syncedAny) {
+        try { await fetchFromSheet(); } catch (e) {}
+        showToast("Offline changes synced to the server", "success", 3000);
+      }
+    }
+
+    function refreshOfflineBanner() {
+      if (!offlineMode) return;
+      const label = document.getElementById("offlineBannerText");
+      if (!label) return;
+      const snap = loadOfflineSnapshot();
+      const when = snap ? new Date(snap.savedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "unknown";
+      const n = outboxCount();
+      label.innerText = n > 0
+        ? `Offline · last sync ${when} · ${n} change${n === 1 ? "" : "s"} queued — will sync automatically`
+        : `Offline · last sync ${when} · orders are saved on this device`;
+    }
+
+    window.addEventListener("online", () => { flushOutbox(); });
+
     function setOfflineMode(on, reason, silent) {
       const was = offlineMode;
       offlineMode = !!on;
@@ -2388,13 +2544,8 @@
       }
       if (on) {
         setSyncStatus("offline");
-        if (was) return;
-        const label = document.getElementById("offlineBannerText");
-        if (label) {
-          const snap = loadOfflineSnapshot();
-          const when = snap ? new Date(snap.savedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "unknown";
-          label.innerText = (reason || "Server unreachable") + " · last sync " + when + " · new orders are paused";
-        }
+        if (was) { refreshOfflineBanner(); return; }
+        refreshOfflineBanner();
       } else {
         setSyncStatus("online");
         if (was && !silent && !bootActive) showToast("Back online — live data restored", "success", 2500);
@@ -3002,7 +3153,10 @@
             return;
           }
           setOfflineMode(false);
-          if (info.version && info.version !== state.serverVersion) {
+          if (outboxCount() > 0) {
+            // Replay queued writes first; flushOutbox() refreshes data afterwards.
+            flushOutbox();
+          } else if (info.version && info.version !== state.serverVersion) {
             state.serverVersion = info.version;
             fetchFromSheet();
           }
@@ -3644,6 +3798,18 @@
         cupType: cupType
       };
 
+      // Offline: keep the counter moving by writing to the local queue.
+      // The order gets a temporary number and is replayed once the backend
+      // answers again; the server assigns the real number at that point.
+      if (offlineMode || !navigator.onLine) {
+        saveOfflineOrder(orderPayload);
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.classList.remove('opacity-50');
+        }
+        return;
+      }
+
       backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
@@ -3690,8 +3856,57 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        showToast((err && err.message) || "Network error creating order", "error", 5000);
+        // Any transport-level failure must not lose the order — queue it so the
+        // kitchen still receives it once the backend is reachable.
+        saveOfflineOrder(orderPayload);
       });
+    }
+
+    // Writes an order to the local outbox and shows it as if it had been
+    // accepted, so the cashier can keep serving. flushOutbox() reconciles it
+    // with the server (real order number, tile binding) later.
+    function saveOfflineOrder(orderPayload) {
+      const opId = makeOpId();
+      const tempNum = nextTempOrderNum();
+      const localOrder = Object.assign({}, orderPayload, {
+        orderNum: tempNum,
+        offline: true,
+        paymentStatus: "PAID",
+        _opId: opId
+      });
+
+      state.orders.unshift(localOrder);
+      if (localOrder.qrTile) {
+        const tile = state.qrTiles.find(t => String(t.code) === String(localOrder.qrTile));
+        if (tile) { tile.status = "Bound"; tile.boundOrder = tempNum; }
+      }
+
+      queueOfflineOp("createOrder", {
+        order: Object.assign({}, orderPayload, { clientOrderId: opId })
+      }, opId);
+
+      showOrderSuccessModal(localOrder);
+      showToast("Offline — order saved on this device, will sync automatically", "warning", 4500);
+
+      const notesInput = document.getElementById('posNotes');
+      const qrTileInput = document.getElementById('posQRTile');
+      state.selectedPosItem = null;
+      document.getElementById('posSelectionDetails')?.classList.add('hidden');
+      if (notesInput) notesInput.value = "";
+      if (qrTileInput) qrTileInput.value = "";
+      clearPosTileError();
+      setPosTileOptional(false);
+      state.posPromo = null;
+      state.posManualDiscount = null;
+      const discTypeEl = document.getElementById('posManualDiscountType');
+      const discValueEl = document.getElementById('posManualDiscountValue');
+      if (discTypeEl) discTypeEl.value = "PERCENT";
+      if (discValueEl) discValueEl.value = "";
+      const promoInputEl = document.getElementById('posPromoCode');
+      if (promoInputEl) promoInputEl.value = "";
+      updatePosPriceDisplay();
+      renderAll();
+      setTimeout(() => qrTileInput?.focus(), 300);
     }
 
     function showOrderSuccessModal(order) {
@@ -4332,6 +4547,15 @@
         clearAssigned(orderNum);
         renderAll();
         triggerChime();
+        if (offlineMode || !navigator.onLine) {
+          queueOfflineOp("markReady", {
+            orderNum: String(orderNum),
+            orderRef: o._opId || ""
+          });
+          printReadyDrinkLabel(o);
+          showToast(`Offline — #${orderNum} marked ready, will sync`, "warning", 3000);
+          return;
+        }
         backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
@@ -4351,6 +4575,12 @@
           }
         })
         .catch(() => {
+          if (offlineMode || !navigator.onLine) {
+            queueOfflineOp("markReady", { orderNum: String(orderNum), orderRef: o._opId || "" });
+            printReadyDrinkLabel(o);
+            showToast(`Offline — #${orderNum} marked ready, will sync`, "warning", 3000);
+            return;
+          }
           o.status = prevStatus;
           renderAll();
           showToast("Network error — order reverted", "error");
@@ -4522,6 +4752,18 @@
         const prevStatus = o.status;
         o.status = "CLEARED";
         renderAll();
+        if (offlineMode || !navigator.onLine) {
+          // Keep the optimistic status; replay the clear once we are back.
+          queueOfflineOp("clearOrder", {
+            orderNum: String(orderNum),
+            orderRef: o._opId || ""
+          });
+          const tile = state.qrTiles.find(t => String(t.boundOrder) === String(orderNum));
+          if (tile) { tile.status = "Available"; tile.boundOrder = ""; }
+          renderAll();
+          showToast(`Offline — #${orderNum} cleared locally, will sync`, "warning", 3000);
+          return;
+        }
         backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
@@ -4538,6 +4780,11 @@
           }
         })
         .catch(() => {
+          if (offlineMode || !navigator.onLine) {
+            queueOfflineOp("clearOrder", { orderNum: String(orderNum), orderRef: o._opId || "" });
+            showToast(`Offline — #${orderNum} cleared locally, will sync`, "warning", 3000);
+            return;
+          }
           o.status = prevStatus;
           renderAll();
           showToast("Network error — order reverted", "error");
@@ -7739,6 +7986,342 @@
       </div>
     </div>
   </div>
+
+  <!-- ==================== P2P PAIRING UI ==================== -->
+  <button id="p2pBtn" onclick="openP2P()" title="Device sync"
+    class="fixed left-4 bottom-4 z-40 flex items-center gap-2 px-3 py-2 rounded-full bg-white border border-slate-200 shadow-md text-slate-600 text-[10px] font-extrabold">
+    <i class="fa-solid fa-link"></i>
+    <span id="p2pBtnLabel">P2P</span>
+  </button>
+
+  <div id="p2pModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[96] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="font-black text-slate-800 text-base">Device Sync</h3>
+          <p class="text-[11px] text-slate-500 mt-0.5">Pair two devices over the local network. No server required.</p>
+        </div>
+        <button onclick="closeP2P()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p id="p2pStatus" class="text-[11px] font-bold text-slate-500 mt-3">Not connected</p>
+      <div id="p2pPeers" class="text-[10px] text-slate-400 mt-1"></div>
+
+      <div id="p2pQR" class="mt-3 flex justify-center"></div>
+      <div id="p2pScanner" class="mt-3 rounded-xl overflow-hidden" style="display:none"></div>
+
+      <div class="grid grid-cols-2 gap-2 mt-4">
+        <button onclick="p2pHostStart()" class="bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-[11px] font-extrabold">Create code</button>
+        <button onclick="p2pJoinStart()" class="bg-slate-800 hover:bg-slate-900 text-white py-2.5 rounded-xl text-[11px] font-extrabold">Scan a code</button>
+      </div>
+      <button id="p2pScanReplyBtn" onclick="p2pScanAnswer()"
+        class="hidden w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-[11px] font-extrabold">
+        Scan partner's reply
+      </button>
+      <button onclick="p2pDisconnectAll()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl text-[11px] font-extrabold">
+        Disconnect all
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== P2P SYNC (WebRTC data channel, LAN only) ==================== -->
+  <script>
+    // Device-to-device sync without any server. Two devices pair by scanning
+    // each other's QR codes, then exchange the same outbox operations the
+    // backend replay uses. Whichever device regains internet flushes them.
+    let p2pPeers = [];          // [{ pc, dc, label }]
+    let p2pScannerObj = null;
+    let p2pHostPc = null;       // pending host connection (offer sent)
+    let p2pJoinPc = null;       // pending guest connection (answer sent)
+
+    function p2pEl(id) { return document.getElementById(id); }
+
+    function setP2PStatus(text) {
+      const el = p2pEl('p2pStatus');
+      if (el) el.innerText = text;
+    }
+
+    function updateP2PBadge() {
+      const label = p2pEl('p2pBtnLabel');
+      const n = p2pPeers.filter(p => p.dc && p.dc.readyState === 'open').length;
+      if (label) label.innerText = n > 0 ? 'P2P · ' + n : 'P2P';
+      const peers = p2pEl('p2pPeers');
+      if (peers) peers.innerText = p2pPeers.length ? p2pPeers.map(p => p.label).join(', ') : '';
+    }
+
+    function openP2P() {
+      p2pEl('p2pModal')?.classList.remove('hidden');
+      updateP2PBadge();
+    }
+
+    function closeP2P() {
+      p2pEl('p2pModal')?.classList.add('hidden');
+      p2pStopScanner();
+    }
+
+    function p2pStopScanner() {
+      const box = p2pEl('p2pScanner');
+      if (p2pScannerObj) {
+        try { p2pScannerObj.stop().catch(() => {}); } catch (e) {}
+        p2pScannerObj = null;
+      }
+      if (box) box.style.display = 'none';
+    }
+
+    function p2pNewPc() {
+      return new RTCPeerConnection({ iceServers: [] });
+    }
+
+    function p2pWaitIce(pc) {
+      return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') return resolve();
+        let settled = false;
+        const done = () => {
+          if (settled) return;
+          settled = true;
+          pc.removeEventListener('icegatheringstatechange', onChange);
+          resolve();
+        };
+        const onChange = () => { if (pc.iceGatheringState === 'complete') done(); };
+        pc.addEventListener('icegatheringstatechange', onChange);
+        setTimeout(done, 4000);
+      });
+    }
+
+    async function p2pPack(obj) {
+      const json = JSON.stringify(obj);
+      if (!window.CompressionStream) return 'J' + json;
+      try {
+        const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+        const buf = await new Response(stream).arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return 'Z' + btoa(bin);
+      } catch (e) {
+        return 'J' + json;
+      }
+    }
+
+    async function p2pUnpack(str) {
+      if (!str) throw new Error('empty code');
+      if (str[0] === 'J') return JSON.parse(str.slice(1));
+      if (str[0] !== 'Z') return JSON.parse(str);
+      const bin = atob(str.slice(1));
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return JSON.parse(await new Response(stream).text());
+    }
+
+    function p2pShowQr(text) {
+      const el = p2pEl('p2pQR');
+      if (!el) return;
+      el.innerHTML = '';
+      try {
+        new QRCode(el, { text: text, width: 260, height: 260, correctLevel: QRCode.CorrectLevel.L });
+      } catch (e) {
+        el.innerText = 'Code too large — move the devices closer and retry.';
+      }
+    }
+
+    function p2pStartScanner(onText) {
+      const box = p2pEl('p2pScanner');
+      if (!box) return;
+      p2pStopScanner();
+      box.style.display = 'block';
+      p2pScannerObj = new Html5Qrcode('p2pScanner');
+      p2pScannerObj.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 240 },
+        async decoded => {
+          p2pStopScanner();
+          try { await onText(decoded); } catch (e) { setP2PStatus('Could not read that code: ' + e.message); }
+        },
+        () => {}
+      ).catch(err => setP2PStatus('Camera error: ' + err.message));
+    }
+
+    function p2pWireChannel(dc, pc) {
+      const peer = { pc: pc, dc: dc, label: 'Connecting…' };
+      p2pPeers.push(peer);
+
+      dc.onopen = () => {
+        setP2PStatus('Connected');
+        updateP2PBadge();
+        try {
+          dc.send(JSON.stringify({ type: 'hello', device: deviceTag(), user: state.currentUser || '' }));
+          const ops = outboxRead();
+          if (ops.length) dc.send(JSON.stringify({ type: 'ops', ops: ops }));
+        } catch (e) {}
+      };
+      dc.onmessage = ev => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch (e) { return; }
+        p2pHandleMessage(peer, msg);
+      };
+      dc.onclose = () => {
+        p2pPeers = p2pPeers.filter(p => p !== peer);
+        updateP2PBadge();
+        setP2PStatus('Peer disconnected');
+      };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+          p2pPeers = p2pPeers.filter(p => p !== peer);
+          updateP2PBadge();
+        }
+      };
+    }
+
+    function p2pHandleMessage(peer, msg) {
+      if (!msg || !msg.type) return;
+      if (msg.type === 'hello') {
+        peer.label = (msg.device || 'Device') + (msg.user ? ' · ' + msg.user : '');
+        updateP2PBadge();
+      } else if (msg.type === 'ops' && Array.isArray(msg.ops)) {
+        const bulk = msg.ops.length > 1;
+        msg.ops.forEach(op => p2pApplyOp(op, bulk));
+        if (bulk) {
+          renderAll();
+          showToast(`Synced ${msg.ops.length} updates from a paired device`, "success", 2000);
+        }
+      } else if (msg.type === 'orderNum') {
+        const local = state.orders.find(o => o._opId === msg.opId);
+        if (local && msg.orderNum) {
+          local.orderNum = String(msg.orderNum);
+          local.offline = false;
+          const tile = state.qrTiles.find(t => String(t.code) === String(local.qrTile));
+          if (tile) tile.boundOrder = local.orderNum;
+          renderAll();
+        }
+      }
+    }
+
+    function p2pHasOp(opId) {
+      return outboxRead().some(o => o.opId === opId) || state.orders.some(o => o._opId === opId);
+    }
+
+    // Apply an operation received from a peer: show it locally straight away
+    // and queue it so this device can relay it to the sheet when online.
+    function p2pApplyOp(op, bulk) {
+      if (!op || !op.opId || p2pHasOp(op.opId)) return;
+
+      queueOfflineOp(op.action, op.payload, op.opId, { fromPeer: true });
+
+      if (op.action === 'createOrder') {
+        const src = op.payload.order || {};
+        const local = Object.assign({}, src, {
+          orderNum: nextTempOrderNum(),
+          offline: true,
+          paymentStatus: src.paymentStatus || 'PAID',
+          _opId: op.opId
+        });
+        state.orders.unshift(local);
+        if (local.qrTile) {
+          const tile = state.qrTiles.find(t => String(t.code) === String(local.qrTile));
+          if (tile) { tile.status = 'Bound'; tile.boundOrder = local.orderNum; }
+        }
+      } else if (op.action === 'markReady' || op.action === 'clearOrder') {
+        const ref = op.payload.orderRef;
+        const target = state.orders.find(o =>
+          (ref && o._opId === ref) ||
+          (!ref && String(o.orderNum) === String(op.payload.orderNum))
+        );
+        if (target) {
+          target.status = op.action === 'markReady' ? 'READY' : 'CLEARED';
+          if (op.action === 'clearOrder') {
+            const tile = state.qrTiles.find(t => String(t.boundOrder) === String(target.orderNum));
+            if (tile) { tile.status = 'Available'; tile.boundOrder = ''; }
+          }
+        }
+        if (op.action === 'markReady' && typeof triggerChime === 'function') triggerChime();
+      }
+      if (!bulk) {
+        renderAll();
+        showToast('Update received from a paired device', 'success', 1800);
+      }
+    }
+
+    function p2pBroadcast(payload) {
+      const text = JSON.stringify(payload);
+      p2pPeers.forEach(p => {
+        if (p.dc && p.dc.readyState === 'open') {
+          try { p.dc.send(text); } catch (e) {}
+        }
+      });
+    }
+
+    window.p2pBroadcastOp = function (op) {
+      p2pBroadcast({ type: 'ops', ops: [op] });
+    };
+
+    window.p2pBroadcastOrderNum = function (opId, orderNum) {
+      p2pBroadcast({ type: 'orderNum', opId: opId, orderNum: String(orderNum) });
+    };
+
+    async function p2pHostStart() {
+      try {
+        p2pStopScanner();
+        if (p2pHostPc) { try { p2pHostPc.close(); } catch (e) {} }
+        const pc = p2pNewPc();
+        p2pHostPc = pc;
+        const dc = pc.createDataChannel('mfcafe');
+        p2pWireChannel(dc, pc);
+        await pc.setLocalDescription(await pc.createOffer());
+        await p2pWaitIce(pc);
+        p2pShowQr(await p2pPack({ t: 'offer', sdp: pc.localDescription.sdp }));
+        setP2PStatus('Code ready — scan it on the other device');
+        p2pEl('p2pScanReplyBtn')?.classList.remove('hidden');
+      } catch (e) {
+        setP2PStatus('Could not create code: ' + e.message);
+      }
+    }
+
+    async function p2pJoinStart() {
+      p2pStopScanner();
+      setP2PStatus('Scan the host code…');
+      p2pStartScanner(async text => {
+        const msg = await p2pUnpack(text);
+        if (msg.t !== 'offer') throw new Error('not a host code');
+        if (p2pJoinPc) { try { p2pJoinPc.close(); } catch (e) {} }
+        const pc = p2pNewPc();
+        p2pJoinPc = pc;
+        pc.ondatachannel = ev => p2pWireChannel(ev.channel, pc);
+        await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
+        await pc.setLocalDescription(await pc.createAnswer());
+        await p2pWaitIce(pc);
+        p2pShowQr(await p2pPack({ t: 'answer', sdp: pc.localDescription.sdp }));
+        setP2PStatus('Show this code to the host');
+      });
+    }
+
+    async function p2pScanAnswer() {
+      p2pStopScanner();
+      setP2PStatus('Scan the reply code…');
+      p2pStartScanner(async text => {
+        const msg = await p2pUnpack(text);
+        if (msg.t !== 'answer') throw new Error('not a reply code');
+        if (!p2pHostPc) throw new Error('no pending host code');
+        await p2pHostPc.setRemoteDescription({ type: 'answer', sdp: msg.sdp });
+        setP2PStatus('Connecting…');
+      });
+    }
+
+    function p2pDisconnectAll() {
+      p2pPeers.forEach(p => { try { p.dc.close(); } catch (e) {} try { p.pc.close(); } catch (e) {} });
+      p2pPeers = [];
+      if (p2pHostPc) { try { p2pHostPc.close(); } catch (e) {} p2pHostPc = null; }
+      if (p2pJoinPc) { try { p2pJoinPc.close(); } catch (e) {} p2pJoinPc = null; }
+      p2pEl('p2pQR').innerHTML = '';
+      p2pEl('p2pScanReplyBtn')?.classList.add('hidden');
+      setP2PStatus('Not connected');
+      updateP2PBadge();
+    }
+
+    updateP2PBadge();
+  </script>
 
 </body>
 </html>
