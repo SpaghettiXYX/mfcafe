@@ -80,9 +80,6 @@
     [data-theme="dark"] .shadow-lg { box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5) !important; }
     [data-theme="dark"] .shadow-2xl { box-shadow: 0 20px 50px -12px rgba(0,0,0,0.6) !important; }
 
-    /* KDS card radius — syncs halo border-radius with card's rounded-3xl */
-    [data-theme="dark"] .kds-unassigned { --kds-card-radius: 1rem; }
-
     /* Inputs & selects */
     [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
       background-color: var(--surface-2) !important; border-color: var(--border-2) !important; color: var(--text) !important;
@@ -118,32 +115,11 @@
       display: inline-flex; white-space: nowrap; will-change: transform;
       animation: kds-marquee-scroll 22s linear infinite;
     }
-    /* New-order flash: a pseudo-element ring. Box-shadow is stripped by the
-       dark theme's .shadow-sm reset, and Safari's outline animation is
-       unreliable, so both are avoided. The ring only animates opacity.
-       Border-radius uses a CSS variable so the halo's outer edge perfectly
-       hugs the card's rounded-3xl even in dark mode where the radius shrinks
-       from 1.5rem to 1rem. */
-    .kds-unassigned { position: relative; --kds-card-radius: 1.5rem; }
-    .kds-unassigned::after {
-      content: "";
-      position: absolute;
-      inset: -6px;
-      border: 4px solid rgba(245, 158, 11, 0.95);
-      border-radius: calc(var(--kds-card-radius) + 6px);
-      box-shadow: 0 0 20px 2px rgba(245, 158, 11, 0.35);
-      pointer-events: none;
-      opacity: 0;
-      animation: kds-new-flash 1.6s ease-in-out infinite;
-    }
-    @keyframes kds-new-flash {
-      0%, 100% { opacity: 0; }
-      50% { opacity: 1; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .kds-marquee-track { animation: none; }
-      .kds-unassigned::after { animation: none; opacity: 1; }
-    }
+    /* Unassigned cards get a static 4px amber border replacing the product
+       color border — the marquee at the top of the KDS already handles the
+       "incoming new order" alert, so the old flashing halo was redundant. */
+    .kds-unassigned { border-color: #f59e0b !important; }
+    [data-theme="dark"] .kds-unassigned { border-color: #fbbf24 !important; }
 
     /* Keep QR code & ticket readable */
     [data-theme="dark"] #qrcode, [data-theme="dark"] #qr-reader { background-color: #ffffff !important; }
@@ -4118,19 +4094,33 @@
         .sort((a, b) => {
           const sa = (a.status || "").toUpperCase();
           const sb = (b.status || "").toUpperCase();
-          // Assigned orders always float to the top of the KDS.
+          // Level 1: assigned orders always float to the very top of the KDS.
           const rankA = sa === "ASSIGNED" ? 0 : 1;
           const rankB = sb === "ASSIGNED" ? 0 : 1;
           if (rankA !== rankB) return rankA - rankB;
-          // Inside the assigned group: first ticked = position 1, second = 2…
+
           if (rankA === 0) {
+            // Level 2a (assigned): first ticked = position 1, second = 2…
             const ta = assignedAtOf(a.orderNum);
             const tb = assignedAtOf(b.orderNum);
             const na = ta == null ? Infinity : ta;
             const nb = tb == null ? Infinity : tb;
             if (na !== nb) return na - nb;
+          } else {
+            // Level 2b (unassigned): group by product category using the
+            // menu's configured category order (Hot Drinks → Cold Drinks →
+            // Snacks → Other), not alphabetical.
+            const catA = getOrderCategory(a);
+            const catB = getOrderCategory(b);
+            const idxA = state.categories.indexOf(catA);
+            const idxB = state.categories.indexOf(catB);
+            const ca = idxA === -1 ? Infinity : idxA;
+            const cb = idxB === -1 ? Infinity : idxB;
+            if (ca !== cb) return ca - cb;
           }
-          // Pending / reserved keep their arrival order.
+          // Level 3 (all orders): within the same group — arrival order first,
+          // newest (earliest placed) at the top. Falls back to order number as
+          // a stable tiebreaker.
           const byTime = String(a.orderTime).localeCompare(String(b.orderTime));
           return byTime || (Number(a.orderNum) || 0) - (Number(b.orderNum) || 0);
         });
