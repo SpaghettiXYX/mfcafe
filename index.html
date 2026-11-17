@@ -790,7 +790,22 @@
               class="hidden mt-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs px-4 py-2 rounded-xl transition">
         <i class="fa-solid fa-rotate-right mr-1"></i>Retry
       </button>
+      <button id="bootOffline" onclick="bootOffline()"
+              class="hidden mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white font-black text-xs px-4 py-2.5 rounded-xl transition">
+        <i class="fa-solid fa-hard-drive mr-1"></i>Continue with offline copy
+      </button>
     </div>
+  </div>
+
+  <!-- OFFLINE / BACKUP MODE BANNER -->
+  <div id="offlineBanner" class="hidden" role="status" aria-live="polite"
+       style="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:88;align-items:center;gap:10px;padding:9px 12px 9px 14px;border-radius:999px;background:#1f2937;color:#f8fafc;box-shadow:0 12px 35px rgba(0,0,0,.28);font-size:12px;font-weight:700;max-width:calc(100vw - 20px);">
+    <i class="fa-solid fa-plug-circle-xmark" style="color:#fbbf24;flex:none"></i>
+    <span id="offlineBannerText" style="line-height:1.35">Offline mode</span>
+    <button onclick="retryBackend()"
+            style="flex:none;background:#f59e0b;color:#1f2937;border:0;border-radius:999px;padding:6px 12px;font-size:11px;font-weight:900;cursor:pointer;">
+      Retry
+    </button>
   </div>
 
   <!-- LOGIN MODAL / OVERLAY -->
@@ -2311,6 +2326,111 @@
       receiptLayout: null     // editable block list, loaded from Apps Script
     };
 
+    // ==================== BACKEND FAILOVER & OFFLINE FALLBACK ====================
+    // If the primary Apps Script deployment dies, the app can fall back to a
+    // second deployment (when one is configured) and can still boot from the
+    // last good data snapshot. Point the app at any deployment without editing
+    // this file:
+    //   ?backend=https://script.google.com/macros/s/<ID>/exec   (saved in localStorage)
+    //   ?backend=reset                                           (back to the primary URL)
+    const BACKUP_APPS_SCRIPT_URL = ""; // optional secondary /exec deployment
+    const BACKEND_OVERRIDE_KEY = "mfcafe_backend_url";
+    const OFFLINE_SNAPSHOT_KEY = "mfcafe_offline_snapshot";
+    let backendActiveUrl = APPS_SCRIPT_URL;
+    let offlineMode = false;
+
+    function backendEndpoints() {
+      const list = [];
+      try {
+        const param = new URLSearchParams(location.search).get("backend");
+        if (param) {
+          if (param === "reset") localStorage.removeItem(BACKEND_OVERRIDE_KEY);
+          else localStorage.setItem(BACKEND_OVERRIDE_KEY, param);
+        }
+        const saved = localStorage.getItem(BACKEND_OVERRIDE_KEY);
+        if (saved) list.push(saved);
+      } catch (e) {}
+      if (BACKUP_APPS_SCRIPT_URL && !list.includes(BACKUP_APPS_SCRIPT_URL)) list.push(BACKUP_APPS_SCRIPT_URL);
+      if (!list.includes(APPS_SCRIPT_URL)) list.push(APPS_SCRIPT_URL);
+      return list;
+    }
+
+    function backendUrlOn(endpoint, url) {
+      const s = String(url);
+      return s.startsWith(APPS_SCRIPT_URL) ? endpoint + s.slice(APPS_SCRIPT_URL.length) : s;
+    }
+
+    // Every backend call goes through here.
+    // Reads fail over between deployments; writes only ever go to the endpoint
+    // that last answered a read, so a retry can never create a duplicate order.
+    async function backendFetch(url, init) {
+      const opts = init || {};
+      const method = String(opts.method || "GET").toUpperCase();
+      const endpoints = backendEndpoints();
+      if (!endpoints.includes(backendActiveUrl)) backendActiveUrl = endpoints[0];
+
+      if (method !== "GET" && method !== "HEAD") {
+        if (offlineMode) throw new Error("Offline mode — server unreachable, so this change was not saved.");
+        return fetch(backendUrlOn(backendActiveUrl, url), opts);
+      }
+
+      const order = [backendActiveUrl].concat(endpoints.filter(u => u !== backendActiveUrl));
+      let lastErr = null;
+      for (const endpoint of order) {
+        try {
+          const res = await fetch(backendUrlOn(endpoint, url), opts);
+          backendActiveUrl = endpoint;
+          return res;
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr || new Error("No backend endpoint reachable");
+    }
+
+    function saveOfflineSnapshot(data) {
+      try {
+        const copy = Object.assign({}, data);
+        // Orders are the heaviest payload — keep the most recent 300 only.
+        if (Array.isArray(copy.orders) && copy.orders.length > 300) copy.orders = copy.orders.slice(-300);
+        localStorage.setItem(OFFLINE_SNAPSHOT_KEY, JSON.stringify({ savedAt: Date.now(), data: copy }));
+      } catch (e) { console.warn("Offline snapshot not saved:", e); }
+    }
+
+    function loadOfflineSnapshot() {
+      try {
+        const snap = JSON.parse(localStorage.getItem(OFFLINE_SNAPSHOT_KEY) || "null");
+        return snap && snap.data ? snap : null;
+      } catch (e) { return null; }
+    }
+
+    function setOfflineMode(on, reason, silent) {
+      const was = offlineMode;
+      offlineMode = !!on;
+      const banner = document.getElementById("offlineBanner");
+      if (banner) {
+        banner.classList.toggle("hidden", !on);
+        banner.style.display = on ? "flex" : "none";
+      }
+      if (on) {
+        setSyncStatus("offline");
+        if (was) return;
+        const label = document.getElementById("offlineBannerText");
+        if (label) {
+          const snap = loadOfflineSnapshot();
+          const when = snap ? new Date(snap.savedAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "unknown";
+          label.innerText = (reason || "Server unreachable") + " · last sync " + when + " · new orders are paused";
+        }
+      } else {
+        setSyncStatus("online");
+        if (was && !silent && !bootActive) showToast("Back online — live data restored", "success", 2500);
+      }
+    }
+
+    function retryBackend() {
+      if (bootActive) { bootRetry(); return; }
+      setSyncStatus("syncing");
+      fetchFromSheet();
+    }
+
     let html5QrcodeScanner = null;
     let isProcessingScan = false;
     let isModalAddMode = false;
@@ -2664,7 +2784,7 @@
         return;
       }
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "login", username: u, password: p })
@@ -2821,7 +2941,7 @@
 
     function fetchOrderHistory() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
-      fetch(`${APPS_SCRIPT_URL}?action=getOrderHistory&limit=200&_t=${Date.now()}`, { cache: "no-cache" })
+      backendFetch(`${APPS_SCRIPT_URL}?action=getOrderHistory&limit=200&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data.orders)) {
@@ -2897,7 +3017,7 @@
     function smartCheckUpdates() {
       if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_GOOGLE_APPS_SCRIPT")) return;
 
-      fetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
+      backendFetch(`${APPS_SCRIPT_URL}?action=checkUpdate&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(info => {
           if (info && info.success === false) {
@@ -2905,14 +3025,14 @@
             console.log("Check server error:", info.error);
             return;
           }
-          setSyncStatus("online");
+          setOfflineMode(false);
           if (info.version && info.version !== state.serverVersion) {
             state.serverVersion = info.version;
             fetchFromSheet();
           }
         })
         .catch(err => {
-          setSyncStatus("offline");
+          setOfflineMode(true, "Connection lost");
           console.log("Check error:", err);
         });
     }
@@ -2934,6 +3054,8 @@
         bar.style.background = tone === "error" ? "#f43f5e" : "#f59e0b";
       }
       if (retry) retry.classList.toggle("hidden", tone !== "error");
+      const offlineBtn = document.getElementById("bootOffline");
+      if (offlineBtn && tone !== "error") offlineBtn.classList.add("hidden");
     }
 
     function bootStart(statusText) {
@@ -2974,11 +3096,74 @@
       clearTimeout(bootTimeoutId);
       clearTimeout(bootStageId);
       bootSet(message || "Cannot reach the server", 100, "error");
+      // Offer the cached copy only when one actually exists.
+      const offlineBtn = document.getElementById("bootOffline");
+      if (offlineBtn) offlineBtn.classList.toggle("hidden", !loadOfflineSnapshot());
     }
 
     function bootRetry() {
       bootStart("Retrying…");
       fetchFromSheet({ boot: true });
+    }
+
+    // Boot straight from the last successful getInitialData snapshot.
+    // Writes stay blocked until a real connection comes back.
+    function bootOffline() {
+      const snap = loadOfflineSnapshot();
+      if (!snap) {
+        showToast("No offline copy saved yet — connect once while the server is up.", "error", 4000);
+        return;
+      }
+      applyServerData(snap.data);
+      setOfflineMode(true, "Offline copy loaded");
+      renderAll();
+      bootDone();
+    }
+
+    // Applies a getInitialData payload — live or from the offline snapshot.
+    function applyServerData(data) {
+      if (data.version) state.serverVersion = data.version;
+      if (Array.isArray(data.menu)) state.menu = data.menu;
+      if (Array.isArray(data.users)) state.users = data.users;
+      if (Array.isArray(data.categories)) state.categories = data.categories;
+      if (Array.isArray(data.qrTiles)) state.qrTiles = data.qrTiles;
+      if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
+      if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
+      if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
+      if (typeof data.upsellEnabled === "boolean") state.upsellEnabled = data.upsellEnabled;
+      if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
+      if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
+      if (typeof data.bulkyReservationOpen === "boolean") state.bulkyReservationOpen = data.bulkyReservationOpen;
+      if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
+      if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
+      if (typeof data.bulkyPauseReason === "string") state.bulkyPauseReason = data.bulkyPauseReason;
+      if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
+      if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
+      if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
+      if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
+      if (data.instructions && typeof data.instructions === "object") {
+        state.instructions = data.instructions;
+        state.instructionsTeacher = data.instructionsTeacher || data.instructions;
+      }
+      if (data.instructionsOpenDay && typeof data.instructionsOpenDay === "object") state.instructionsOpenDay = data.instructionsOpenDay;
+      if (data.instructionsBulky && typeof data.instructionsBulky === "object") state.instructionsBulky = data.instructionsBulky;
+      if (data.statusStrip && typeof data.statusStrip === "object") {
+        state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
+        renderKdsStatusEditor();
+      }
+      if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
+      if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
+
+      // Show any active push message from the server
+      handlePushMessage();
+
+      if (Array.isArray(data.orders)) {
+        const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+        const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
+        state.orders = data.orders;
+        reconcileAssignedOrderMap(data.orders);
+        if (newReady > oldReady) triggerChime();
+      }
     }
 
     function fetchFromSheet(opts) {
@@ -2989,7 +3174,7 @@
       }
       setSyncStatus("syncing");
 
-      fetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
+      backendFetch(`${APPS_SCRIPT_URL}?action=getInitialData&_t=${Date.now()}`, { cache: "no-cache" })
         .then(res => res.json())
         .then(data => {
           if (data && data.success === false) {
@@ -2999,49 +3184,9 @@
             if (fromBoot) bootFail("Server error: " + (data.error || "unknown"));
             return;
           }
-          setSyncStatus("online");
-          if (data.version) state.serverVersion = data.version;
-          if (Array.isArray(data.menu)) state.menu = data.menu;
-          if (Array.isArray(data.users)) state.users = data.users;
-          if (Array.isArray(data.categories)) state.categories = data.categories;
-          if (Array.isArray(data.qrTiles)) state.qrTiles = data.qrTiles;
-          if (data.remarkHotkeys) state.remarkHotkeys = data.remarkHotkeys;
-          if (typeof data.coldExtra === "number") state.coldExtra = data.coldExtra;
-          if (typeof data.coldPaused === "boolean") state.coldPaused = data.coldPaused;
-          if (typeof data.upsellEnabled === "boolean") state.upsellEnabled = data.upsellEnabled;
-          if (typeof data.teacherReservationOpen === "boolean") state.teacherReservationOpen = data.teacherReservationOpen;
-          if (typeof data.openDayReservationOpen === "boolean") state.openDayReservationOpen = data.openDayReservationOpen;
-          if (typeof data.bulkyReservationOpen === "boolean") state.bulkyReservationOpen = data.bulkyReservationOpen;
-          if (typeof data.teacherPauseReason === "string") state.teacherPauseReason = data.teacherPauseReason;
-          if (typeof data.openDayPauseReason === "string") state.openDayPauseReason = data.openDayPauseReason;
-          if (typeof data.bulkyPauseReason === "string") state.bulkyPauseReason = data.bulkyPauseReason;
-          if (data.pushMessage && typeof data.pushMessage === "object") state.pushMessage = data.pushMessage;
-          if (data.openingHours && typeof data.openingHours === "object") state.openingHours = data.openingHours;
-          if (data.promoPopup && typeof data.promoPopup === "object") state.promoPopup = data.promoPopup;
-          if (Array.isArray(data.promoCodes)) state.promoCodes = data.promoCodes;
-          if (data.instructions && typeof data.instructions === "object") {
-            state.instructions = data.instructions;
-            state.instructionsTeacher = data.instructionsTeacher || data.instructions;
-          }
-          if (data.instructionsOpenDay && typeof data.instructionsOpenDay === "object") state.instructionsOpenDay = data.instructionsOpenDay;
-          if (data.instructionsBulky && typeof data.instructionsBulky === "object") state.instructionsBulky = data.instructionsBulky;
-          if (data.statusStrip && typeof data.statusStrip === "object") {
-            state.statusStrip = Object.assign({}, state.statusStrip, data.statusStrip);
-            renderKdsStatusEditor();
-          }
-          if (data.categoryColors && typeof data.categoryColors === "object") state.categoryColors = data.categoryColors;
-          if (Array.isArray(data.receiptLayout) && data.receiptLayout.length) state.receiptLayout = data.receiptLayout;
-
-          // Show any active push message from the server
-          handlePushMessage();
-
-          if (Array.isArray(data.orders)) {
-            const oldReady = state.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            const newReady = data.orders.filter(o => (o.status || "").toUpperCase() === "READY").length;
-            state.orders = data.orders;
-            reconcileAssignedOrderMap(data.orders);
-            if (newReady > oldReady) triggerChime();
-          }
+          setOfflineMode(false, null, true);
+          applyServerData(data);
+          saveOfflineSnapshot(data);
           renderAll();
           if (fromBoot || bootActive) bootDone();
         })
@@ -3523,7 +3668,7 @@
         cupType: cupType
       };
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "createOrder", order: orderPayload })
@@ -3569,7 +3714,7 @@
           btnSubmit.disabled = false;
           btnSubmit.classList.remove('opacity-50');
         }
-        showToast("Network error creating order", "error");
+        showToast((err && err.message) || "Network error creating order", "error", 5000);
       });
     }
 
@@ -3645,7 +3790,7 @@
       if (isBase) {
         // First flip any RESERVED rows in the group to UNPAID so the user is
         // billed for every cup, not just the cups that already had a status.
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "bulkActivateReserved", orderNum: targetNum })
@@ -3668,7 +3813,7 @@
           }
           renderAll();
 
-          fetch(APPS_SCRIPT_URL, {
+          backendFetch(APPS_SCRIPT_URL, {
             method: "POST",
             headers: { "Content-Type": "text/plain" },
             body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
@@ -3701,7 +3846,7 @@
         order.paymentStatus = "PAID";
         renderAll();
 
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "confirmPayment", orderNum: targetNum })
@@ -3869,7 +4014,7 @@
       }
 
       // 2) Otherwise treat the code as a QR tile
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "clearOrderByTile", tileCode: code })
@@ -4161,7 +4306,7 @@
       if (isChecked) recordAssigned(targetNum); else clearAssigned(targetNum);
       renderAll();
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
@@ -4197,7 +4342,7 @@
         clearAssigned(orderNum);
         renderAll();
         triggerChime();
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "markReady", orderNum: String(orderNum) })
@@ -4387,7 +4532,7 @@
         const prevStatus = o.status;
         o.status = "CLEARED";
         renderAll();
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "clearOrder", orderNum: String(orderNum) })
@@ -5040,7 +5185,7 @@
       const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
       try {
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const res = await backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(payload),
@@ -6698,7 +6843,7 @@
       const val = document.getElementById('adminHotkeysInput').value.trim();
       state.remarkHotkeys = val;
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveHotkeys", hotkeys: val })
@@ -6715,7 +6860,7 @@
       const val = document.getElementById('adminCategoriesInput').value.trim();
       state.categories = val.split(",").map(s => s.trim()).filter(Boolean);
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveCategories", categories: val })
@@ -6735,7 +6880,7 @@
     function saveCategoryColorSubmit(category, color) {
       state.categoryColors[category] = color;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveCategoryColor", category: category, color: color })
@@ -6752,7 +6897,7 @@
       const val = parseFloat(document.getElementById('adminColdExtraInput').value);
       if (isNaN(val) || val < 0) return showToast("Invalid cold extra price", "warning");
       state.coldExtra = val;
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveColdExtra", value: val })
@@ -6773,7 +6918,7 @@
       const newPaused = !state.coldPaused;
       state.coldPaused = newPaused;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "toggleColdPause", paused: newPaused })
@@ -6790,7 +6935,7 @@
       const newEnabled = !state.upsellEnabled;
       state.upsellEnabled = newEnabled;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "toggleUpsell", enabled: newEnabled })
@@ -6807,7 +6952,7 @@
       const newOpen = !state.teacherReservationOpen;
       state.teacherReservationOpen = newOpen;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "toggleTeacherReservation", open: newOpen })
@@ -6824,7 +6969,7 @@
       const newOpen = !state.openDayReservationOpen;
       state.openDayReservationOpen = newOpen;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "toggleOpenDayReservation", open: newOpen })
@@ -6841,7 +6986,7 @@
       const newOpen = !state.bulkyReservationOpen;
       state.bulkyReservationOpen = newOpen;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "toggleBulkyReservation", open: newOpen })
@@ -6877,19 +7022,19 @@
       state.openDayPauseReason = openDayReason;
       state.bulkyPauseReason = bulkyReason;
 
-      const p1 = fetch(APPS_SCRIPT_URL, {
+      const p1 = backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "savePauseReason", target: "teacher", reason: teacherReason })
       }).then(r => r.json());
 
-      const p2 = fetch(APPS_SCRIPT_URL, {
+      const p2 = backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "savePauseReason", target: "openday", reason: openDayReason })
       }).then(r => r.json());
 
-      const p3 = fetch(APPS_SCRIPT_URL, {
+      const p3 = backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "savePauseReason", target: "bulky", reason: bulkyReason })
@@ -6996,7 +7141,7 @@
       };
       const status = document.getElementById("kdsStatusAdminStatus");
       if (status) status.innerText = "Saving…";
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveKdsStatusStrip", config: cfg })
@@ -7020,7 +7165,7 @@
       const text = document.getElementById('adminPushMessageInput').value.trim();
       if (!text) return showToast("Please enter a message", "warning");
       const sender = state.currentUser || "Admin";
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "savePushMessage", text: text, sender: sender, active: true })
@@ -7041,7 +7186,7 @@
 
     function clearPushMessageSubmit() {
       const sender = state.currentUser || "Admin";
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "savePushMessage", text: "", sender: sender, active: false })
@@ -7064,7 +7209,7 @@
       const code = document.getElementById('newTileCode').value.trim();
       if (!code) return showToast("Enter a tile code", "warning");
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "addQRTile", tileCode: code })
@@ -7085,7 +7230,7 @@
     function deleteQRTileSubmit(code) {
       showConfirm(`Delete QR tile #${code}?`).then(ok => {
         if (!ok) return;
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "deleteQRTile", tileCode: code })
@@ -7150,7 +7295,7 @@
       const staffCard = document.getElementById('newStaffCard').value.trim();
       if (!u || !p) return showToast("Please enter username and password.", "warning");
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "addUser", username: u, password: p, role: "Staff", userCode: code, staffCard: staffCard })
@@ -7239,7 +7384,7 @@
     function deleteUserSubmit(username) {
       showConfirm(`Delete user "${username}"? This cannot be undone.`).then(ok => {
         if (!ok) return;
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "deleteUser", username: username })
@@ -7264,7 +7409,7 @@
         state.orders = state.orders.filter(o => String(o.orderNum).trim() !== String(orderNum).trim());
         renderAll();
 
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "deleteOrder", orderNum: String(orderNum) })
@@ -7295,7 +7440,7 @@
         item.status = newStatus;
         item.available = newStatus.toLowerCase() === "active";
         renderAll();
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "toggleMenuItem", itemName: itemName, newStatus: newStatus })
@@ -7326,7 +7471,7 @@
       const newColdPaused = !item.coldPaused;
       item.coldPaused = newColdPaused;
       renderAll();
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "saveMenuItem", item: { originalName: itemName, name: item.name, price: item.price, tempOptions: item.tempOptions, status: item.status, category: item.category, coldPaused: newColdPaused } })
@@ -7446,7 +7591,7 @@
       renderAll();
       closeMenuModal();
 
-      fetch(APPS_SCRIPT_URL, {
+      backendFetch(APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: isModalAddMode ? "addMenuItem" : "saveMenuItem", item: itemData })
@@ -7466,7 +7611,7 @@
         state.menu = state.menu.filter(i => i.name !== itemName);
         renderAll();
 
-        fetch(APPS_SCRIPT_URL, {
+        backendFetch(APPS_SCRIPT_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
           body: JSON.stringify({ action: "deleteMenuItem", itemName: itemName })
