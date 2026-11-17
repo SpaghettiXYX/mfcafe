@@ -8021,8 +8021,11 @@
         Scan partner's reply
       </button>
       <button onclick="p2pDisconnectAll()" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2.5 rounded-xl text-[11px] font-extrabold">
-        Disconnect all
+        Disconnect &amp; forget pairing
       </button>
+      <p class="text-[10px] text-slate-400 leading-relaxed mt-3">
+        Pairing is remembered. After a reload or a Wi-Fi drop the devices reconnect on their own while the backend is reachable; a completely offline pair may still need one QR scan.
+      </p>
     </div>
   </div>
 
@@ -8035,6 +8038,11 @@
     let p2pScannerObj = null;
     let p2pHostPc = null;       // pending host connection (offer sent)
     let p2pJoinPc = null;       // pending guest connection (answer sent)
+    let p2pCurrentPair = null;  // { pairId, role, label } — remembered across reloads
+    let p2pReconnectTimer = null;
+    let p2pReconnecting = false;
+    let p2pReconnectAttempt = 0;
+    let p2pUserClosed = false;
 
     function p2pEl(id) { return document.getElementById(id); }
 
@@ -8149,7 +8157,8 @@
       p2pPeers.push(peer);
 
       dc.onopen = () => {
-        setP2PStatus('Connected');
+        p2pUserClosed = false;
+        p2pOnConnected(peer);
         updateP2PBadge();
         try {
           dc.send(JSON.stringify({ type: 'hello', device: deviceTag(), user: state.currentUser || '' }));
@@ -8165,12 +8174,27 @@
       dc.onclose = () => {
         p2pPeers = p2pPeers.filter(p => p !== peer);
         updateP2PBadge();
-        setP2PStatus('Peer disconnected');
+        if (!p2pUserClosed) {
+          setP2PStatus('Connection lost — reconnecting…');
+          p2pScheduleReconnect();
+        }
       };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
           p2pPeers = p2pPeers.filter(p => p !== peer);
           updateP2PBadge();
+          if (!p2pUserClosed) p2pScheduleReconnect();
+        } else if (pc.connectionState === 'disconnected') {
+          // ICE often recovers on its own after a brief Wi-Fi blip. Wait a
+          // few seconds before falling back to the relay handshake.
+          clearTimeout(peer.dropTimer);
+          peer.dropTimer = setTimeout(() => {
+            if (pc.connectionState !== 'connected' && pc.connectionState !== 'completed') {
+              if (!p2pUserClosed) p2pScheduleReconnect();
+            }
+          }, 6000);
+        } else if (pc.connectionState === 'connected') {
+          clearTimeout(peer.dropTimer);
         }
       };
     }
@@ -8179,6 +8203,9 @@
       if (!msg || !msg.type) return;
       if (msg.type === 'hello') {
         peer.label = (msg.device || 'Device') + (msg.user ? ' · ' + msg.user : '');
+        if (p2pCurrentPair && p2pCurrentPair.pairId) {
+          p2pSavePair(p2pCurrentPair.pairId, p2pCurrentPair.role, peer.label);
+        }
         updateP2PBadge();
       } else if (msg.type === 'ops' && Array.isArray(msg.ops)) {
         const bulk = msg.ops.length > 1;
@@ -8261,17 +8288,169 @@
       p2pBroadcast({ type: 'orderNum', opId: opId, orderNum: String(orderNum) });
     };
 
+    function p2pNewPairId() {
+      return 'p' + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+    }
+
+    function p2pSavePair(pairId, role, label) {
+      p2pCurrentPair = { pairId: pairId, role: role, label: label || '' };
+      try {
+        localStorage.setItem('mfcafe_p2p_pair', JSON.stringify({
+          pairId: pairId, role: role, label: label || '', at: Date.now()
+        }));
+      } catch (e) {}
+    }
+
+    function p2pLoadPair() {
+      try { return JSON.parse(localStorage.getItem('mfcafe_p2p_pair') || 'null'); } catch (e) { return null; }
+    }
+
+    function p2pClearPair() {
+      p2pCurrentPair = null;
+      try { localStorage.removeItem('mfcafe_p2p_pair'); } catch (e) {}
+    }
+
+    function p2pCancelReconnect() {
+      if (p2pReconnectTimer) { clearTimeout(p2pReconnectTimer); p2pReconnectTimer = null; }
+    }
+
+    function p2pHasOpenPeer() {
+      return p2pPeers.some(p => p.dc && p.dc.readyState === 'open');
+    }
+
+    // Handshake after a drop: the host leaves an offer in the relay, the guest
+    // picks it up and answers. Requires the backend to be reachable; purely
+    // offline devices still need one QR scan.
+    async function p2pRelayHandshake(rec, timeoutMs) {
+      const pc = p2pNewPc();
+      const pairId = rec.pairId;
+      const deadline = Date.now() + timeoutMs;
+      const wait = ms => new Promise(r => setTimeout(r, ms));
+      try {
+        if (rec.role === 'guest') {
+          while (Date.now() < deadline) {
+            const res = await apiPost({ action: 'p2pSignalGet', pairId: pairId, role: 'guest' });
+            const p = res && res.payload;
+            if (p && p.t === 'offer') {
+              pc.ondatachannel = ev => p2pWireChannel(ev.channel, pc);
+              await pc.setRemoteDescription({ type: 'offer', sdp: p.sdp });
+              await pc.setLocalDescription(await pc.createAnswer());
+              await p2pWaitIce(pc);
+              await apiPost({
+                action: 'p2pSignalPut', pairId: pairId, role: 'guest',
+                payload: { t: 'answer', sdp: pc.localDescription.sdp }
+              });
+              return;
+            }
+            await wait(2000);
+          }
+          throw new Error('no offer from host');
+        }
+
+        const dc = pc.createDataChannel('mfcafe');
+        p2pWireChannel(dc, pc);
+        await pc.setLocalDescription(await pc.createOffer());
+        await p2pWaitIce(pc);
+        await apiPost({
+          action: 'p2pSignalPut', pairId: pairId, role: 'host',
+          payload: { t: 'offer', sdp: pc.localDescription.sdp }
+        });
+        while (Date.now() < deadline) {
+          const res = await apiPost({ action: 'p2pSignalGet', pairId: pairId, role: 'host' });
+          const p = res && res.payload;
+          if (p && p.t === 'answer') {
+            await pc.setRemoteDescription({ type: 'answer', sdp: p.sdp });
+            return;
+          }
+          await wait(2000);
+        }
+        throw new Error('no answer from guest');
+      } catch (e) {
+        p2pPeers = p2pPeers.filter(p => p.pc !== pc);
+        try { pc.close(); } catch (err) {}
+        updateP2PBadge();
+        throw e;
+      }
+    }
+
+    async function p2pAttemptReconnect(rec) {
+      if (p2pReconnecting || p2pUserClosed || p2pHasOpenPeer()) return;
+      if (!navigator.onLine) {
+        setP2PStatus('Offline — will reconnect when the network returns');
+        p2pReconnectTimer = setTimeout(() => {
+          p2pReconnectTimer = null;
+          p2pAttemptReconnect(rec);
+        }, 15000);
+        return;
+      }
+      p2pReconnecting = true;
+      p2pReconnectAttempt++;
+      setP2PStatus('Reconnecting…');
+      try {
+        await p2pRelayHandshake(rec, 45000);
+        // Give ICE a few seconds to open the channel before retrying.
+        setTimeout(() => {
+          if (!p2pHasOpenPeer()) p2pScheduleReconnect();
+        }, 8000);
+      } catch (e) {
+        setP2PStatus('Reconnect failed — retrying');
+        p2pScheduleReconnect();
+      } finally {
+        p2pReconnecting = false;
+      }
+    }
+
+    function p2pScheduleReconnect() {
+      const rec = p2pCurrentPair || p2pLoadPair();
+      if (!rec || !rec.pairId || p2pUserClosed || p2pReconnectTimer || p2pReconnecting) return;
+      if (p2pHasOpenPeer()) return;
+      const delay = Math.min(60000, 2000 * Math.pow(2, Math.min(p2pReconnectAttempt, 5)));
+      setP2PStatus('Reconnecting in ' + Math.round(delay / 1000) + 's…');
+      p2pReconnectTimer = setTimeout(() => {
+        p2pReconnectTimer = null;
+        p2pAttemptReconnect(rec);
+      }, delay);
+    }
+
+    function p2pOnConnected(peer) {
+      p2pCancelReconnect();
+      p2pReconnectAttempt = 0;
+      if (p2pCurrentPair && p2pCurrentPair.pairId) {
+        p2pSavePair(p2pCurrentPair.pairId, p2pCurrentPair.role, p2pCurrentPair.label || peer.label);
+        // Best effort: clear the relay mailbox so stale SDP cannot be reused.
+        try {
+          if (navigator.onLine) apiPost({ action: 'p2pSignalClear', pairId: p2pCurrentPair.pairId }).catch(() => {});
+        } catch (e) {}
+      }
+      setP2PStatus('Connected');
+    }
+
+    function p2pAutoResume() {
+      if (p2pPeers.length) return;
+      const rec = p2pLoadPair();
+      if (!rec || !rec.pairId) return;
+      p2pCurrentPair = rec;
+      p2pUserClosed = false;
+      p2pReconnectAttempt = 0;
+      setP2PStatus('Reconnecting to ' + (rec.label || 'paired device') + '…');
+      p2pScheduleReconnect();
+    }
+
     async function p2pHostStart() {
       try {
         p2pStopScanner();
+        p2pCancelReconnect();
+        p2pUserClosed = false;
         if (p2pHostPc) { try { p2pHostPc.close(); } catch (e) {} }
+        const pairId = p2pNewPairId();
+        p2pCurrentPair = { pairId: pairId, role: 'host', label: '' };
         const pc = p2pNewPc();
         p2pHostPc = pc;
         const dc = pc.createDataChannel('mfcafe');
         p2pWireChannel(dc, pc);
         await pc.setLocalDescription(await pc.createOffer());
         await p2pWaitIce(pc);
-        p2pShowQr(await p2pPack({ t: 'offer', sdp: pc.localDescription.sdp }));
+        p2pShowQr(await p2pPack({ t: 'offer', pairId: pairId, sdp: pc.localDescription.sdp }));
         setP2PStatus('Code ready — scan it on the other device');
         p2pEl('p2pScanReplyBtn')?.classList.remove('hidden');
       } catch (e) {
@@ -8281,18 +8460,22 @@
 
     async function p2pJoinStart() {
       p2pStopScanner();
+      p2pCancelReconnect();
+      p2pUserClosed = false;
       setP2PStatus('Scan the host code…');
       p2pStartScanner(async text => {
         const msg = await p2pUnpack(text);
         if (msg.t !== 'offer') throw new Error('not a host code');
         if (p2pJoinPc) { try { p2pJoinPc.close(); } catch (e) {} }
+        const pairId = msg.pairId || p2pNewPairId();
+        p2pCurrentPair = { pairId: pairId, role: 'guest', label: '' };
         const pc = p2pNewPc();
         p2pJoinPc = pc;
         pc.ondatachannel = ev => p2pWireChannel(ev.channel, pc);
         await pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
         await pc.setLocalDescription(await pc.createAnswer());
         await p2pWaitIce(pc);
-        p2pShowQr(await p2pPack({ t: 'answer', sdp: pc.localDescription.sdp }));
+        p2pShowQr(await p2pPack({ t: 'answer', pairId: pairId, sdp: pc.localDescription.sdp }));
         setP2PStatus('Show this code to the host');
       });
     }
@@ -8310,17 +8493,30 @@
     }
 
     function p2pDisconnectAll() {
+      p2pUserClosed = true;
+      p2pCancelReconnect();
+      p2pReconnecting = false;
       p2pPeers.forEach(p => { try { p.dc.close(); } catch (e) {} try { p.pc.close(); } catch (e) {} });
       p2pPeers = [];
       if (p2pHostPc) { try { p2pHostPc.close(); } catch (e) {} p2pHostPc = null; }
       if (p2pJoinPc) { try { p2pJoinPc.close(); } catch (e) {} p2pJoinPc = null; }
+      const rec = p2pCurrentPair || p2pLoadPair();
+      if (rec && rec.pairId && navigator.onLine) {
+        try { apiPost({ action: 'p2pSignalClear', pairId: rec.pairId }).catch(() => {}); } catch (e) {}
+      }
+      p2pClearPair();
       p2pEl('p2pQR').innerHTML = '';
       p2pEl('p2pScanReplyBtn')?.classList.add('hidden');
-      setP2PStatus('Not connected');
+      setP2PStatus('Not connected — pairing forgotten');
       updateP2PBadge();
     }
 
     updateP2PBadge();
+
+    // Resume the last pairing shortly after boot, once the app has a session
+    // and initial data has landed — applying peer ops to an empty state would
+    // be overwritten by the boot fetch.
+    setTimeout(() => { try { p2pAutoResume(); } catch (e) {} }, 8000);
   </script>
 
 </body>

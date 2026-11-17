@@ -2426,6 +2426,57 @@ function saveReceiptLayout(layout) {
   return { success: true, layout: clean };
 }
 
+// ==================== P2P SIGNALLING RELAY ====================
+// Two paired devices can re-establish their WebRTC link after a reload or a
+// network blip without scanning QR codes again. Each side drops its SDP in a
+// short-lived script property; the other side polls and answers. Entries are
+// TTL'd so a stale offer can never resurrect an old session.
+const P2P_SIGNAL_TTL_MS = 3 * 60 * 1000;
+
+function p2pSignalKey(pairId, role) {
+  const safe = String(pairId || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 24);
+  if (!safe) return "";
+  return "P2P_" + safe + "_" + (role === "guest" ? "guest" : "host");
+}
+
+function putP2PSignal(pairId, role, payload) {
+  const key = p2pSignalKey(pairId, role);
+  if (!key) return { success: false, error: "Invalid pairing id" };
+  PropertiesService.getScriptProperties()
+    .setProperty(key, JSON.stringify({ payload: payload || null, at: Date.now() }));
+  return { success: true };
+}
+
+function getP2PSignal(pairId, role) {
+  // Read the OTHER side's mailbox: host reads guest, guest reads host.
+  const other = role === "guest" ? "host" : "guest";
+  const key = p2pSignalKey(pairId, other);
+  if (!key) return { success: false, error: "Invalid pairing id" };
+  const props = PropertiesService.getScriptProperties();
+  const raw = props.getProperty(key);
+  if (!raw) return { success: true, payload: null };
+  try {
+    const rec = JSON.parse(raw);
+    if (!rec || (Date.now() - Number(rec.at || 0)) > P2P_SIGNAL_TTL_MS) {
+      props.deleteProperty(key);
+      return { success: true, payload: null };
+    }
+    return { success: true, payload: rec.payload };
+  } catch (err) {
+    props.deleteProperty(key);
+    return { success: true, payload: null };
+  }
+}
+
+function clearP2PSignal(pairId) {
+  const props = PropertiesService.getScriptProperties();
+  ["host", "guest"].forEach(role => {
+    const key = p2pSignalKey(pairId, role);
+    if (key) props.deleteProperty(key);
+  });
+  return { success: true };
+}
+
 function doPost(e) {
   try {
     let contents = e.postData.contents;
@@ -2461,6 +2512,11 @@ function doPost(e) {
     if (action === "savePromoCode") return jsonResponse(savePromoCode(data.entry));
     if (action === "deletePromoCode") return jsonResponse(deletePromoCode(data.code));
     if (action === "validatePromoCode") return jsonResponse(validatePromoCode(data.code, data.subtotal, data.unitPrices));
+
+    // Paired-device reconnect handshake (see P2P SIGNALLING RELAY above)
+    if (action === "p2pSignalPut") return jsonResponse(putP2PSignal(data.pairId, data.role, data.payload));
+    if (action === "p2pSignalGet") return jsonResponse(getP2PSignal(data.pairId, data.role));
+    if (action === "p2pSignalClear") return jsonResponse(clearP2PSignal(data.pairId));
 
     if (action === "createWalletPass") return jsonResponse(createWalletPass(data.order));
 
