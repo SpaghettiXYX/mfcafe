@@ -5,62 +5,63 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
-  body{font-family:'Inter',system-ui,sans-serif;background:#E9E1D6;margin:0;padding:24px 16px 40px;color:#2E211A;}
-  .preview-phone{max-width:390px;margin:0 auto;background:#FBF6EF;border-radius:28px;box-shadow:0 24px 60px rgba(46,33,26,.22);overflow:hidden;}
-  .demo-head{max-width:390px;margin:0 auto 22px;text-align:center;}
+  body{font-family:'Inter',system-ui,sans-serif;background:#E9E1D6;margin:0;padding:28px 12px 60px;color:#2E211A;}
+  .demo-head{max-width:390px;margin:0 auto 24px;text-align:center;}
   .demo-head h1{font-size:17px;font-weight:900;margin:0 0 4px}
   .demo-head p{font-size:11px;color:#6B4E3D;margin:0;line-height:1.5}
-  .section-label{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#6B4E3D;margin:22px 0 10px;display:flex;align-items:center;gap:6px}
+
+  .preview-phone{max-width:390px;margin:0 auto;background:#FBF6EF;border-radius:28px;box-shadow:0 24px 60px rgba(46,33,26,.22);overflow:hidden}
+  .section-label{font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#6B4E3D;margin:26px 0 10px;display:flex;align-items:center;gap:6px}
   .section-label::before,.section-label::after{content:"";flex:1;height:1px;background:#EDE3D7}
   .cat-chip{flex-shrink:0;padding:6px 14px;border-radius:9999px;font-size:11px;font-weight:900;border:1px solid #EDE3D7;background:#fff;color:#6B4E3D}
   .cat-chip.on{background:#2E211A;color:#FBF6EF;border-color:#2E211A}
-  .cat-row{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;background:rgba(251,246,239,.93);backdrop-filter:blur(12px);border-bottom:1px solid #EDE3D7}
+  .cat-row{display:flex;gap:8px;overflow-x:auto;padding:12px 14px;background:rgba(251,246,239,.93);backdrop-filter:blur(12px);border-bottom:1px solid #EDE3D7}
   .phone-header{padding:14px 16px 10px;border-bottom:1px solid #EDE3D7;background:rgba(251,246,239,.93);backdrop-filter:blur(12px)}
   .phone-header h2{font-size:15px;font-weight:900;margin:0}
   .phone-header p{font-size:10px;color:#6B4E3D;margin:2px 0 0}
-  .menu-scroll{padding:14px 16px 16px;max-height:600px;overflow-y:auto}
-  .cat-title{font-size:15px;font-weight:900;margin:0 0 4px}
-  .cat-sub{font-size:10px;color:rgba(107,78,61,.5);margin:0 0 12px}
+  .menu-scroll{padding:14px 14px 16px;max-height:620px;overflow-y:auto}
+  .cat-title{font-size:14px;font-weight:900;margin:0 0 3px}
+  .cat-sub{font-size:10px;color:rgba(107,78,61,.5);margin:0 0 14px}
 
-  /* ====== CURRENT STYLE (2-col square) ====== */
-  .current-card{background:#fff;border-radius:16px;border:1px solid #EDE3D7;overflow:hidden;text-align:left;transition:transform .15s}
-  .current-card:active{transform:scale(.98)}
-  .current-img{aspect-ratio:1/1;background:#EFE5D8;display:flex;align-items:center;justify-content:center;color:rgba(107,78,61,.3);font-size:28px}
-  .current-info{padding:10px}
-  .current-name{font-size:12px;font-weight:800;line-height:1.25;color:#2E211A;margin:0 0 4px}
-  .current-temp{font-size:10px;font-weight:600;color:rgba(107,78,61,.62);margin:0 0 6px;height:26px;line-height:1.3}
-  .current-row{display:flex;justify-content:space-between;align-items:center}
-  .current-price{font-size:12px;font-weight:900;color:#2E211A}
-  .current-plus{width:24px;height:24px;border-radius:50%;background:#2E211A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;border:0}
+  /* ====== CURRENT (現有 2-col square) ====== */
+  .cur-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .cur-card{background:#fff;border-radius:16px;border:1px solid #EDE3D7;overflow:hidden;text-align:left}
+  .cur-img{aspect-ratio:1/1;background:#EFE5D8;display:flex;align-items:center;justify-content:center;color:rgba(107,78,61,.3);font-size:28px}
+  .cur-info{padding:10px}
+  .cur-name{font-size:12px;font-weight:800;line-height:1.25;margin:0 0 4px}
+  .cur-temp{font-size:10px;color:rgba(107,78,61,.62);margin:0 0 6px;height:26px}
+  .cur-row{display:flex;justify-content:space-between;align-items:center}
+  .cur-price{font-size:12px;font-weight:900}
+  .cur-plus{width:24px;height:24px;border-radius:50%;background:#2E211A;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;border:0}
 
-  /* ====== NEW COMPACT STYLE (4-col circular) ====== */
-  .new-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:start}
-  .new-card{display:flex;flex-direction:column;align-items:center;text-align:left;background:none;border:0;padding:0;cursor:pointer}
-  .new-circle{width:100%;aspect-ratio:1/1;border-radius:50%;background:#2E211A;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;transition:transform .15s,box-shadow .2s}
-  .new-card:active .new-circle{transform:scale(.95)}
-  .new-circle img{width:100%;height:100%;object-fit:cover;opacity:.92}
-  .new-circle i{font-size:22px;color:rgba(255,255,255,.4)}
-  .new-name{font-size:10px;font-weight:700;color:#2E211A;margin:6px 0 0;text-align:center;line-height:1.25;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .new-price{font-size:9px;font-weight:800;color:#6B4E3D;margin:2px 0 0;text-align:center}
-
-  /* Dark circle variants per category — feels more "brand" */
-  .bg-hot{background:#2E211A}
-  .bg-cold{background:#1e3a4f}
-  .bg-snack{background:#4a3628}
-  .bg-other{background:#3d3d3d}
-
-  @media(min-width:400px){.preview-phone{max-width:390px}}
+  /* ====== V2 (更小、只顯示名稱) ====== */
+  /* 圓形直徑在 390px 手機 viewport 下約 68px；跟 Starbucks 參考圖相近 */
+  .v2-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px}
+  .v2-card{display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:0;cursor:pointer}
+  .v2-card:active .v2-circle{transform:scale(.94)}
+  .v2-circle{
+    width:68px;height:68px;border-radius:50%;background:#2E211A;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    transition:transform .12s;
+  }
+  .v2-circle img{width:100%;height:100%;object-fit:cover;opacity:.92}
+  .v2-circle i{font-size:22px;color:rgba(255,255,255,.35)}
+  /* 分類色圓底 */
+  .v2-circle.cat-hot{background:#2E211A}
+  .v2-circle.cat-cold{background:#1e3a4f}
+  .v2-circle.cat-snack{background:#4a3628}
+  .v2-circle.cat-other{background:#3d3d3d}
+  .v2-name{font-size:10.5px;font-weight:700;color:#2E211A;margin:0;text-align:center;line-height:1.25;max-width:76px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 </style>
 </head>
 <body>
 
 <div class="demo-head">
-  <h1>MFCafe Self-Order — Layout Demo</h1>
-  <p>客戶端（customer / openday / bulky）產品卡重構對照<br>點選「Proposed」即是新版本，體積更小、單頁容納更多。</p>
+  <h1>MFCafe Self-Order · Layout Demo</h1>
+  <p>客戶端產品卡重構 — 上半部現有 / 下半部改後</p>
 </div>
 
-<!-- CURRENT PHONE -->
-<div class="section-label">Current · 2 columns · square image</div>
+<div class="section-label">Current · 現有（2 欄方形 · 價錢 + temp + 加號）</div>
 <div class="preview-phone" style="margin-bottom:26px">
   <div class="phone-header">
     <h2>MFCafe Pre-Order</h2>
@@ -72,68 +73,25 @@
     <button class="cat-chip">Snacks</button>
   </div>
   <div class="menu-scroll">
-    <section style="margin-bottom:28px">
+    <section style="margin-bottom:26px">
       <p class="cat-title">Hot Drinks</p>
       <p class="cat-sub">6 items</p>
-      <div class="grid grid-cols-2 gap-2.5">
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-hot"></i></div>
-          <div class="current-info">
-            <p class="current-name">Latte</p>
-            <p class="current-temp">Hot &amp; Cold</p>
-            <div class="current-row"><span class="current-price">HK$32</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-saucer"></i></div>
-          <div class="current-info">
-            <p class="current-name">Cappuccino</p>
-            <p class="current-temp">Hot</p>
-            <div class="current-row"><span class="current-price">HK$30</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-hot"></i></div>
-          <div class="current-info">
-            <p class="current-name">Americano</p>
-            <p class="current-temp">Hot &amp; Cold</p>
-            <div class="current-row"><span class="current-price">HK$28</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-hot"></i></div>
-          <div class="current-info">
-            <p class="current-name">Vanilla Latte</p>
-            <p class="current-temp">Hot &amp; Cold</p>
-            <div class="current-row"><span class="current-price">HK$38</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-hot"></i></div>
-          <div class="current-info">
-            <p class="current-name">Matcha Latte</p>
-            <p class="current-temp">Hot &amp; Cold</p>
-            <div class="current-row"><span class="current-price">HK$36</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
-        <div class="current-card">
-          <div class="current-img"><i class="fa-solid fa-mug-hot"></i></div>
-          <div class="current-info">
-            <p class="current-name">Mocha</p>
-            <p class="current-temp">Hot &amp; Cold</p>
-            <div class="current-row"><span class="current-price">HK$34</span><button class="current-plus"><i class="fa-solid fa-plus"></i></button></div>
-          </div>
-        </div>
+      <div class="cur-grid">
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-hot"></i></div><div class="cur-info"><p class="cur-name">Latte</p><p class="cur-temp">Hot &amp; Cold</p><div class="cur-row"><span class="cur-price">HK$32</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-saucer"></i></div><div class="cur-info"><p class="cur-name">Cappuccino</p><p class="cur-temp">Hot</p><div class="cur-row"><span class="cur-price">HK$30</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-hot"></i></div><div class="cur-info"><p class="cur-name">Americano</p><p class="cur-temp">Hot &amp; Cold</p><div class="cur-row"><span class="cur-price">HK$28</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-hot"></i></div><div class="cur-info"><p class="cur-name">Vanilla Latte</p><p class="cur-temp">Hot &amp; Cold</p><div class="cur-row"><span class="cur-price">HK$38</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-hot"></i></div><div class="cur-info"><p class="cur-name">Matcha Latte</p><p class="cur-temp">Hot &amp; Cold</p><div class="cur-row"><span class="cur-price">HK$36</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
+        <div class="cur-card"><div class="cur-img"><i class="fa-solid fa-mug-hot"></i></div><div class="cur-info"><p class="cur-name">Mocha</p><p class="cur-temp">Hot &amp; Cold</p><div class="cur-row"><span class="cur-price">HK$34</span><button class="cur-plus"><i class="fa-solid fa-plus"></i></button></div></div></div>
       </div>
     </section>
   </div>
 </div>
 
-<!-- PROPOSED PHONE -->
-<div class="section-label">Proposed · 4 columns · circular compact</div>
+<div class="section-label">Proposed V2 · 改後（4 欄圓形 · 只顯示名稱 · 如參考圖）</div>
 <div class="preview-phone">
   <div class="phone-header">
-    <h2 style="letter-spacing:.01em">Order &amp; Pickup Now</h2>
+    <h2>Order &amp; Pickup Now</h2>
     <p>Scroll categories · tap a circle to customise</p>
   </div>
   <div class="cat-row">
@@ -144,97 +102,37 @@
   <div class="menu-scroll">
     <section style="margin-bottom:30px">
       <p class="cat-title">Hot Drinks</p>
-      <p class="cat-sub">6 items · 4 per row</p>
-      <div class="new-grid">
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Latte</p>
-          <p class="new-price">HK$32</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-saucer"></i></div>
-          <p class="new-name">Cappuccino</p>
-          <p class="new-price">HK$30</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Americano</p>
-          <p class="new-price">HK$28</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Vanilla Latte</p>
-          <p class="new-price">HK$38</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Matcha Latte</p>
-          <p class="new-price">HK$36</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Mocha</p>
-          <p class="new-price">HK$34</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Caramel Macchiato</p>
-          <p class="new-price">HK$38</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-hot"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Hot Chocolate</p>
-          <p class="new-price">HK$28</p>
-        </button>
+      <p class="cat-sub">8 items</p>
+      <div class="v2-grid">
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Latte</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-saucer"></i></div><p class="v2-name">Cappuccino</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Americano</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Vanilla Latte</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Matcha Latte</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Mocha</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Caramel Macchiato</p></button>
+        <button class="v2-card"><div class="v2-circle cat-hot"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Hot Chocolate</p></button>
       </div>
     </section>
 
     <section style="margin-bottom:30px">
       <p class="cat-title">Cold Drinks</p>
-      <p class="cat-sub">5 items</p>
-      <div class="new-grid">
-        <button class="new-card">
-          <div class="new-circle bg-cold"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Iced Latte</p>
-          <p class="new-price">HK$34</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-cold"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Iced Americano</p>
-          <p class="new-price">HK$30</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-cold"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Cold Brew</p>
-          <p class="new-price">HK$32</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-cold"><i class="fa-solid fa-mug-hot"></i></div>
-          <p class="new-name">Iced Matcha</p>
-          <p class="new-price">HK$38</p>
-        </button>
+      <p class="cat-sub">4 items</p>
+      <div class="v2-grid">
+        <button class="v2-card"><div class="v2-circle cat-cold"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Iced Latte</p></button>
+        <button class="v2-card"><div class="v2-circle cat-cold"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Iced Americano</p></button>
+        <button class="v2-card"><div class="v2-circle cat-cold"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Cold Brew</p></button>
+        <button class="v2-card"><div class="v2-circle cat-cold"><i class="fa-solid fa-mug-hot"></i></div><p class="v2-name">Iced Matcha</p></button>
       </div>
     </section>
 
-    <section style="margin-bottom:20px">
+    <section style="margin-bottom:16px">
       <p class="cat-title">Snacks</p>
       <p class="cat-sub">3 items</p>
-      <div class="new-grid">
-        <button class="new-card">
-          <div class="new-circle bg-snack"><i class="fa-solid fa-cookie-bite"></i></div>
-          <p class="new-name">Cookie</p>
-          <p class="new-price">HK$10</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-snack"><i class="fa-solid fa-bread-slice"></i></div>
-          <p class="new-name">Croissant</p>
-          <p class="new-price">HK$18</p>
-        </button>
-        <button class="new-card">
-          <div class="new-circle bg-snack"><i class="fa-solid fa-cake-candles"></i></div>
-          <p class="new-name">Muffin</p>
-          <p class="new-price">HK$16</p>
-        </button>
+      <div class="v2-grid">
+        <button class="v2-card"><div class="v2-circle cat-snack"><i class="fa-solid fa-cookie-bite"></i></div><p class="v2-name">Cookie</p></button>
+        <button class="v2-card"><div class="v2-circle cat-snack"><i class="fa-solid fa-bread-slice"></i></div><p class="v2-name">Croissant</p></button>
+        <button class="v2-card"><div class="v2-circle cat-snack"><i class="fa-solid fa-cake-candles"></i></div><p class="v2-name">Muffin</p></button>
       </div>
     </section>
   </div>
