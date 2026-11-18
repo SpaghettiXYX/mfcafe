@@ -3364,19 +3364,29 @@
       }
     }
 
-    function renderPosMenu() {
-      const grid = document.getElementById('posMenuGrid');
-      const tabs = document.getElementById('categoryTabs');
-      if (!grid) return;
-      grid.innerHTML = "";
-
-      const activeItems = state.menu.filter(i => {
+    // Items the cashier can actually order right now, in the same order the
+    // grid renders them. Shared so keyboard shortcuts pick exactly what the
+    // cashier sees (unavailable / cold-paused items are already removed).
+    function getVisiblePosItems() {
+      const active = state.menu.filter(i => {
         if (i.available === false) return false;
         const opts = i.tempOptions || "";
         const onlyCold = opts.includes("Cold") && !opts.includes("Hot");
         if (onlyCold && (state.coldPaused || i.coldPaused)) return false;
         return true;
       });
+      return state.selectedCategory === "All"
+        ? active
+        : active.filter(i => (i.category || "Other") === state.selectedCategory);
+    }
+
+    function renderPosMenu() {
+      const grid = document.getElementById('posMenuGrid');
+      const tabs = document.getElementById('categoryTabs');
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const activeItems = getVisiblePosItems();
       const badge = document.getElementById('menuAvailableBadge');
       if (badge) badge.innerText = `${activeItems.length} items available`;
 
@@ -3391,7 +3401,7 @@
         tabs.innerHTML = html;
       }
 
-      const filtered = state.selectedCategory === "All" ? activeItems : activeItems.filter(i => (i.category || "Other") === state.selectedCategory);
+      const filtered = activeItems;
 
       filtered.forEach(item => {
         const isSelected = state.selectedPosItem?.name === item.name;
@@ -3708,6 +3718,174 @@
     function addNotePill(text) {
       const field = document.getElementById('posNotes');
       if (field) field.value = field.value ? `${field.value}, ${text}` : text;
+    }
+
+    // ===== CASHIER KEYBOARD SHORTCUTS =====
+    // Tuned for a 14-key pad that sends single keys only:
+    //   1–8  products        9  submit       0  next category
+    //   C/H  cold/hot        I/T in-store/takeaway
+    //   Q    jump to the tile field (then type the tile number)
+    // Digits type normally inside a field; letters stay live while the tile
+    // field is focused (it only needs digits), so the whole order can be keyed
+    // without touching the mouse. A full keyboard also gets P/N/G/S and
+    // Alt+digit anywhere.
+    const POS_DIALOG_IDS = ["discountAuthModal", "addUserModal", "menuModal", "tileQRPrintModal", "p2pModal", "orderSuccessModal"];
+
+    function isPosTypingTarget(el) {
+      if (!el) return false;
+      const tag = (el.tagName || "").toUpperCase();
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+    }
+
+    function isPosDialogOpen() {
+      return POS_DIALOG_IDS.some(id => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains("hidden");
+      });
+    }
+
+    function posDigitFromEvent(e) {
+      const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code || "");
+      return m ? Number(m[1]) : null;
+    }
+
+    function pickPosProductByIndex(index) {
+      const items = getVisiblePosItems();
+      const item = items[index];
+      if (!item) {
+        showToast(`No product #${index + 1} in this view`, "warning", 1500);
+        return;
+      }
+      selectPosMenuItem(item);
+      // Move focus to the tile field so the cashier can type the tile number
+      // straight away. Snacks never need a tile.
+      setTimeout(() => {
+        if (!item.isSnack) document.getElementById("posQRTile")?.focus({ preventScroll: true });
+      }, 0);
+    }
+
+    function setPosTempShortcut(t) {
+      const item = state.selectedPosItem;
+      if (!item) return;
+      const opts = item.tempOptions || "Hot & Cold";
+      if (!opts.includes(t)) {
+        showToast(`${item.name} is ${t === "Cold" ? "hot-only" : "cold-only"}`, "warning", 1500);
+        return;
+      }
+      if (t === "Cold" && (state.coldPaused || item.coldPaused)) {
+        showToast("Cold drinks are paused right now", "warning", 2000);
+        return;
+      }
+      setPosTemp(t);
+    }
+
+    function cyclePosCategory(step) {
+      const cats = ["All", ...state.categories];
+      if (!cats.length) return;
+      const current = Math.max(0, cats.indexOf(state.selectedCategory));
+      const next = (current + step + cats.length) % cats.length;
+      selectCategory(cats[next]);
+      showToast(`Category: ${cats[next]}`, "info", 1200);
+    }
+
+    function clearPosSelection() {
+      state.selectedPosItem = null;
+      state.selectedPosTemp = null;
+      state.selectedPosCupType = "";
+      state.posPromo = null;
+      state.posManualDiscount = null;
+      document.getElementById("posSelectionDetails")?.classList.add("hidden");
+      const notes = document.getElementById("posNotes");
+      if (notes) notes.value = "";
+      const promo = document.getElementById("posPromoCode");
+      if (promo) promo.value = "";
+      const discValue = document.getElementById("posManualDiscountValue");
+      if (discValue) discValue.value = "";
+      clearPosTileError();
+      setPosTileOptional(false);
+      updatePosPriceDisplay();
+      renderPosMenu();
+      if (isPosTypingTarget(document.activeElement)) document.activeElement.blur();
+    }
+
+    function focusPosField(id) {
+      document.getElementById(id)?.focus({ preventScroll: false });
+    }
+
+    function handlePosShortcuts(e) {
+      const view = document.getElementById("view-cashier");
+      if (!view || view.classList.contains("hidden")) return;
+      if (e.ctrlKey || e.metaKey) return;
+
+      // Success dialog: Enter / Esc dismisses it and starts the next order.
+      const successModal = document.getElementById("orderSuccessModal");
+      if (successModal && !successModal.classList.contains("hidden")) {
+        if (e.key === "Enter" || e.key === "Escape") {
+          e.preventDefault();
+          closeSuccessModal();
+        }
+        return;
+      }
+      if (isPosDialogOpen()) return;
+      // Buttons keep their native Enter/Space activation.
+      if ((e.target.tagName || "").toUpperCase() === "BUTTON" && e.key === "Enter") return;
+
+      const typing = isPosTypingTarget(e.target);
+      // The tile field only accepts a tile number, so letters stay free there.
+      const onTileField = typing && e.target.id === "posQRTile";
+      if (typing && e.key === "Escape") {
+        e.target.blur();
+        return;
+      }
+
+      const digit = posDigitFromEvent(e);
+
+      // Alt+1..Alt+0 — product pick, works even while a field has focus.
+      if (digit !== null && e.altKey) {
+        e.preventDefault();
+        pickPosProductByIndex(digit === 0 ? 9 : digit - 1);
+        return;
+      }
+
+      // Plain digits — the keypad path. 1–8 pick products, 9 submits,
+      // 0 advances the category. Inside a field they type normally.
+      if (digit !== null) {
+        if (typing) return;
+        e.preventDefault();
+        if (digit === 9) { submitPosOrder(); return; }
+        if (digit === 0) { cyclePosCategory(1); return; }
+        pickPosProductByIndex(digit - 1);
+        return;
+      }
+
+      // Letters and control keys type normally in guest / notes / promo, but
+      // stay live while the tile field is focused.
+      if (typing && !onTileField) return;
+
+      switch (e.code || "") {
+        case "KeyC": setPosTempShortcut("Cold"); return;
+        case "KeyH": setPosTempShortcut("Hot"); return;
+        case "KeyI": if (state.selectedPosItem) setPosCupType("In-Store"); return;
+        case "KeyT": if (state.selectedPosItem) setPosCupType("Takeaway"); return;
+        case "KeyQ": focusPosField("posQRTile"); return;
+        case "KeyP": focusPosField("posPromoCode"); return;
+        case "KeyN": focusPosField("posNotes"); return;
+        case "KeyG": focusPosField("posGuestName"); return;
+        case "KeyS": e.preventDefault(); submitPosOrder(); return;
+        case "BracketLeft":
+        case "Minus": cyclePosCategory(-1); return;
+        case "BracketRight":
+        case "Equal": cyclePosCategory(1); return;
+        case "Escape": clearPosSelection(); return;
+        case "Enter":
+          // The tile field has its own inline Enter handler — don't submit twice.
+          if (onTileField) return;
+          if (state.selectedPosItem) {
+            e.preventDefault();
+            submitPosOrder();
+          }
+          return;
+      }
     }
 
     var POS_TILE_HINT = "Required — every order must be bound to a QR tile";
@@ -7953,13 +8131,8 @@
       setInterval(smartCheckUpdates, 2000);
       setInterval(updateClock, 1000);
       updateClock();
-      // Keyboard shortcut: Enter to submit POS order when drink selected
-      document.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && state.selectedPosItem && !e.target.matches("input, textarea, select, button")) {
-          e.preventDefault();
-          submitPosOrder();
-        }
-      });
+      // Cashier keyboard shortcuts (see handlePosShortcuts for the key map)
+      document.addEventListener("keydown", handlePosShortcuts);
     }
 
     init();
