@@ -3745,9 +3745,24 @@
       });
     }
 
+    // Legacy keyCode → code, for cheap keypads that report neither code nor a
+    // usable key value.
+    const POS_KEYCODE_MAP = {
+      13: "Enter", 27: "Escape", 32: "Space",
+      67: "KeyC", 72: "KeyH", 73: "KeyI", 84: "KeyT", 81: "KeyQ",
+      80: "KeyP", 78: "KeyN", 71: "KeyG", 83: "KeyS",
+      189: "Minus", 187: "Equal", 219: "BracketLeft", 221: "BracketRight"
+    };
+
     function posDigitFromEvent(e) {
       const m = /^(?:Digit|Numpad)([0-9])$/.exec(e.code || "");
-      return m ? Number(m[1]) : null;
+      if (m) return Number(m[1]);
+      // Some external keypads report an empty code — fall back to the key.
+      if (e.key && /^[0-9]$/.test(e.key)) return Number(e.key);
+      const kc = e.keyCode || e.which || 0;
+      if (kc >= 48 && kc <= 57) return kc - 48;
+      if (kc >= 96 && kc <= 105) return kc - 96;
+      return null;
     }
 
     function pickPosProductByIndex(index) {
@@ -3777,9 +3792,12 @@
 
     function setPosTempShortcut(t) {
       const item = state.selectedPosItem;
-      if (!item) return;
-      const opts = item.tempOptions || "Hot & Cold";
-      if (!opts.includes(t)) {
+      if (!item) {
+        showToast("Pick a product first", "warning", 1500);
+        return;
+      }
+      const opts = String(item.tempOptions || "Hot & Cold");
+      if (!opts.toLowerCase().includes(t.toLowerCase())) {
         showToast(`${item.name} is ${t === "Cold" ? "hot-only" : "cold-only"}`, "warning", 1500);
         return;
       }
@@ -3828,6 +3846,11 @@
       if (!view || view.classList.contains("hidden")) return;
       if (e.ctrlKey || e.metaKey) return;
 
+      // ?keys=1 — echo what the keypad actually sends, for diagnostics.
+      if (location.search.includes("keys=1")) {
+        showToast(`${e.key || "?"} · ${e.code || "–"} · kc${e.keyCode || 0}`, "info", 3500);
+      }
+
       // Success dialog: Enter / Esc dismisses it and starts the next order.
       const successModal = document.getElementById("orderSuccessModal");
       if (successModal && !successModal.classList.contains("hidden")) {
@@ -3873,7 +3896,12 @@
       // stay live while the tile field is focused.
       if (typing && !onTileField) return;
 
-      switch (e.code || "") {
+      // Keypads occasionally send an empty code — derive it from the key, then
+      // from the legacy keyCode, so letter shortcuts still fire.
+      const keyCode = e.code
+        || (e.key && e.key.length === 1 ? "Key" + e.key.toUpperCase() : (e.key || ""))
+        || POS_KEYCODE_MAP[e.keyCode || e.which] || "";
+      switch (keyCode) {
         case "KeyC": setPosTempShortcut("Cold"); return;
         case "KeyH": setPosTempShortcut("Hot"); return;
         case "KeyI": setPosCupTypeShortcut("In-Store"); return;
