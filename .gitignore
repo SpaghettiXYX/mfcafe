@@ -1,3 +1,4 @@
 # Session uploads and tool artifacts — never commit these
 .uploads/
 .screenshots/
+.trae-html-share-packages/
