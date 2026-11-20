@@ -122,6 +122,7 @@
           <option value="NOW">NOW (as soon as possible)</option>
         </select>
         <input id="pickupFree" type="text" placeholder="e.g. 12:30" class="hidden mt-1 w-full bg-[var(--cream)] border border-[var(--line)] rounded-xl px-3 py-2.5 text-[12px] font-bold outline-none">
+        <p id="hoursHint" class="hidden mt-1.5 text-[10px] font-bold text-[var(--mocha)]/55"></p>
       </div>
     </div>
   </section>
@@ -229,6 +230,7 @@
           <span id="cartTotal" class="text-[20px] font-black">HK$0.00</span>
         </div>
         <p id="cartCupsHint" class="text-[9px] font-bold text-[var(--mocha)]/55 mb-3">0 / 20 cups · all share one order number</p>
+        <p id="closedHint" class="hidden text-[10px] font-bold text-rose-500 mb-2"></p>
         <button id="btnSubmit" onclick="submitOrder()" class="w-full h-12 rounded-xl bg-[var(--espresso)] text-[#FBF6EF] text-[13px] font-black active:scale-[.99] transition">
           Place order
         </button>
@@ -294,6 +296,7 @@
         buildCategories();
         renderMenu();
         renderPickupOptions();
+        applyOpeningState();
         // Bulky pause: show overlay and lock cart + submit if backend flag is off
         const pauseEl = document.getElementById("pausedOverlay");
         const reasonEl = document.getElementById("pausedReason");
@@ -312,6 +315,8 @@
             .then(r => { if (!r.ok) throw new Error("unreachable"); return r.json(); }).then(d => {
               svcFailStreak = 0;
               hideServiceUnavailable();
+              state.openingHours = d.openingHours || state.openingHours;
+              applyOpeningState();
               if (d.bulkyReservationOpen === false) {
                 pauseEl?.classList.add("on");
                 if (reasonEl) reasonEl.textContent = d.bulkyPauseReason || reasonEl.textContent;
@@ -482,6 +487,63 @@
       }
     }
     return out;
+  }
+
+  /* ================= Opening hours ================= */
+  // Mirrors isPreorderWindowOpen() in Code.gs, always using Hong Kong time so
+  // the tablet's own timezone cannot shift the result.
+  function hkMinutesNow() {
+    try {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Hong_Kong", hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(new Date());
+      const pick = t => Number((parts.find(p => p.type === t) || {}).value) || 0;
+      return pick("hour") * 60 + pick("minute");
+    } catch (e) {
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
+  }
+
+  function openingStatus() {
+    const h = state.openingHours || {};
+    if (h.enabled === false || !h.start || !h.end) return { open: true, window: "" };
+    const toMin = s => { const p = String(s).split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+    const now = hkMinutesNow(), start = toMin(h.start), end = toMin(h.end);
+    // Overnight windows (e.g. 22:00–02:00) work the same way as the backend.
+    const open = start < end ? (now >= start && now < end) : (now >= start || now < end);
+    return { open: open, start: h.start, end: h.end, window: h.start + "–" + h.end };
+  }
+
+  function applyOpeningState() {
+    if (state.submitting) return;
+    const st = openingStatus();
+    const hint = document.getElementById("hoursHint");
+    const closedHint = document.getElementById("closedHint");
+    const btn = document.getElementById("btnSubmit");
+    if (!hint || !btn) return;
+
+    if (st.open) {
+      hint.className = "mt-1.5 text-[10px] font-bold text-[var(--mocha)]/55";
+      hint.textContent = st.window ? `Pre-orders open ${st.window}` : "";
+      hint.classList.toggle("hidden", !st.window);
+      if (closedHint) closedHint.classList.add("hidden");
+      btn.disabled = false;
+      btn.classList.remove("opacity-50");
+      if (btn.textContent.indexOf("Closed") === 0) btn.textContent = "Place order";
+      return;
+    }
+
+    hint.classList.remove("hidden");
+    hint.className = "mt-1.5 text-[10px] font-black text-rose-500";
+    hint.textContent = `Closed now · pre-orders open at ${st.start}`;
+    if (closedHint) {
+      closedHint.classList.remove("hidden");
+      closedHint.textContent = `Cafe is closed (${st.window}). Bulky pre-orders open at ${st.start}.`;
+    }
+    btn.disabled = true;
+    btn.classList.add("opacity-50");
+    btn.textContent = `Closed · opens ${st.start}`;
   }
 
   function renderPickupOptions() {
@@ -810,6 +872,11 @@
     const pb = promoBreakdown();
     if (state.promo && !pb.valid) { closeAll(); return toast(pb.error || "Promo code is not valid for this cart"); }
 
+    // Same rule the backend enforces in createOrders — reject locally so the
+    // guest sees the opening time instead of a generic server error.
+    const hours = openingStatus();
+    if (!hours.open) { closeAll(); return toast(`Cafe is closed — bulky pre-orders open at ${hours.start}`); }
+
     const sel = document.getElementById("pickupSelect");
     const free = document.getElementById("pickupFree");
     const pickupTime = (!sel.classList.contains("hidden") ? sel.value : free.value.trim()) || "NOW";
@@ -854,6 +921,7 @@
       btn.classList.remove("opacity-50");
       btn.textContent = label;
       state.submitting = false;
+      applyOpeningState();
     }
 
     // Apps Script sometimes stalls on POST — without a timeout the button would
@@ -1083,7 +1151,7 @@
     document.body.style.overflow = "";
   }
 
-  function openCart() { renderCart(); showSheet("cartSheet"); }
+  function openCart() { renderCart(); applyOpeningState(); showSheet("cartSheet"); }
 
   let toastTimer;
   function toast(msg) {
