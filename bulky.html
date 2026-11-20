@@ -272,7 +272,7 @@
   const state = {
     menu: [], categories: [], activeCat: "",
     cart: {}, detail: null, qty: 1,
-    cupType: "", pickup: "NOW",
+    cupType: "In-Store", pickup: "NOW",
     openingHours: {}, coldExtra: 0, coldPaused: false,
     submitting: false, promo: null, pollTimer: null,
     pendingClientOrderId: null
@@ -865,8 +865,9 @@
   /* ================= Submit ================= */
   function submitOrder() {
     if (state.submitting) return;
-    const name = document.getElementById("custName").value.trim();
-    if (!name) { closeAll(); return toast("Please enter a name first"); }
+    const nameEl = document.getElementById("custName");
+    const name = nameEl.value.trim();
+    if (!name) { closeAll(); try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch (e) {} nameEl.focus(); return toast("Please enter a name first"); }
     if (!state.cupType) { closeAll(); return toast("Please select In-Store or Takeaway"); }
     if (!cartCount()) return toast("Your order is empty");
     const pb = promoBreakdown();
