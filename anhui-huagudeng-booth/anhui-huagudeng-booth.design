@@ -6,12 +6,16 @@
       "type": "image",
       "version": 1,
       "createdAt": 1795154987242,
-      "devMetadata": {
-        "imageSrc": "assets/booth-overview-illustration.jpg"
-      },
       "canvasData": {
         "x": 0,
-        "y": 0
+        "y": 0,
+        "naturalSize": {
+          "width": 1920,
+          "height": 1920
+        }
+      },
+      "devMetadata": {
+        "imageSrc": "assets/booth-overview-illustration.jpg"
       }
     },
     {
@@ -20,11 +24,29 @@
       "type": "image",
       "version": 1,
       "createdAt": 1795154987243,
+      "canvasData": {
+        "x": 480,
+        "y": 0,
+        "naturalSize": {
+          "width": 1920,
+          "height": 1920
+        }
+      },
       "devMetadata": {
         "imageSrc": "assets/booth-floor-plan-topview.jpg"
+      }
+    },
+    {
+      "id": "image-003",
+      "title": "攤位俯視平面配置圖（修訂版）",
+      "type": "image",
+      "version": 1,
+      "createdAt": 1795155294785,
+      "devMetadata": {
+        "imageSrc": "assets/booth-floor-plan-topview-edit.jpg"
       },
       "canvasData": {
-        "x": 0,
+        "x": 2480,
         "y": 0
       }
     }
