@@ -1,0 +1,26 @@
+{
+  "skill": {
+    "name": "solo-graphic-generation",
+    "version": "2026.10.13.09.48.16",
+    "release": "canonical-image-node-append-plugin-0.1.3"
+  },
+  "requestedSizeVerbatim": "1:1 正方形",
+  "actualImageSize": "square",
+  "sizeNote": "使用者選擇 1:1 正方形，映射至工具 preset square（1920x1920），比例完全一致，無需替代尺寸。",
+  "assetCount": 2,
+  "assets": [
+    {
+      "filename": "booth-overview-illustration.jpg",
+      "title": "攤位全景設計圖",
+      "intendedSize": "square",
+      "status": "generated"
+    },
+    {
+      "filename": "booth-floor-plan-topview.jpg",
+      "title": "攤位俯視平面配置圖",
+      "intendedSize": "square",
+      "status": "generated"
+    }
+  ],
+  "canvasImageNodeIds": ["image-001", "image-002"]
+}

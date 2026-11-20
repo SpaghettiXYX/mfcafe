@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "id": "image-001",
+      "title": "攤位全景設計圖",
+      "type": "image",
+      "version": 1,
+      "createdAt": 1795154987242,
+      "devMetadata": {
+        "imageSrc": "assets/booth-overview-illustration.jpg"
+      },
+      "canvasData": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "image-002",
+      "title": "攤位俯視平面配置圖",
+      "type": "image",
+      "version": 1,
+      "createdAt": 1795154987243,
+      "devMetadata": {
+        "imageSrc": "assets/booth-floor-plan-topview.jpg"
+      },
+      "canvasData": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "freeSize",
+    "projectName": "安徽花鼓燈攤位設計圖"
+  }
+}
