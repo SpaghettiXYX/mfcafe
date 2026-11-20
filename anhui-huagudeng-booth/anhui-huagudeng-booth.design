@@ -42,12 +42,16 @@
       "type": "image",
       "version": 1,
       "createdAt": 1795155294785,
+      "canvasData": {
+        "x": 960,
+        "y": 0,
+        "naturalSize": {
+          "width": 1920,
+          "height": 1920
+        }
+      },
       "devMetadata": {
         "imageSrc": "assets/booth-floor-plan-topview-edit.jpg"
-      },
-      "canvasData": {
-        "x": 2480,
-        "y": 0
       }
     }
   ],
