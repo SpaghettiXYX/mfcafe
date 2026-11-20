@@ -649,7 +649,7 @@
         <div class="ins-step"><span class="ins-num">1</span><span>Enter your name and pickup time (e.g. <strong>10:30 AM</strong> or <strong>Recess</strong>).</span></div>
         <div class="ins-step"><span class="ins-num">2</span><span>Choose <strong>In-Store</strong> or <strong>Takeaway</strong> cup — this is required.</span></div>
         <div class="ins-step"><span class="ins-num">3</span><span>Tap a drink, pick <strong>Hot</strong> or <strong>Cold</strong>, then add optional notes (less sugar, extra hot…).</span></div>
-        <div class="ins-step"><span class="ins-num">4</span><span>Tap <strong>Review order</strong>, check your drinks and details, then <strong>Place order</strong> to get your barcode ticket. It stays on this device.</span></div>
+        <div class="ins-step"><span class="ins-num">4</span><span>After you tap <strong>Add drink</strong> you land on the review screen — check your drinks and details, then <strong>Place order</strong> to get your barcode ticket. It stays on this device.</span></div>
         <div class="ins-step"><span class="ins-num">5</span><span>Show the barcode to bar staff or the cashier at pickup. Your drink is prepared for your pickup time.</span></div>
         <div class="ins-step"><span class="ins-num">6</span><span>Changed your mind? Tap <strong>Cancel This Order</strong> before pickup, or <strong>Order Another Drink</strong> to start again.</span></div>
       </div>
@@ -1423,6 +1423,7 @@
       document.getElementById('instructionsBtn')?.classList.add('hidden');
       renderReview();
       updateCustPriceSummary();
+      updateSubmitButton();
       try { window.scrollTo(0, 0); } catch (e) {}
     }
 
@@ -1820,7 +1821,9 @@
       setItemOptionsOpen(false);
       updateCustPriceSummary();
       showToast(replaced ? `Replaced with · ${item.name} (${state.selectedTemp})` : `Added · ${item.name} (${state.selectedTemp})`, "success");
-      if (state.step === 'review') { renderReview(); updateSubmitButton(); }
+      // Go straight to the review step — a second tap on "Review order" is
+      // redundant when the basket holds exactly one drink.
+      openReview();
     }
 
     async function submitSelfOrder() {

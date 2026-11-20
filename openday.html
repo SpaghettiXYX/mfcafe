@@ -1490,6 +1490,7 @@
       document.getElementById('instructionsBtn')?.classList.add('hidden');
       renderReview();
       updateCustPriceSummary();
+      updateSubmitButton();
       try { window.scrollTo(0, 0); } catch (e) {}
     }
 
@@ -1865,7 +1866,9 @@
       setItemOptionsOpen(false);
       updateCustPriceSummary();
       showToast(replaced ? `Replaced with · ${item.name} (${state.selectedTemp})` : `Added · ${item.name} (${state.selectedTemp})`, "success");
-      if (state.step === 'review') { renderReview(); updateSubmitButton(); }
+      // Go straight to the review step — a second tap on "Review order" is
+      // redundant when the basket holds exactly one drink.
+      openReview();
     }
 
     async function submitSelfOrder() {
